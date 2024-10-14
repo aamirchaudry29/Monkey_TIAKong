@@ -1,4 +1,3 @@
-import logging
 import os
 from pprint import pprint
 from typing import Optional
@@ -85,12 +84,12 @@ def train_det_net(
     wandb_run: wandb.run,
     scheduler: Optional[lr_scheduler.LRScheduler] = None,
 ) -> torch.nn.Module:
-    logging.info("Starting training")
+    pprint("Starting training")
 
     best_val_score = -np.inf
 
     for epoch in tqdm(range(epochs), desc="epochs", leave=True):
-        logging.info(f"EPOCH {epoch}")
+        pprint(f"EPOCH {epoch}")
 
         avg_train_loss = train_one_epoch(
             model, train_loader, optimizer, loss_fn
@@ -106,7 +105,7 @@ def train_det_net(
             "Learning rate": optimizer.param_groups[0]["lr"],
         }
         wandb_run.log(log_data)
-        logging.info(log_data)
+        pprint(log_data)
 
         if avg_score > best_val_score:
             best_val_score = avg_score

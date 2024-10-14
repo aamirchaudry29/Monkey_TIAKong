@@ -15,6 +15,7 @@ class TrainingIOConfig:
         self.save_dir = save_dir
         self.image_dir = ""
         self.mask_dir = ""
+        self.checkpoint_save_dir = ""
         self.set_image_dir()
         self.set_mask_dir()
         self.check_dirs_exist()
@@ -28,6 +29,12 @@ class TrainingIOConfig:
             self.dataset_dir, "annotations/masks/"
         )
         self.mask_dir = mask_dir
+
+    def set_checkpoint_save_dir(self, run_name: str):
+        dir = os.path.join(self.save_dir, run_name)
+        if not os.path.exists(dir):
+            os.makedirs(dir, exist_ok=True)
+        self.checkpoint_save_dir = dir
 
     def check_dirs_exist(self):
         for dir in [self.image_dir, self.mask_dir, self.save_dir]:

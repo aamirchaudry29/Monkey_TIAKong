@@ -9,13 +9,11 @@ from torchsummary import summary
 from monkey.config import TrainingIOConfig
 from monkey.data.data_utils import get_dataloaders
 from monkey.data.dataset import InflammatoryDataset
-from monkey.model.detection_model.architecture import (
-    get_efficientunet_b0_MBConv,
-)
+from monkey.model.detection_model.architecture import get_efficientunet_b0_MBConv
 from monkey.model.loss_functions import get_loss_function
 from monkey.train.train_cell_detection import train_det_net
 
-
+# Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Cell_Det",
     "model_name": "efficientunetb0",
@@ -25,17 +23,22 @@ run_config = {
     "optimizer": "AdamW",
     "learning_rate": 0.003,
     "weight_decay": 0.0004,
-    "epochs": 10,
+    "epochs": 2,
     "loss_function": "Dice",
 }
 
+# Specify IO config
+# *Change dataset_dir and save_dir
 IOconfig = TrainingIOConfig(
     dataset_dir="/home/u1910100/Documents/Monkey/patches_256",
-    save_dir="/home/u1910100/Documents/Monkey/det_models",
+    save_dir=f"/home/u1910100/Documents/Monkey/det_models",
+)
+IOconfig.set_checkpoint_save_dir(
+    run_name=f"fold_{run_config['val_fold']}"
 )
 os.environ["WANDB_DIR"] = IOconfig.save_dir
 
-
+# Get dataloaders for task
 train_loader, val_loader = get_dataloaders(
     IOconfig,
     val_fold=run_config["val_fold"],
@@ -43,10 +46,12 @@ train_loader, val_loader = get_dataloaders(
     batch_size=run_config["batch_size"],
 )
 
+# Create model
 model = get_efficientunet_b0_MBConv(out_channels=1)
 model.to("cuda")
 
-loss_fn = get_loss_function("Dice")
+# Create loss function, optimizer and scheduler
+loss_fn = get_loss_function(run_config["loss_function"])
 optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=run_config["learning_rate"],
@@ -54,16 +59,18 @@ optimizer = torch.optim.AdamW(
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
     optimizer,
-    "min",
+    "max",
     factor=0.5,
 )
 
+# Create WandB session
 run = wandb.init(
-    project=f"{run_config['project_name']}_{run_config['model_name']}_fold_{run_config['val_fold']}",
+    project=f"{run_config['project_name']}_{run_config['model_name']}",
+    name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
 
-
+# Start training
 model = train_det_net(
     model=model,
     train_loader=train_loader,
@@ -71,7 +78,22 @@ model = train_det_net(
     loss_fn=loss_fn,
     optimizer=optimizer,
     scheduler=scheduler,
-    save_dir=IOconfig.save_dir,
-    epochs=10,
+    save_dir=IOconfig.checkpoint_save_dir,
+    epochs=run_config["epochs"],
     wandb_run=run,
 )
+
+# Save final checkpoint
+final_checkpoint = {
+    "epoch": run_config["epochs"],
+    "model": model.state_dict(),
+    "optimizer": optimizer.state_dict(),
+    "scheduler": scheduler.state_dict(),
+}
+checkpoint_name = f"epoch_{run_config['epochs']}.pth"
+model_path = os.path.join(
+    IOconfig.checkpoint_save_dir, checkpoint_name
+)
+torch.save(final_checkpoint, model_path)
+
+wandb.finish()
