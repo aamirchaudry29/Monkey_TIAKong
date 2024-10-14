@@ -8,7 +8,38 @@ import torch
 from torch.utils.data import Dataset
 
 from monkey.config import TrainingIOConfig
-from monkey.data.data_utils import class_mask_to_binary, load_image, load_mask
+
+
+def load_image(
+    file_id: str, IOConfig: TrainingIOConfig
+) -> np.ndarray:
+    image_name = f"{file_id}.npy"
+    image_path = os.path.join(IOConfig.image_dir, image_name)
+    image = np.load(image_path)
+    return image
+
+
+def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
+    mask_name = f"{file_id}.npy"
+    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
+    mask = np.load(mask_path)
+    return mask
+
+
+def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
+    """Converts 2D cell class mask to binary mask
+    Example:
+        [1,0,0
+         0,0,2
+         0,0,1]
+         ->
+        [1,0,0
+         0,0,1
+         0,0,1]
+    """
+    binary_mask = np.zeros_like(class_mask)
+    binary_mask[class_mask != 0] = 1
+    return binary_mask
 
 
 def augmentation(img: np.ndarray, mask: np.ndarray) -> np.ndarray:

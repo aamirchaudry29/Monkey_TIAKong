@@ -3,40 +3,10 @@ import re
 from typing import Tuple
 
 import numpy as np
+from torch.utils.data import DataLoader
 
 from monkey.config import TrainingIOConfig
-
-
-def load_image(
-    file_id: str, IOConfig: TrainingIOConfig
-) -> np.ndarray:
-    image_name = f"{file_id}.npy"
-    image_path = os.path.join(IOConfig.image_dir, image_name)
-    image = np.load(image_path)
-    return image
-
-
-def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
-    mask_name = f"{file_id}.npy"
-    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
-    mask = np.load(mask_path)
-    return mask
-
-
-def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
-    """Converts 2D cell class mask to binary mask
-    Example:
-        [1,0,0
-         0,0,2
-         0,0,1]
-         ->
-        [1,0,0
-         0,0,1
-         0,0,1]
-    """
-    binary_mask = np.zeros_like(class_mask)
-    binary_mask[class_mask != 0] = 1
-    return binary_mask
+from monkey.data.dataset import InflammatoryDataset
 
 
 def extract_id(file_name: str):
@@ -65,7 +35,7 @@ def get_file_names(IOConfig: TrainingIOConfig) -> list[str]:
 
 
 def centre_cross_validation_split(
-    file_ids: list[str], test_centre: str = "A"
+    file_ids: list[str], val_fold: int = 1
 ) -> dict:
     """
     Split files for cross validation based on centres.
@@ -80,9 +50,11 @@ def centre_cross_validation_split(
             ]
         }
     """
-    test_centre = test_centre.upper()
-    if test_centre not in ["A", "B", "C", "D"]:
-        raise ValueError(f"Invalid test centre {test_centre}")
+    centres = ["A", "B", "C", "D"]
+    if val_fold < 0 or val_fold > 4:
+        raise ValueError(f"Invalid test centre {val_fold}")
+
+    test_centre = centres[val_fold]
 
     train_file_ids = []
     val_file_ids = []
@@ -115,3 +87,37 @@ def imagenet_normalise(img: np.ndarray) -> np.ndarray:
     img = img - mean
     img = img / std
     return img
+
+
+def get_dataloaders(
+    IOConfig: TrainingIOConfig, val_fold=1, task=1, batch_size=4
+):
+    """Get training and validation dataloaders
+    Task 1: Overall Inflammation cell (MNL) detection
+    Task 2: Detect and distinguish monocytes and lymphocytes
+    """
+
+    if task not in [1, 2]:
+        raise ValueError(f"Task {task} is in invalid")
+
+    file_ids = get_file_names(IOConfig)
+    split = centre_cross_validation_split(
+        file_ids=file_ids, val_fold=val_fold
+    )
+
+    train_dataset = InflammatoryDataset(
+        IOConfig=IOConfig,
+        file_ids=split["train_file_ids"],
+        phase="Train",
+        do_augment=True,
+    )
+    val_dataset = InflammatoryDataset(
+        IOConfig=IOConfig,
+        file_ids=split["val_file_ids"],
+        phase="test",
+        do_augment=False,
+    )
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size)
+    return train_loader, val_loader

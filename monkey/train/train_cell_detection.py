@@ -1,10 +1,9 @@
-import math
+import logging
 import os
 from pprint import pprint
 from typing import Optional
 
 import numpy as np
-import segmentation_models_pytorch as smp
 import torch
 import torch.nn as nn
 import wandb
@@ -23,7 +22,9 @@ def train_one_epoch(
 ):
     epoch_loss = 0.0
     model.train()
-    for i, data in training_loader:
+    for i, data in enumerate(
+        tqdm(training_loader, desc="train", leave=False)
+    ):
         images, true_labels = (
             data["image"].cuda().float(),
             data["mask"].cuda().float(),
@@ -46,18 +47,19 @@ def train_one_epoch(
 def validate_one_epoch(
     model: nn.Module,
     validation_loader: DataLoader,
-    activation_function,
 ):
     running_dice = 0.0
     model.eval()
-    for i, data in validation_loader:
+    for i, data in enumerate(
+        tqdm(validation_loader, desc="validation", leave=False)
+    ):
         images, true_masks = (
             data["image"].cuda().float(),
             data["mask"].cuda().int(),
         )
         with torch.no_grad():
             logits_pred = model(images)
-            mask_pred = activation_function(logits_pred)
+            mask_pred = torch.sigmoid(logits_pred)
 
             threshold = 0.5
             mask_pred_binary = (mask_pred > threshold).float()
@@ -81,7 +83,42 @@ def train_det_net(
     save_dir: str,
     epochs: int,
     wandb_run: wandb.run,
-    save_checkpoint: bool = True,
     scheduler: Optional[lr_scheduler.LRScheduler] = None,
-):
-    pass
+) -> torch.nn.Module:
+    logging.info("Starting training")
+
+    best_val_score = -np.inf
+
+    for epoch in tqdm(range(epochs), desc="epochs", leave=True):
+        logging.info(f"EPOCH {epoch}")
+
+        avg_train_loss = train_one_epoch(
+            model, train_loader, optimizer, loss_fn
+        )
+        avg_score = validate_one_epoch(model, validation_loader)
+
+        if scheduler is not None:
+            scheduler.step(avg_score)
+        log_data = {
+            "Epoch": epoch,
+            "Train loss": avg_train_loss,
+            "Val score": avg_score,
+            "Learning rate": optimizer.param_groups[0]["lr"],
+        }
+        wandb_run.log(log_data)
+        logging.info(log_data)
+
+        if avg_score > best_val_score:
+            best_val_score = avg_score
+            pprint(f"Check Point {epoch}")
+            checkpoint = {
+                "epoch": epoch,
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
+            }
+            model_name = f"epoch_{epoch}.pth"
+            model_path = os.path.join(save_dir, model_name)
+            torch.save(checkpoint, model_path)
+
+    return model
