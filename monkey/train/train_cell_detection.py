@@ -88,7 +88,7 @@ def train_det_net(
 
     best_val_score = -np.inf
 
-    for epoch in tqdm(range(epochs), desc="epochs", leave=True):
+    for epoch in tqdm(range(1,epochs+1), desc="epochs", leave=True):
         pprint(f"EPOCH {epoch}")
 
         avg_train_loss = train_one_epoch(
