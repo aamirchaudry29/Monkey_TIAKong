@@ -12,7 +12,7 @@ from torchvision.models.feature_extraction import (
     get_graph_node_names,
 )
 
-from monkey.model.detection_model.layers import *
+from monkey.model.efficientunetb0.layers import *
 
 ##################################################
 ##################################################
