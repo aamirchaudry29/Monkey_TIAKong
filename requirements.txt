@@ -1,1 +1,3 @@
 tiatoolbox
+torch-summary
+monai

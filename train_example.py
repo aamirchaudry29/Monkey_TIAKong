@@ -23,15 +23,15 @@ run_config = {
     "optimizer": "AdamW",
     "learning_rate": 0.003,
     "weight_decay": 0.0004,
-    "epochs": 2,
+    "epochs": 5,
     "loss_function": "Dice",
 }
 
 # Specify IO config
-# *Change dataset_dir and save_dir
+# ***Change save_dir
 IOconfig = TrainingIOConfig(
-    dataset_dir="/home/u1910100/Documents/Monkey/patches_256",
-    save_dir=f"/home/u1910100/Documents/Monkey/det_models",
+    dataset_dir="/mnt/lab-share/Monkey/patches_256/",
+    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/runs",
 )
 IOconfig.set_checkpoint_save_dir(
     run_name=f"fold_{run_config['val_fold']}"
