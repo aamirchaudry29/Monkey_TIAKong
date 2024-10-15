@@ -5,25 +5,17 @@ import albumentations as alb
 import cv2
 import numpy as np
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 from monkey.config import TrainingIOConfig
-
-
-def load_image(
-    file_id: str, IOConfig: TrainingIOConfig
-) -> np.ndarray:
-    image_name = f"{file_id}.npy"
-    image_path = os.path.join(IOConfig.image_dir, image_name)
-    image = np.load(image_path)
-    return image
-
-
-def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
-    mask_name = f"{file_id}.npy"
-    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
-    mask = np.load(mask_path)
-    return mask
+from monkey.data.data_utils import (
+    centre_cross_validation_split,
+    dilate_mask,
+    generate_regression_map,
+    get_file_names,
+    load_image,
+    load_mask,
+)
 
 
 def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
@@ -108,11 +100,13 @@ class InflammatoryDataset(Dataset):
         file_ids: list,
         phase: str = "train",
         do_augment: bool = True,
+        disk_radius: int = 11,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
         self.phase = phase
         self.do_augment = do_augment
+        self.disk_radius = disk_radius
 
     def __len__(self) -> int:
         return len(self.file_ids)
@@ -133,15 +127,68 @@ class InflammatoryDataset(Dataset):
                 image, cell_binary_mask
             )
 
+        # Dilate cell centroids
+        cell_binary_mask = dilate_mask(
+            cell_binary_mask, disk_radius=self.disk_radius
+        )
+        # Generate regression map
+        cell_map = generate_regression_map(
+            binary_mask=cell_binary_mask, d_thresh=7, alpha=5, scale=3
+        )
+
         # HxW -> 1xHxW
-        cell_binary_mask = cell_binary_mask[np.newaxis, :, :]
+        cell_map = cell_map[np.newaxis, :, :]
         # HxWx3 -> 3xHxW
         image = np.moveaxis(image, -1, 0)
 
         data = {
             "id": file_id,
             "image": image,
-            "mask": cell_binary_mask,
+            "mask": cell_map,
         }
 
         return data
+
+
+def get_dataloaders(
+    IOConfig: TrainingIOConfig,
+    val_fold=1,
+    task=1,
+    batch_size=4,
+    disk_radius=11,
+):
+    """Get training and validation dataloaders
+    Task 1: Overall Inflammation cell (MNL) detection
+    Task 2: Detect and distinguish monocytes and lymphocytes
+    """
+
+    if task not in [1, 2]:
+        raise ValueError(f"Task {task} is in invalid")
+
+    file_ids = get_file_names(IOConfig)
+    split = centre_cross_validation_split(
+        file_ids=file_ids, val_fold=val_fold
+    )
+
+    train_dataset = InflammatoryDataset(
+        IOConfig=IOConfig,
+        file_ids=split["train_file_ids"],
+        phase="Train",
+        do_augment=True,
+        disk_radius=disk_radius,
+    )
+    val_dataset = InflammatoryDataset(
+        IOConfig=IOConfig,
+        file_ids=split["val_file_ids"],
+        phase="test",
+        do_augment=False,
+        disk_radius=disk_radius,
+    )
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True
+    )
+    val_loader = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=True
+    )
+    return train_loader, val_loader

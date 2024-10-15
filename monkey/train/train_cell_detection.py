@@ -18,6 +18,7 @@ def train_one_epoch(
     training_loader: DataLoader,
     optimizer: Optimizer,
     loss_fn,
+    activation: torch.nn = torch.nn.Sigmoid,
 ):
     epoch_loss = 0.0
     model.train()
@@ -31,7 +32,7 @@ def train_one_epoch(
         optimizer.zero_grad()
 
         logits_pred = model(images)
-        logits_pred = torch.relu(logits_pred)
+        logits_pred = activation(logits_pred)
 
         loss = loss_fn.compute_loss(logits_pred, true_labels)
         loss.backward()
@@ -46,6 +47,7 @@ def train_one_epoch(
 def validate_one_epoch(
     model: nn.Module,
     validation_loader: DataLoader,
+    activation: torch.nn = torch.nn.Sigmoid,
 ):
     running_dice = 0.0
     model.eval()
@@ -58,7 +60,7 @@ def validate_one_epoch(
         )
         with torch.no_grad():
             logits_pred = model(images)
-            mask_pred = torch.sigmoid(logits_pred)
+            mask_pred = activation(logits_pred)
 
             threshold = 0.5
             mask_pred_binary = (mask_pred > threshold).float()
@@ -79,6 +81,7 @@ def train_det_net(
     validation_loader: DataLoader,
     optimizer: Optimizer,
     loss_fn,
+    activation: torch.nn,
     save_dir: str,
     epochs: int,
     wandb_run: wandb.run,
@@ -88,16 +91,21 @@ def train_det_net(
 
     best_val_score = -np.inf
 
-    for epoch in tqdm(range(1,epochs+1), desc="epochs", leave=True):
+    for epoch in tqdm(
+        range(1, epochs + 1), desc="epochs", leave=True
+    ):
         pprint(f"EPOCH {epoch}")
 
         avg_train_loss = train_one_epoch(
-            model, train_loader, optimizer, loss_fn
+            model, train_loader, optimizer, loss_fn, activation
         )
-        avg_score = validate_one_epoch(model, validation_loader)
+        avg_score = validate_one_epoch(
+            model, validation_loader, activation
+        )
 
         if scheduler is not None:
             scheduler.step(avg_score)
+
         log_data = {
             "Epoch": epoch,
             "Train loss": avg_train_loss,
