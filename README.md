@@ -9,6 +9,7 @@ Some parts of the pipeline are taken from Kesi's AutoNuclick.
 Use the script `submit_job.sbatch`.  
 On `Cayenne` server, run `sbatch sumbmit_job.sbatch`.  
 You need to change the conda environment to your environment, and the path to the python script.  
+Set `data_dir` to `"/mnt/lab-share/Monkey/patches_256/"`.
 
 # Example Code
 An example training code is in `train_example.py`.  

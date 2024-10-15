@@ -2,11 +2,27 @@ import os
 import re
 from typing import Tuple
 
+import cv2
 import numpy as np
-from torch.utils.data import DataLoader
+import scipy.ndimage as ndi
 
 from monkey.config import TrainingIOConfig
-from monkey.data.dataset import InflammatoryDataset
+
+
+def load_image(
+    file_id: str, IOConfig: TrainingIOConfig
+) -> np.ndarray:
+    image_name = f"{file_id}.npy"
+    image_path = os.path.join(IOConfig.image_dir, image_name)
+    image = np.load(image_path)
+    return image
+
+
+def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
+    mask_name = f"{file_id}.npy"
+    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
+    mask = np.load(mask_path)
+    return mask
 
 
 def extract_id(file_name: str):
@@ -89,35 +105,88 @@ def imagenet_normalise(img: np.ndarray) -> np.ndarray:
     return img
 
 
-def get_dataloaders(
-    IOConfig: TrainingIOConfig, val_fold=1, task=1, batch_size=4
+def extract_cetroids_from_mask(
+    mask: np.ndarray, area_threshold: int = 3
 ):
-    """Get training and validation dataloaders
-    Task 1: Overall Inflammation cell (MNL) detection
-    Task 2: Detect and distinguish monocytes and lymphocytes
+    """Extract cell centroids from mask"""
+    # dilating the instance to connect separated instances
+    inst_map = mask
+    inst_map_np = np.asarray(inst_map)
+    obj_total = np.unique(inst_map_np)
+    obj_ids = obj_total
+    obj_ids = obj_ids[1:]  # first id is the background, so remove it
+    num_objs = len(obj_ids)
+    centroids = []
+    for i in range(
+        num_objs
+    ):  ##num_objs is how many bounding boxes in each tile.
+        this_mask = inst_map_np == obj_ids[i]
+        this_mask_int = this_mask.astype(
+            "uint8"
+        )  # because of mirror operation in patch sampling process,
+        # the instance with same index may appear more than onece, e.g. two areas is 27 for the mirrored nucleus.
+        # find the centroids for each unique connected area, although those may have same index number
+        contours, _ = cv2.findContours(
+            this_mask_int, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        )
+        for c in contours:
+            if cv2.contourArea(c) < area_threshold:
+                continue
+            # calculate moments for each contour
+            M = cv2.moments(c)
+            # calculate x,y coordinate of cente
+            centroids.append(
+                (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            )
+    return centroids
+
+
+def draw_disks(
+    canvas_size: tuple, centroids: list, disk_radius: np.uint8
+):
+    """Draw disks based on centroid points on a canvas with predefined size.
+
+    canvas_size: size of the canvas to draw disks on, usually the same size as the input image
+        but only with 1 channel. In (height, width) format.
+    x_list: list of x coordinates of centroids
+    y_list: list of Y coordinates of centroids
+    disk_radius: the radius to draw disks on canvas
     """
+    gt_circles = np.zeros(canvas_size, dtype=np.uint8)
 
-    if task not in [1, 2]:
-        raise ValueError(f"Task {task} is in invalid")
+    if disk_radius == 0:  # put a point if the radius is zero
+        for cX, cY in centroids:
+            gt_circles[cY, cX] = 1
+    else:  # draw a circle otherwise
+        for cX, cY in centroids:
+            cv2.circle(
+                gt_circles, (cX, cY), disk_radius, (255, 255, 255), -1
+            )
+    gt_circles = np.float32(gt_circles > 0)
+    return gt_circles
 
-    file_ids = get_file_names(IOConfig)
-    split = centre_cross_validation_split(
-        file_ids=file_ids, val_fold=val_fold
+
+def dilate_mask(mask: np.ndarray, disk_radius: int):
+    """
+    Draw dilate mask
+    """
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (disk_radius, disk_radius)
     )
+    dilated_mask = cv2.dilate(mask, kernel, iterations=1)
+    return dilated_mask
 
-    train_dataset = InflammatoryDataset(
-        IOConfig=IOConfig,
-        file_ids=split["train_file_ids"],
-        phase="Train",
-        do_augment=True,
-    )
-    val_dataset = InflammatoryDataset(
-        IOConfig=IOConfig,
-        file_ids=split["val_file_ids"],
-        phase="test",
-        do_augment=False,
-    )
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size)
-    return train_loader, val_loader
+def generate_regression_map(
+    binary_mask: np.ndarray,
+    d_thresh: int = 5,
+    alpha: int = 3,
+    scale: int = 3,
+):
+    dist = ndi.distance_transform_edt(binary_mask == 0)
+    M = (np.exp(alpha * (1 - dist / d_thresh)) - 1) / (
+        np.exp(alpha) - 1
+    )
+    M[M < 0] = 0
+    M *= scale
+    return M

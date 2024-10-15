@@ -5,14 +5,14 @@ import os
 import torch
 import wandb
 from torch.optim import lr_scheduler
-from torch.utils.data import DataLoader
-from torchsummary import summary
 
 from monkey.config import TrainingIOConfig
-from monkey.data.data_utils import get_dataloaders
-from monkey.data.dataset import InflammatoryDataset
-from monkey.model.efficientunetb0.architecture import get_efficientunet_b0_MBConv
+from monkey.data.dataset import get_dataloaders
+from monkey.model.efficientunetb0.architecture import (
+    get_efficientunet_b0_MBConv,
+)
 from monkey.model.loss_functions import get_loss_function
+from monkey.model.utils import get_activation_function
 from monkey.train.train_cell_detection import train_det_net
 
 # -----------------------------------------------------------------------
@@ -20,7 +20,7 @@ from monkey.train.train_cell_detection import train_det_net
 run_config = {
     "project_name": "Monkey_Cell_Det",
     "model_name": "efficientunetb0",
-    "batch_size": 32,
+    "batch_size": 16,
     "val_fold": 1,  # [1-4]
     "loss_function": "Jaccard",
     "optimizer": "AdamW",
@@ -28,13 +28,15 @@ run_config = {
     "weight_decay": 0.0004,
     "epochs": 3,
     "loss_function": "Dice",
+    "disk_radius": 9,
+    "activation_function": "Sigmoid",
 }
 
 # Specify IO config
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
-    dataset_dir="/mnt/lab-share/Monkey/patches_256/",
-    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/runs",
+    dataset_dir="/home/u1910100/Documents/Monkey/patches_256",
+    save_dir=f"/home/u1910100/Documents/Monkey/runs",
 )
 # Create model
 model = get_efficientunet_b0_MBConv(out_channels=1)
@@ -53,11 +55,15 @@ train_loader, val_loader = get_dataloaders(
     val_fold=run_config["val_fold"],
     task=1,
     batch_size=run_config["batch_size"],
+    disk_radius=run_config["disk_radius"],
 )
 
 
 # Create loss function, optimizer and scheduler
 loss_fn = get_loss_function(run_config["loss_function"])
+activation_fn = get_activation_function(
+    run_config["activation_function"]
+)
 optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=run_config["learning_rate"],
@@ -82,6 +88,7 @@ model = train_det_net(
     train_loader=train_loader,
     validation_loader=val_loader,
     loss_fn=loss_fn,
+    activation=activation_fn,
     optimizer=optimizer,
     scheduler=scheduler,
     save_dir=IOconfig.checkpoint_save_dir,
