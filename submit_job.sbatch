@@ -3,18 +3,23 @@
 #SBATCH --job-name=Monkey_train # Job name for tracking
 #SBATCH --partition=gpu  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2      # Number of CPU threads used by your job
+#SBATCH --cpus-per-task=1      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
-#SBATCH --time=03:00:00      # Job time limit
+#SBATCH --mem=12000             # Memory (mb) to use 
+#SBATCH --time=48:00:00      # Job time limit
 #
-#SBATCH --output=/home/u1910100/joboutput_%j.out # Standard out from your job
-#SBATCH --error=/home/u1910100/joboutput_%j.err  # Standard error from your job
+#SBATCH --output=/home/u1910100/logs/joboutput_%j.out # Standard out from your job
+#SBATCH --error=/home/u1910100/logs/joboutput_%j.err  # Standard error from your job
 
-## Initialisation ##
+## Activate Conda Environmnet ##
+echo "init env ... "
 conda init
+source /home/u1910100/.bashrc
 cd ~
-source ~/.bashrc
-conda activate /home/u1910100/cloud_workspace/conda/tiatoolbox
+source activate /home/u1910100/cloud_workspace/conda/tiatoolbox
+echo $PATH
+echo "done"
 
-## Execute your program(s) ##
+## Run Python Program ##
+echo "starting python program"
 python3 /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/train_example.py

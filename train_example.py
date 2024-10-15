@@ -15,17 +15,18 @@ from monkey.model.efficientunetb0.architecture import get_efficientunet_b0_MBCon
 from monkey.model.loss_functions import get_loss_function
 from monkey.train.train_cell_detection import train_det_net
 
+# -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Cell_Det",
     "model_name": "efficientunetb0",
-    "batch_size": 16,
+    "batch_size": 32,
     "val_fold": 1,  # [1-4]
     "loss_function": "Jaccard",
     "optimizer": "AdamW",
     "learning_rate": 0.003,
     "weight_decay": 0.0004,
-    "epochs": 5,
+    "epochs": 3,
     "loss_function": "Dice",
 }
 
@@ -35,6 +36,11 @@ IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/runs",
 )
+# Create model
+model = get_efficientunet_b0_MBConv(out_channels=1)
+model.to("cuda")
+# -----------------------------------------------------------------------
+
 
 IOconfig.set_checkpoint_save_dir(
     run_name=f"fold_{run_config['val_fold']}"
@@ -49,9 +55,6 @@ train_loader, val_loader = get_dataloaders(
     batch_size=run_config["batch_size"],
 )
 
-# Create model
-model = get_efficientunet_b0_MBConv(out_channels=1)
-model.to("cuda")
 
 # Create loss function, optimizer and scheduler
 loss_fn = get_loss_function(run_config["loss_function"])
