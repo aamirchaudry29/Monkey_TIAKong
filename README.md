@@ -4,3 +4,12 @@ GitHub Repostory for Monkey TIAKong.
 # Description
 Training and evaluation pipeline for mononuclear leukocytes (MNLs) detection.  
 Some parts of the pipeline are taken from Kesi's AutoNuclick.
+
+# Run on TIA New Servers (Slurm)
+Use the script `submit_job.sbatch`.  
+On `Cayenne` server, run `sbatch sumbmit_job.sbatch`.  
+You need to change the conda environment to your environment, and the path to the python script.  
+
+# Example Code
+An example training code is in `train_example.py`.  
+You need to change the `save_dir`, to where you want the checkpoints and WandB logs to be saved.  
