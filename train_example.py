@@ -35,6 +35,7 @@ IOconfig = TrainingIOConfig(
     dataset_dir="/home/u1910100/Documents/Monkey/patches_256",
     save_dir=f"/home/u1910100/Documents/Monkey/det_models",
 )
+
 IOconfig.set_checkpoint_save_dir(
     run_name=f"fold_{run_config['val_fold']}"
 )
