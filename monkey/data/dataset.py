@@ -96,6 +96,13 @@ def augmentation(img: np.ndarray, mask: np.ndarray) -> np.ndarray:
     return img, mask
 
 
+def dilate_mask_centroids(mask: np.ndarray, disk_radius: int):
+    """
+    Draw disks based on centroid points
+    """
+    pass
+
+
 class InflammatoryDataset(Dataset):
     """Dataset for overall cell detection
     Detecting Lymphocytes and Monocytes
@@ -108,11 +115,13 @@ class InflammatoryDataset(Dataset):
         file_ids: list,
         phase: str = "train",
         do_augment: bool = True,
+        disk_radius: int = 3,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
         self.phase = phase
         self.do_augment = do_augment
+        self.disk_radius = disk_radius
 
     def __len__(self) -> int:
         return len(self.file_ids)
