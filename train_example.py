@@ -8,9 +8,7 @@ from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_dataloaders
-from monkey.model.efficientunetb0.architecture import (
-    get_efficientunet_b0_MBConv,
-)
+from monkey.model.efficientunetb0.architecture import get_efficientunet_b0_MBConv
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
 from monkey.train.train_cell_detection import train_det_net
@@ -20,23 +18,23 @@ from monkey.train.train_cell_detection import train_det_net
 run_config = {
     "project_name": "Monkey_Cell_Det",
     "model_name": "efficientunetb0",
-    "batch_size": 16,
+    "batch_size": 32,
     "val_fold": 1,  # [1-4]
-    "loss_function": "Jaccard",
     "optimizer": "AdamW",
-    "learning_rate": 0.003,
+    "learning_rate": 0.03,
     "weight_decay": 0.0004,
-    "epochs": 3,
-    "loss_function": "Dice",
+    "epochs": 200,
+    "loss_function": "Jaccard_Loss",
     "disk_radius": 9,
-    "activation_function": "Sigmoid",
+    "activation_function": "relu",
+    "module": "detection",
 }
 
 # Specify IO config
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
-    dataset_dir="/home/u1910100/Documents/Monkey/patches_256",
-    save_dir=f"/home/u1910100/Documents/Monkey/runs",
+    dataset_dir="/mnt/lab-share/Monkey/patches_256/",
+    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/runs",
 )
 # Create model
 model = get_efficientunet_b0_MBConv(out_channels=1)
