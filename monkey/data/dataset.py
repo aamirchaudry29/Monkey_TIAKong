@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from monkey.config import TrainingIOConfig
+from monkey.data.augmentation import get_augmentation
 from monkey.data.data_utils import (
     centre_cross_validation_split,
     dilate_mask,
@@ -16,7 +17,6 @@ from monkey.data.data_utils import (
     load_image,
     load_mask,
 )
-from monkey.data.augmentation import get_augmentation
 
 
 def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
@@ -35,60 +35,6 @@ def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
     return binary_mask
 
 
-def augmentation(img: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """Example augmentation code"""
-    aug = alb.Compose(
-        [
-            alb.OneOf(
-                [
-                    alb.HueSaturationValue(
-                        hue_shift_limit=15,
-                        sat_shift_limit=(-15, 15),
-                        val_shift_limit=15,
-                        always_apply=False,
-                        p=0.5,
-                    ),
-                    alb.RGBShift(
-                        r_shift_limit=15,
-                        g_shift_limit=15,
-                        b_shift_limit=15,
-                        p=0.5,
-                    ),
-                ],
-                p=1.0,
-            ),
-            alb.OneOf(
-                [
-                    alb.GaussianBlur(blur_limit=(3, 5), p=0.5),
-                    alb.Sharpen(
-                        alpha=(0.1, 0.3), lightness=(1.0, 1.0), p=0.5
-                    ),
-                    alb.ImageCompression(
-                        quality_lower=30, quality_upper=80, p=0.5
-                    ),
-                ],
-                p=0.8,
-            ),
-            alb.RandomBrightnessContrast(
-                brightness_limit=0.1, contrast_limit=0.2, p=0.5
-            ),
-            alb.ShiftScaleRotate(
-                shift_limit=0.01,
-                scale_limit=0.2,
-                rotate_limit=180,
-                border_mode=cv2.BORDER_CONSTANT,
-                value=0,
-                p=0.8,
-            ),
-            alb.Flip(p=0.5),
-        ],
-        p=0.7,
-    )
-    transformed = aug(image=img, mask=mask)
-    img, mask = transformed["image"], transformed["mask"]
-    return img, mask
-
-
 class InflammatoryDataset(Dataset):
     """Dataset for overall cell detection
     Detecting Lymphocytes and Monocytes
@@ -102,7 +48,7 @@ class InflammatoryDataset(Dataset):
         phase: str = "train",
         do_augment: bool = True,
         disk_radius: int = 11,
-        module: str = "detection"
+        module: str = "detection",
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -113,9 +59,7 @@ class InflammatoryDataset(Dataset):
 
         if self.do_augment:
             self.augmentation = get_augmentation(
-                module = self.module,
-                gt_type="mask",
-                aug_prob=0.7
+                module=self.module, gt_type="mask", aug_prob=0.7
             )
 
     def __len__(self) -> int:
@@ -133,8 +77,13 @@ class InflammatoryDataset(Dataset):
 
         # augmentation
         if self.do_augment:
-            image, cell_binary_mask = self.augmentation(
-                image, cell_binary_mask
+            augmented_data = self.augmentation(
+                image=image, mask=cell_binary_mask
+            )
+
+            image, cell_binary_mask = (
+                augmented_data["image"],
+                augmented_data["mask"],
             )
 
         # Dilate cell centroids
@@ -166,7 +115,7 @@ def get_dataloaders(
     task=1,
     batch_size=4,
     disk_radius=11,
-    module:str = "detection"
+    module: str = "detection",
 ):
     """Get training and validation dataloaders
     Task 1: Overall Inflammation cell (MNL) detection
@@ -175,7 +124,7 @@ def get_dataloaders(
 
     if task not in [1, 2]:
         raise ValueError(f"Task {task} is in invalid")
-    
+
     if module not in ["detection", "classification", "segmentation"]:
         raise ValueError(f"Module {module} is in invalid")
 
@@ -190,7 +139,7 @@ def get_dataloaders(
         phase="Train",
         do_augment=True,
         disk_radius=disk_radius,
-        module=module
+        module=module,
     )
     val_dataset = InflammatoryDataset(
         IOConfig=IOConfig,
@@ -198,7 +147,7 @@ def get_dataloaders(
         phase="test",
         do_augment=False,
         disk_radius=disk_radius,
-        module=module
+        module=module,
     )
 
     train_loader = DataLoader(
