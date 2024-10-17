@@ -16,6 +16,7 @@ from monkey.data.data_utils import (
     load_image,
     load_mask,
 )
+from monkey.data.augmentation import get_augmentation
 
 
 def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
@@ -101,12 +102,21 @@ class InflammatoryDataset(Dataset):
         phase: str = "train",
         do_augment: bool = True,
         disk_radius: int = 11,
+        module: str = "detection"
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
         self.phase = phase
         self.do_augment = do_augment
         self.disk_radius = disk_radius
+        self.module = module
+
+        if self.do_augment:
+            self.augmentation = get_augmentation(
+                module = self.module,
+                gt_type="mask",
+                aug_prob=0.7
+            )
 
     def __len__(self) -> int:
         return len(self.file_ids)
@@ -123,7 +133,7 @@ class InflammatoryDataset(Dataset):
 
         # augmentation
         if self.do_augment:
-            image, cell_binary_mask = augmentation(
+            image, cell_binary_mask = self.augmentation(
                 image, cell_binary_mask
             )
 
@@ -156,6 +166,7 @@ def get_dataloaders(
     task=1,
     batch_size=4,
     disk_radius=11,
+    module:str = "detection"
 ):
     """Get training and validation dataloaders
     Task 1: Overall Inflammation cell (MNL) detection
@@ -164,6 +175,9 @@ def get_dataloaders(
 
     if task not in [1, 2]:
         raise ValueError(f"Task {task} is in invalid")
+    
+    if module not in ["detection", "classification", "segmentation"]:
+        raise ValueError(f"Module {module} is in invalid")
 
     file_ids = get_file_names(IOConfig)
     split = centre_cross_validation_split(
@@ -176,6 +190,7 @@ def get_dataloaders(
         phase="Train",
         do_augment=True,
         disk_radius=disk_radius,
+        module=module
     )
     val_dataset = InflammatoryDataset(
         IOConfig=IOConfig,
@@ -183,6 +198,7 @@ def get_dataloaders(
         phase="test",
         do_augment=False,
         disk_radius=disk_radius,
+        module=module
     )
 
     train_loader = DataLoader(

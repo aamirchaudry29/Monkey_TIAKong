@@ -29,6 +29,7 @@ run_config = {
     "loss_function": "Jaccard_Loss",
     "disk_radius": 9,
     "activation_function": "relu",
+    "module": "detection"
 }
 
 # Specify IO config
