@@ -16,6 +16,7 @@ from monkey.data.data_utils import (
     get_file_names,
     load_image,
     load_mask,
+    imagenet_normalise
 )
 
 
@@ -77,14 +78,18 @@ class InflammatoryDataset(Dataset):
 
         # augmentation
         if self.do_augment:
-            augmented_data = self.augmentation(
-                image=image, mask=cell_binary_mask
-            )
+            try:
+                augmented_data = self.augmentation(
+                    image=image, mask=cell_binary_mask
+                )
 
-            image, cell_binary_mask = (
-                augmented_data["image"],
-                augmented_data["mask"],
-            )
+                image, cell_binary_mask = (
+                    augmented_data["image"],
+                    augmented_data["mask"],
+                )
+            except ValueError as e: # Stain Augmentation may fail
+                print(e)
+            
 
         # Dilate cell centroids
         cell_binary_mask = dilate_mask(
@@ -98,6 +103,7 @@ class InflammatoryDataset(Dataset):
         # HxW -> 1xHxW
         cell_map = cell_map[np.newaxis, :, :]
         # HxWx3 -> 3xHxW
+        image = imagenet_normalise(image)
         image = np.moveaxis(image, -1, 0)
 
         data = {
