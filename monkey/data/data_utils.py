@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from typing import Tuple
@@ -190,3 +191,16 @@ def generate_regression_map(
     M[M < 0] = 0
     M *= scale
     return M
+
+
+def px_to_mm(px: int, mpp: float = 0.24199951445730394):
+    """
+    Convert pixel coordinate to millimeters
+    """
+    return px * mpp / 1000
+
+
+def write_json_file(location, content):
+    # Writes a json file
+    with open(location, "w") as f:
+        f.write(json.dumps(content, indent=4))
