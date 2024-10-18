@@ -14,9 +14,9 @@ from monkey.data.data_utils import (
     dilate_mask,
     generate_regression_map,
     get_file_names,
+    imagenet_normalise,
     load_image,
     load_mask,
-    imagenet_normalise
 )
 
 
@@ -70,12 +70,12 @@ class InflammatoryDataset(Dataset):
         # Load image and mask
         file_id = self.file_ids[idx]
         image = load_image(file_id, self.IOConfig)
+        image = image / 255
         cell_mask = load_mask(file_id, self.IOConfig)
 
         # Convert cell class mask to binary mask
         # for overall detection
         cell_binary_mask = class_mask_to_binary(cell_mask)
-
         # augmentation
         if self.do_augment:
             try:
@@ -87,9 +87,8 @@ class InflammatoryDataset(Dataset):
                     augmented_data["image"],
                     augmented_data["mask"],
                 )
-            except ValueError as e: # Stain Augmentation may fail
+            except ValueError as e:  # Stain Augmentation may fail
                 print(e)
-            
 
         # Dilate cell centroids
         cell_binary_mask = dilate_mask(
@@ -121,7 +120,8 @@ def get_dataloaders(
     task=1,
     batch_size=4,
     disk_radius=11,
-    module: str = "detection",
+    module: str = "segmentation",
+    do_augmentation: bool = False,
 ):
     """Get training and validation dataloaders
     Task 1: Overall Inflammation cell (MNL) detection
@@ -143,7 +143,7 @@ def get_dataloaders(
         IOConfig=IOConfig,
         file_ids=split["train_file_ids"],
         phase="Train",
-        do_augment=True,
+        do_augment=do_augmentation,
         disk_radius=disk_radius,
         module=module,
     )

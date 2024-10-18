@@ -26,6 +26,7 @@ run_config = {
     "epochs": 200,
     "loss_function": "Jaccard_Loss",
     "disk_radius": 9,
+    "do_augmentation": False,
     "activation_function": "relu",
     "module": "detection",
 }
@@ -54,6 +55,7 @@ train_loader, val_loader = get_dataloaders(
     task=1,
     batch_size=run_config["batch_size"],
     disk_radius=run_config["disk_radius"],
+    do_augmentation=run_config['do_augmentation']
 )
 
 
@@ -66,7 +68,7 @@ optimizer = torch.optim.RMSprop(
     model.parameters(),
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
-    momentum=0.9
+    momentum=0.9,
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
     optimizer,
