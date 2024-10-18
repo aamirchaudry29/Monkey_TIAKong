@@ -122,6 +122,7 @@ def get_dataloaders(
     batch_size=4,
     disk_radius=11,
     module: str = "detection",
+    do_augmentation: bool = False
 ):
     """Get training and validation dataloaders
     Task 1: Overall Inflammation cell (MNL) detection
@@ -143,7 +144,7 @@ def get_dataloaders(
         IOConfig=IOConfig,
         file_ids=split["train_file_ids"],
         phase="Train",
-        do_augment=True,
+        do_augment=do_augmentation,
         disk_radius=disk_radius,
         module=module,
     )

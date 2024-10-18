@@ -26,6 +26,7 @@ run_config = {
     "epochs": 200,
     "loss_function": "Jaccard_Loss",
     "disk_radius": 9,
+    "do_augmentation": False,
     "activation_function": "relu",
     "module": "detection",
 }
