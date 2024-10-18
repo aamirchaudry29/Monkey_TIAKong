@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --job-name=Monkey_train # Job name for tracking
+#SBATCH --job-name=Monkey_train_2 # Job name for tracking
 #SBATCH --partition=gpu  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1      # Number of CPU threads used by your job

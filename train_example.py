@@ -19,8 +19,8 @@ run_config = {
     "project_name": "Monkey_Cell_Det",
     "model_name": "efficientunetb0",
     "batch_size": 32,
-    "val_fold": 1,  # [1-4]
-    "optimizer": "AdamW",
+    "val_fold": 3,  # [1-4]
+    "optimizer": "RMSProp",
     "learning_rate": 0.03,
     "weight_decay": 0.0004,
     "epochs": 200,
@@ -62,10 +62,11 @@ loss_fn = get_loss_function(run_config["loss_function"])
 activation_fn = get_activation_function(
     run_config["activation_function"]
 )
-optimizer = torch.optim.AdamW(
+optimizer = torch.optim.RMSprop(
     model.parameters(),
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
+    momentum=0.9
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
     optimizer,
