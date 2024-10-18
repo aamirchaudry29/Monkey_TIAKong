@@ -67,7 +67,7 @@ optimizer = torch.optim.RMSprop(
     model.parameters(),
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
-    momentum=0.9
+    momentum=0.9,
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
     optimizer,

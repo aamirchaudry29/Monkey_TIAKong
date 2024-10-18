@@ -74,12 +74,16 @@ def validate_one_epoch(
 
     # Log an example prediction to WandB
     log_data = {
-    'images': wandb.Image(images[0, :3, :, :].cpu()),
-    'masks': {
-        'true': wandb.Image(true_masks[0].float().cpu()),
-        'Original_pred': wandb.Image(logits_pred[0, 0, :, :].float().cpu()),
-        'Final_pred': wandb.Image(mask_pred_binary[0, 0, :, :].float().cpu())
-        }
+        "images": wandb.Image(images[0, :3, :, :].cpu()),
+        "masks": {
+            "true": wandb.Image(true_masks[0].float().cpu()),
+            "Original_pred": wandb.Image(
+                logits_pred[0, 0, :, :].float().cpu()
+            ),
+            "Final_pred": wandb.Image(
+                mask_pred_binary[0, 0, :, :].float().cpu()
+            ),
+        },
     }
     wandb_run.log(log_data)
 
