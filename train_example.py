@@ -55,6 +55,7 @@ train_loader, val_loader = get_dataloaders(
     task=1,
     batch_size=run_config["batch_size"],
     disk_radius=run_config["disk_radius"],
+    do_augmentation=run_config['do_augmentation']
 )
 
 
