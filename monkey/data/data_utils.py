@@ -67,10 +67,10 @@ def centre_cross_validation_split(
         }
     """
     centres = ["A", "B", "C", "D"]
-    if val_fold < 0 or val_fold > 4:
+    if val_fold < 1 or val_fold > 4:
         raise ValueError(f"Invalid test centre {val_fold}")
 
-    test_centre = centres[val_fold]
+    test_centre = centres[val_fold - 1]
 
     train_file_ids = []
     val_file_ids = []
