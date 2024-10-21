@@ -78,17 +78,13 @@ class InflammatoryDataset(Dataset):
         cell_binary_mask = class_mask_to_binary(cell_mask)
         # augmentation
         if self.do_augment:
-            try:
-                augmented_data = self.augmentation(
-                    image=image, mask=cell_binary_mask
-                )
-
-                image, cell_binary_mask = (
-                    augmented_data["image"],
-                    augmented_data["mask"],
-                )
-            except ValueError as e:  # Stain Augmentation may fail
-                print(e)
+            augmented_data = self.augmentation(
+                image=image, mask=cell_binary_mask
+            )
+            image, cell_binary_mask = (
+                augmented_data["image"],
+                augmented_data["mask"],
+            )
 
         # Dilate cell centroids
         cell_binary_mask = dilate_mask(

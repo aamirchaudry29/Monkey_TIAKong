@@ -4,7 +4,6 @@ import os
 
 import torch
 import wandb
-import segmentation_models_pytorch as smp
 from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
@@ -20,12 +19,12 @@ run_config = {
     "project_name": "Monkey_Cell_Det",
     "model_name": "efficientunetb0",
     "batch_size": 32,
-    "val_fold": 1,  # [1-4]
+    "val_fold": 4,  # [1-4]
     "optimizer": "RMSProp",
     "learning_rate": 0.03,
     "weight_decay": 0.0004,
-    "epochs": 200,
-    "loss_function": "Jaccard_Loss",
+    "epochs": 100,
+    "loss_function": "BCE_Dice",
     "disk_radius": 9,
     "do_augmentation": False,
     "activation_function": "sigmoid",
@@ -56,7 +55,7 @@ train_loader, val_loader = get_dataloaders(
     task=1,
     batch_size=run_config["batch_size"],
     disk_radius=run_config["disk_radius"],
-    do_augmentation=run_config['do_augmentation']
+    do_augmentation=run_config["do_augmentation"],
 )
 
 

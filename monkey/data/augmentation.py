@@ -1,7 +1,6 @@
 import albumentations as alb
 import cv2
 import numpy as np
-from tiatoolbox.tools.stainaugment import StainAugmentor
 
 
 def get_augmentation(
@@ -36,24 +35,9 @@ def get_augmentation(
     ]
 
     if module == "detection":
-        stain_matrix = np.array(
-            [
-                [0.91633014, -0.20408072, -0.34451435],
-                [0.17669817, 0.92528011, 0.33561059],
-            ]
-        )
         augs_list = [
             alb.OneOf(
                 [
-                    StainAugmentor(
-                        "macenko",
-                        stain_matrix=stain_matrix,
-                        sigma1=0.25,
-                        sigma2=0.2,
-                        augment_background=False,
-                        always_apply=True,
-                        p=1.0,
-                    ),
                     alb.HueSaturationValue(
                         hue_shift_limit=5,
                         sat_shift_limit=(-40, -30),
@@ -167,12 +151,6 @@ def get_augmentation(
             return None
 
     elif module == "classification":
-        stain_matrix = np.array(
-            [
-                [0.91633014, -0.20408072, -0.34451435],
-                [0.17669817, 0.92528011, 0.33561059],
-            ]
-        )
         augs_list = [
             alb.OneOf(
                 [
