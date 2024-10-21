@@ -2,7 +2,6 @@
 
 import os
 
-import segmentation_models_pytorch as smp
 import torch
 import wandb
 from torch.optim import lr_scheduler
