@@ -59,7 +59,7 @@ class MSE_loss(Loss_Function):
 class Jaccard_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Jaccard Loss", False)
-        self.jaccard_loss = DiceLoss(jaccard=True, sigmoid=True)
+        self.jaccard_loss = DiceLoss(jaccard=True, sigmoid=False)
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return self.jaccard_loss(input, target)
@@ -69,7 +69,7 @@ class Jaccard_Loss(Loss_Function):
 class Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Dice Loss", False)
-        self.dice_loss = DiceLoss(sigmoid=True)
+        self.dice_loss = DiceLoss(sigmoid=False)
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return self.dice_loss(input, target)
@@ -99,7 +99,7 @@ class Weighted_BCE_Loss(Loss_Function):
 class BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("BCE + Dice Loss", False)
-        self.dice_ce_loss = DiceCELoss(sigmoid=True)
+        self.dice_ce_loss = DiceCELoss(sigmoid=False)
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return self.dice_ce_loss(input, target)
@@ -109,7 +109,7 @@ class BCE_Dice_Loss(Loss_Function):
 class Weighted_BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss + Dice Loss", True)
-        self.dice_ce_loss = DiceCELoss(sigmoid=True)
+        self.dice_ce_loss = DiceCELoss(sigmoid=False)
 
     def compute_loss(
         self, input: Tensor, target: Tensor, weight: Tensor

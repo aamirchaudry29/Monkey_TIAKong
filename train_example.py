@@ -4,6 +4,7 @@ import os
 
 import torch
 import wandb
+import segmentation_models_pytorch as smp
 from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
@@ -19,7 +20,7 @@ run_config = {
     "project_name": "Monkey_Cell_Det",
     "model_name": "efficientunetb0",
     "batch_size": 32,
-    "val_fold": 3,  # [1-4]
+    "val_fold": 1,  # [1-4]
     "optimizer": "RMSProp",
     "learning_rate": 0.03,
     "weight_decay": 0.0004,
@@ -27,7 +28,7 @@ run_config = {
     "loss_function": "Jaccard_Loss",
     "disk_radius": 9,
     "do_augmentation": False,
-    "activation_function": "relu",
+    "activation_function": "sigmoid",
     "module": "detection",
 }
 
