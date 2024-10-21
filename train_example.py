@@ -19,14 +19,15 @@ run_config = {
     "project_name": "Monkey_Cell_Det",
     "model_name": "efficientunetb0",
     "batch_size": 32,
-    "val_fold": 1,  # [1-4]
-    "optimizer": "AdamW",
+    "val_fold": 4,  # [1-4]
+    "optimizer": "RMSProp",
     "learning_rate": 0.03,
     "weight_decay": 0.0004,
-    "epochs": 200,
-    "loss_function": "Jaccard_Loss",
+    "epochs": 100,
+    "loss_function": "BCE_Dice",
     "disk_radius": 9,
-    "activation_function": "relu",
+    "do_augmentation": False,
+    "activation_function": "sigmoid",
     "module": "detection",
 }
 
@@ -54,6 +55,7 @@ train_loader, val_loader = get_dataloaders(
     task=1,
     batch_size=run_config["batch_size"],
     disk_radius=run_config["disk_radius"],
+    do_augmentation=run_config["do_augmentation"],
 )
 
 
@@ -62,15 +64,16 @@ loss_fn = get_loss_function(run_config["loss_function"])
 activation_fn = get_activation_function(
     run_config["activation_function"]
 )
-optimizer = torch.optim.AdamW(
+optimizer = torch.optim.RMSprop(
     model.parameters(),
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
+    momentum=0.9,
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
     optimizer,
     "max",
-    factor=0.5,
+    factor=0.1,
 )
 
 # Create WandB session

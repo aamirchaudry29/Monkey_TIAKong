@@ -16,6 +16,7 @@ def load_image(
     image_name = f"{file_id}.npy"
     image_path = os.path.join(IOConfig.image_dir, image_name)
     image = np.load(image_path)
+    image = image.astype(np.float32)
     return image
 
 
@@ -23,6 +24,7 @@ def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
     mask_name = f"{file_id}.npy"
     mask_path = os.path.join(IOConfig.mask_dir, mask_name)
     mask = np.load(mask_path)
+    mask = mask.astype(np.uint8)
     return mask
 
 
@@ -68,10 +70,10 @@ def centre_cross_validation_split(
         }
     """
     centres = ["A", "B", "C", "D"]
-    if val_fold < 0 or val_fold > 4:
+    if val_fold < 1 or val_fold > 4:
         raise ValueError(f"Invalid test centre {val_fold}")
 
-    test_centre = centres[val_fold]
+    test_centre = centres[val_fold - 1]
 
     train_file_ids = []
     val_file_ids = []

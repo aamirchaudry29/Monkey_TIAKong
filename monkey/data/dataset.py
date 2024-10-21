@@ -5,7 +5,7 @@ import albumentations as alb
 import cv2
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.augmentation import get_augmentation
@@ -14,6 +14,7 @@ from monkey.data.data_utils import (
     dilate_mask,
     generate_regression_map,
     get_file_names,
+    imagenet_normalise,
     load_image,
     load_mask,
 )
@@ -46,8 +47,8 @@ class InflammatoryDataset(Dataset):
         IOConfig: TrainingIOConfig,
         file_ids: list,
         phase: str = "train",
-        do_augment: bool = True,
-        disk_radius: int = 11,
+        do_augment: bool = False,
+        disk_radius: int = 9,
         module: str = "detection",
     ):
         self.IOConfig = IOConfig
@@ -80,7 +81,6 @@ class InflammatoryDataset(Dataset):
             augmented_data = self.augmentation(
                 image=image, mask=cell_binary_mask
             )
-
             image, cell_binary_mask = (
                 augmented_data["image"],
                 augmented_data["mask"],
@@ -92,12 +92,14 @@ class InflammatoryDataset(Dataset):
         )
         # Generate regression map
         cell_map = generate_regression_map(
-            binary_mask=cell_binary_mask, d_thresh=7, alpha=5, scale=3
+            binary_mask=cell_binary_mask, d_thresh=7, alpha=5, scale=1
         )
 
         # HxW -> 1xHxW
         cell_map = cell_map[np.newaxis, :, :]
         # HxWx3 -> 3xHxW
+        image = image / 255
+        image = imagenet_normalise(image)
         image = np.moveaxis(image, -1, 0)
 
         data = {
@@ -116,6 +118,7 @@ def get_dataloaders(
     batch_size=4,
     disk_radius=11,
     module: str = "detection",
+    do_augmentation: bool = False,
 ):
     """Get training and validation dataloaders
     Task 1: Overall Inflammation cell (MNL) detection
@@ -133,11 +136,15 @@ def get_dataloaders(
         file_ids=file_ids, val_fold=val_fold
     )
 
+    train_sampler = get_sampler(
+        file_ids=split["train_file_ids"], IOConfig=IOConfig
+    )
+
     train_dataset = InflammatoryDataset(
         IOConfig=IOConfig,
         file_ids=split["train_file_ids"],
         phase="Train",
-        do_augment=True,
+        do_augment=do_augmentation,
         disk_radius=disk_radius,
         module=module,
     )
@@ -151,9 +158,48 @@ def get_dataloaders(
     )
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True
+        train_dataset, batch_size=batch_size, sampler=train_sampler
     )
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=True
     )
     return train_loader, val_loader
+
+
+def get_sampler(file_ids, IOConfig):
+    """
+    Get Weighted Sampler.
+    To balance positive and negative patches.
+    """
+    patch_stats_path = os.path.join(
+        IOConfig.dataset_dir, "patch_stats.json"
+    )
+    with open(patch_stats_path, "r") as file:
+        patch_stats = json.load(file)
+
+    class_instances = []
+    class_counts = [0, 0]  # [negatives, positives]
+
+    for id in file_ids:
+        stats = patch_stats[id]
+        total_cells = stats["lymph_count"] + stats["mono_count"]
+        if total_cells == 0:
+            class_instances.append(0)
+            class_counts[0] += 1
+        else:
+            class_instances.append(1)
+            class_counts[1] += 1
+
+    print(class_counts)
+
+    sample_weights = []
+    for i in class_instances:
+        sample_weights.append(1 / class_counts[i])
+
+    weighted_sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(file_ids),
+        replacement=True,
+    )
+
+    return weighted_sampler

@@ -47,6 +47,7 @@ def train_one_epoch(
 def validate_one_epoch(
     model: nn.Module,
     validation_loader: DataLoader,
+    wandb_run: wandb.run,
     activation: torch.nn = torch.nn.Sigmoid,
 ):
     running_dice = 0.0
@@ -70,6 +71,21 @@ def validate_one_epoch(
             )
 
         running_dice += dice_score * images.size(0)
+
+    # Log an example prediction to WandB
+    log_data = {
+        "images": wandb.Image(images[0, :3, :, :].cpu()),
+        "masks": {
+            "true": wandb.Image(true_masks[0].float().cpu()),
+            "Original_pred": wandb.Image(
+                logits_pred[0, 0, :, :].float().cpu()
+            ),
+            "Final_pred": wandb.Image(
+                mask_pred_binary[0, 0, :, :].float().cpu()
+            ),
+        },
+    }
+    wandb_run.log(log_data)
 
     avg_dice = running_dice / len(validation_loader.sampler)
     return avg_dice
@@ -100,7 +116,7 @@ def train_det_net(
             model, train_loader, optimizer, loss_fn, activation
         )
         avg_score = validate_one_epoch(
-            model, validation_loader, activation
+            model, validation_loader, wandb_run, activation
         )
 
         if scheduler is not None:
