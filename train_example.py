@@ -2,6 +2,7 @@
 
 import os
 
+import segmentation_models_pytorch as smp
 import torch
 import wandb
 from torch.optim import lr_scheduler
@@ -18,16 +19,16 @@ from monkey.train.train_cell_detection import train_det_net
 run_config = {
     "project_name": "Monkey_Cell_Det",
     "model_name": "efficientunetb0",
-    "batch_size": 32,
+    "batch_size": 4,
     "val_fold": 4,  # [1-4]
-    "optimizer": "RMSProp",
-    "learning_rate": 0.03,
+    "optimizer": "AdamW",
+    "learning_rate": 0.001,
     "weight_decay": 0.0004,
     "epochs": 100,
-    "loss_function": "BCE_Dice",
-    "disk_radius": 9,
+    "loss_function": "Dice",
+    "disk_radius": 13,
     "do_augmentation": False,
-    "activation_function": "sigmoid",
+    "activation_function": "sigmoid",  # this is hardcoded in the training code now
     "module": "detection",
 }
 
@@ -38,7 +39,14 @@ IOconfig = TrainingIOConfig(
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/runs",
 )
 # Create model
-model = get_efficientunet_b0_MBConv(out_channels=1)
+# model = get_efficientunet_b0_MBConv(out_channels=1)
+# model.to("cuda")
+model = smp.Unet(
+    encoder_name="efficientnet-b0",
+    encoder_weights="imagenet",
+    in_channels=3,
+    classes=1,
+)
 model.to("cuda")
 # -----------------------------------------------------------------------
 
@@ -64,11 +72,11 @@ loss_fn = get_loss_function(run_config["loss_function"])
 activation_fn = get_activation_function(
     run_config["activation_function"]
 )
-optimizer = torch.optim.RMSprop(
+optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
-    momentum=0.9,
+    # momentum=0.9,
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
     optimizer,
@@ -82,6 +90,8 @@ run = wandb.init(
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
+run.watch(model, log_freq=1000)
+# run = None
 
 # Start training
 model = train_det_net(
@@ -110,4 +120,5 @@ model_path = os.path.join(
 )
 torch.save(final_checkpoint, model_path)
 
-wandb.finish()
+if run is not None:
+    wandb.finish()
