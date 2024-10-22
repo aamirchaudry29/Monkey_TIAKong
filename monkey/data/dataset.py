@@ -87,13 +87,13 @@ class InflammatoryDataset(Dataset):
             )
 
         # Dilate cell centroids
-        cell_binary_mask = dilate_mask(
+        cell_map = dilate_mask(
             cell_binary_mask, disk_radius=self.disk_radius
         )
         # Generate regression map
-        cell_map = generate_regression_map(
-            binary_mask=cell_binary_mask, d_thresh=7, alpha=5, scale=1
-        )
+        # cell_map = generate_regression_map(
+        #     binary_mask=cell_binary_mask, d_thresh=7, alpha=5, scale=1
+        # )
 
         # HxW -> 1xHxW
         cell_map = cell_map[np.newaxis, :, :]
