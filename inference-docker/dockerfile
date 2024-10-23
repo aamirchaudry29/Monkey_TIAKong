@@ -92,4 +92,4 @@ COPY --chown=user:user --chmod=0755 inference-docker/commands.sh /opt/app/
 WORKDIR /opt/app/
 USER user
 # ENTRYPOINT python l1_pipeline.py
-# ENTRYPOINT ["./commands.sh"]
+ENTRYPOINT ["./commands.sh"]

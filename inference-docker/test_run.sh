@@ -7,9 +7,9 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 DOCKER_TAG="tiakong"
 DOCKER_NOOP_VOLUME="${DOCKER_TAG}-volume"
 
-INPUT_DIR="${SCRIPT_DIR}/test/input"
-OUTPUT_DIR="${SCRIPT_DIR}/test/output"
-MODEL_DIR="${SCRIPT_DIR}/example_model"
+INPUT_DIR="/home/u1910100/Documents/Monkey/test/input"
+OUTPUT_DIR="/home/u1910100/Documents/Monkey/test/output"
+MODEL_DIR="/home/u1910100/GitHub/Monkey_TIAKong/weights"
 
 
 echo "=+= Cleaning up any earlier output"
@@ -24,7 +24,8 @@ fi
 
 
 echo "=+= (Re)build the container"
-docker build "$SCRIPT_DIR" \
+docker build /home/u1910100/GitHub/Monkey_TIAKong \
+  -f inference-docker/dockerfile \
   --platform=linux/amd64 \
   --tag $DOCKER_TAG 2>&1
 
