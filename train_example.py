@@ -17,10 +17,10 @@ from monkey.train.train_cell_detection import train_det_net
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Cell_Det",
+    "project_name": "Monkey_Experimental",
     "model_name": "efficientunetb0",
-    "batch_size": 4,
-    "val_fold": 4,  # [1-4]
+    "batch_size": 16,
+    "val_fold": 3,  # [1-4]
     "optimizer": "AdamW",
     "learning_rate": 0.001,
     "weight_decay": 0.0004,
@@ -39,14 +39,7 @@ IOconfig = TrainingIOConfig(
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/runs",
 )
 # Create model
-# model = get_efficientunet_b0_MBConv(out_channels=1)
-# model.to("cuda")
-model = smp.Unet(
-    encoder_name="efficientnet-b0",
-    encoder_weights="imagenet",
-    in_channels=3,
-    classes=1,
-)
+model = get_efficientunet_b0_MBConv(out_channels=1)
 model.to("cuda")
 # -----------------------------------------------------------------------
 
