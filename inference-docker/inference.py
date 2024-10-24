@@ -54,7 +54,9 @@ def detect():
     )
 
     wsi_path = image_paths[0]
+    print(f"wsi_path={wsi_path}")
     mask_path = mask_paths[0]
+    print(f"mask_path={mask_path}")
 
     wsi_reader = WSIReader.open(wsi_path)
     mask_reader = WSIReader.open(mask_path)
@@ -62,6 +64,7 @@ def detect():
     base_mpp = wsi_reader.convert_resolution_units(
         input_res=0, input_unit="level", output_unit="mpp"
     )[0]
+    print(f"baseline mpp = {base_mpp}")
 
     mask_thumbnail = mask_reader.slide_thumbnail()
     binary_mask = mask_thumbnail[:, :, 0]
@@ -76,7 +79,7 @@ def detect():
         units="mpp",
     )
 
-    print(len(patch_extractor))
+    print(f"number of patches to predict = {len(patch_extractor)}")
     mapde_result = []
 
     weight_root = os.path.join(MODEL_DIR, "mapde-conic.pth")
