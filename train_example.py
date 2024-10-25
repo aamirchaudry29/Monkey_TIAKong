@@ -19,16 +19,17 @@ from monkey.train.train_cell_detection import train_det_net
 run_config = {
     "project_name": "Monkey_Experimental",
     "model_name": "efficientunetb0",
-    "batch_size": 16,
-    "val_fold": 3,  # [1-4]
+    "batch_size": 32,
+    "val_fold": 2,  # [1-4]
     "optimizer": "AdamW",
-    "learning_rate": 0.001,
+    "learning_rate": 0.003,
     "weight_decay": 0.0004,
-    "epochs": 100,
-    "loss_function": "Dice",
+    "epochs": 50,
+    "loss_function": "BCE_Dice",
     "disk_radius": 13,
-    "do_augmentation": False,
-    "activation_function": "sigmoid",  # this is hardcoded in the training code now
+    "regression_map": True,
+    "do_augmentation": True,
+    "activation_function": "sigmoid",
     "module": "detection",
 }
 
@@ -56,6 +57,7 @@ train_loader, val_loader = get_dataloaders(
     task=1,
     batch_size=run_config["batch_size"],
     disk_radius=run_config["disk_radius"],
+    regression_map=run_config["regression_map"],
     do_augmentation=run_config["do_augmentation"],
 )
 
