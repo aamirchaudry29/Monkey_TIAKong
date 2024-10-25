@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from typing import Tuple
@@ -5,6 +6,7 @@ from typing import Tuple
 import cv2
 import numpy as np
 import scipy.ndimage as ndi
+from skimage.feature import peak_local_max
 
 from monkey.config import TrainingIOConfig
 
@@ -25,6 +27,17 @@ def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
     mask = np.load(mask_path)
     mask = mask.astype(np.uint8)
     return mask
+
+
+def load_json_annotation(
+    file_id: str, IOConfig: TrainingIOConfig
+) -> np.ndarray:
+    """Load patch-level cell coordinates"""
+    json_name = f"{file_id}.json"
+    json_path = os.path.join(IOConfig.json_dir, json_name)
+    with open(json_path, "r") as file:
+        annotation = json.load(file)
+    return annotation
 
 
 def extract_id(file_name: str):
@@ -192,3 +205,42 @@ def generate_regression_map(
     M[M < 0] = 0
     M *= scale
     return M
+
+
+def extract_dotmaps(
+    original_prediction: np.ndarray,
+    distance_threshold_local_max: int,
+    prediction_dots_threshold: float | None = None,
+    method: str = "local_max",
+):
+    if method == "local_max":
+        coordinate = peak_local_max(
+            original_prediction,
+            min_distance=distance_threshold_local_max,
+            threshold_abs=prediction_dots_threshold,
+        )
+        coordinate_change_xy = coordinate[:, [1, 0]]
+        centroids_list = coordinate_change_xy.tolist()
+    elif (
+        method == "threshold" and distance_threshold_local_max == None
+    ):
+        binary_map = np.where(
+            original_prediction > prediction_dots_threshold, 1, 0
+        ).astype(np.uint8)
+        connectivity = 4  # or whatever you prefer
+        output = cv2.connectedComponentsWithStats(
+            binary_map, connectivity, cv2.CV_32S
+        )
+        # Get the results
+        # num_labels = output[0] - 1  # The first cell is the number of labels
+        # labels = output[1][1:]  # The second cell is the label matrix
+        # stats = output[2][1:]  # The third cell is the stat matrix
+        centroids = output[3][
+            1:
+        ]  # The fourth cell is the centroid matrix
+        # np.savetxt('/home/kesix/mnt/predict_centroids_MBConv.csv', centroids, delimiter=',', fmt='%d')
+        centroids_int = np.rint(centroids).astype(int)
+        centroids_list = centroids_int.tolist()
+    else:
+        raise ValueError(f"Unknown postprocessing method: {method}")
+    return centroids_list
