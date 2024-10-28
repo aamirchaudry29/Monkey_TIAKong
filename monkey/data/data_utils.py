@@ -1,5 +1,4 @@
 import json
-import json
 import os
 import re
 from typing import Tuple
@@ -7,10 +6,12 @@ from typing import Tuple
 import cv2
 import numpy as np
 import scipy.ndimage as ndi
+import torch
 from skimage.feature import peak_local_max
+from shapely import Polygon
 
 from monkey.config import TrainingIOConfig
-
+from tiatoolbox.annotation.storage import Annotation, SQLiteStore
 
 def load_image(
     file_id: str, IOConfig: TrainingIOConfig
@@ -116,6 +117,19 @@ def imagenet_normalise(img: np.ndarray) -> np.ndarray:
     std = np.array([0.229, 0.224, 0.225])
     img = img - mean
     img = img / std
+    return img
+
+
+def imagenet_normalise_torch(img: torch.tensor) -> torch.tensor:
+    """Normalises input image to ImageNet mean and std
+    Input torch tensor (B,3,H,W)
+    """
+
+    mean = torch.tensor([0.485, 0.456, 0.406])
+    std = torch.tensor([0.229, 0.224, 0.225])
+
+    for i in range(3):
+        img[:, i, :, :] = (img[:, i, :, :] - mean[i]) / std[i]
     return img
 
 
@@ -256,3 +270,58 @@ def extract_dotmaps(
     else:
         raise ValueError(f"Unknown postprocessing method: {method}")
     return centroids_list
+
+
+def collate_fn(batch):
+    # Apply the make_writable function to each element in the batch
+    batch = np.asarray(batch)
+    writable_batch = batch.copy()
+    # Convert each element to a tensor
+    return torch.as_tensor(writable_batch, dtype=torch.float)
+
+
+def check_coord_in_mask(x, y, mask, coord_res, mask_res):
+    """Checks if a given coordinate is inside the tissue mask
+    Coordinate (x, y)
+    Binary tissue mask default at 1.25x
+    """
+    if mask is None:
+        return True
+
+    try:
+        return mask[int(np.round(y)), int(np.round(x))] == 1
+    except IndexError:
+        return False
+    
+
+
+def scale_coords(coords: list, scale_factor: float = 1):
+    new_coords = []
+    for coord in coords:
+        x = int(coord[0] * scale_factor)
+        y = int(coord[1] * scale_factor)
+        new_coords.append([x, y])
+
+    return new_coords
+
+
+def points_to_annotation_store(points: list, scale_factor: float = 1):
+    """
+    Args: points(list): list of (x,y) coordinates
+    """
+    annotation_store = SQLiteStore()
+
+    for coord in points:
+        x = int(coord[0] * scale_factor)
+        y = int(coord[1] * scale_factor)
+        annotation_store.append(
+            Annotation(
+                geometry=Polygon.from_bounds(
+                    x - 16, y - 16, x + 16, y + 16
+                ),
+                properties={"class": 1, "type": "Cell"},
+            )
+            # Annotation(geometry=Point(coord[0], coord[1]), properties={"class": 1, "type": "TIL"})
+        )
+
+    return annotation_store
