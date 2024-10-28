@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 
+import segmentation_models_pytorch as smp
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from monai.losses import DiceCELoss, DiceLoss
-from monai.metrics import ConfusionMatrixMetric, DiceMetric
+
+# import torch.nn.functional as F
+# from monai.losses import DiceCELoss, DiceLoss
+# from monai.metrics import ConfusionMatrixMetric, DiceMetric
 from torch import Tensor
 
 
@@ -18,7 +20,6 @@ def get_loss_function(loss_type):
         "BCE_Dice": BCE_Dice_Loss,
         "Weighted_BCE_Dice": Weighted_BCE_Dice_Loss,
         "MSE": MSE_loss,
-        "Combined_Dice_Focal": CombinedLoss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -31,7 +32,7 @@ def get_loss_function(loss_type):
 
 
 # Abstract class for loss functions
-# All loss functions need to be a subclass of this class
+# All loss functions need to a subclass of this class
 class Loss_Function(ABC):
     def __init__(self, name, use_weights) -> None:
         self.name = name
@@ -54,25 +55,29 @@ class MSE_loss(Loss_Function):
         )  # "Input size {} must be the same as target size {}".format(input.size(), target.size())
         return nn.MSELoss()(input, target)
 
+        ####
+
 
 # Jaccard loss
 class Jaccard_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Jaccard Loss", False)
-        self.jaccard_loss = DiceLoss(jaccard=True, sigmoid=False)
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        return self.jaccard_loss(input, target)
+        return jaccard_loss(
+            input.float(), target.float(), multiclass=False
+        )
 
 
 # Dice loss
 class Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Dice Loss", False)
-        self.dice_loss = DiceLoss(sigmoid=False)
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        return self.dice_loss(input, target)
+        return dice_loss(
+            input.float(), target.float(), multiclass=False
+        )
 
 
 # Binary cross entropy loss
@@ -99,133 +104,138 @@ class Weighted_BCE_Loss(Loss_Function):
 class BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("BCE + Dice Loss", False)
-        self.dice_ce_loss = DiceCELoss(sigmoid=False)
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        return self.dice_ce_loss(input, target)
+        return nn.BCELoss()(input, target.float()) + dice_loss(
+            input.float(), target.float(), multiclass=False
+        )
 
 
 # Weighted binary cross entropy + Dice loss
 class Weighted_BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss + Dice Loss", True)
-        self.dice_ce_loss = DiceCELoss(sigmoid=False)
 
     def compute_loss(
         self, input: Tensor, target: Tensor, weight: Tensor
     ):
-        return self.dice_ce_loss(input, target, weight)
+        return nn.BCELoss(weight=weight)(
+            input, target.float()
+        ) + dice_loss(input.float(), target.float(), multiclass=False)
 
 
-# Combined Dice and Focal loss
-class CombinedLoss(Loss_Function):
-    def __init__(
-        self, dice_weight=0.5, focal_weight=0.5, alpha=0.25, gamma=2
-    ):
-        super().__init__("Combined Dice + Focal Loss", False)
-        self.dice_weight = dice_weight
-        self.focal_weight = focal_weight
-        self.alpha = alpha
-        self.gamma = gamma
-        self.dice_loss = Dice_Loss()
-
-    def compute_loss(self, input: Tensor, target: Tensor):
-        # Dice loss
-        dice_loss = self.dice_loss.compute_loss(input, target)
-
-        # Focal loss
-        bce_loss = F.binary_cross_entropy_with_logits(
-            input, target.float(), reduction="none"
+# ------------------------------------------Dice loss functions--------------------------------------
+def dice_coeff(
+    input: Tensor,
+    target: Tensor,
+    reduce_batch_first: bool = False,
+    epsilon=1e-6,
+):
+    # Average of Dice coefficient for all batches, or for a single mask
+    assert input.size() == target.size()
+    if input.dim() == 2 and reduce_batch_first:
+        raise ValueError(
+            f"Dice: asked to reduce batch but got tensor without batch dimension (shape {input.shape})"
         )
-        pt = torch.exp(-bce_loss)
-        focal_loss = self.alpha * (1 - pt) ** self.gamma * bce_loss
-        focal_loss = focal_loss.mean()
 
-        # Combined loss
-        combined_loss = (
-            self.dice_weight * dice_loss
-            + self.focal_weight * focal_loss
+    if input.dim() == 2 or reduce_batch_first:
+        inter = torch.dot(input.reshape(-1), target.reshape(-1))
+        sets_sum = torch.sum(input) + torch.sum(target)
+        if sets_sum.item() == 0:
+            sets_sum = 2 * inter
+
+        return (2 * inter + epsilon) / (sets_sum + epsilon)
+    else:
+        # compute and average metric for each batch element
+        dice = 0
+        for i in range(input.shape[0]):
+            dice += dice_coeff(input[i, ...], target[i, ...])
+        return dice / input.shape[0]
+
+
+def multiclass_dice_coeff(
+    input: Tensor,
+    target: Tensor,
+    reduce_batch_first: bool = False,
+    epsilon=1e-6,
+):
+    # Average of Dice coefficient for all classes
+    assert input.size() == target.size()
+    dice = 0
+    for channel in range(input.shape[1]):
+        dice += dice_coeff(
+            input[:, channel, ...],
+            target[:, channel, ...],
+            reduce_batch_first,
+            epsilon,
         )
-        return combined_loss
+
+    return dice / input.shape[1]
 
 
-# -------------------------------------Metric functions---------------------------------
-def compute_dice_coefficient(
+def dice_loss(
     input: Tensor, target: Tensor, multiclass: bool = False
 ):
-    """
-    Compute the Dice coefficient for either multiclass or single-class segmentation.
+    # Dice loss (objective to minimize) between 0 and 1
+    assert input.size() == target.size()
+    fn = multiclass_dice_coeff if multiclass else dice_coeff
+    return 1 - fn(input, target, reduce_batch_first=True)
 
-    Args:
-        input (Tensor): The predicted segmentation mask.
-        target (Tensor): The ground truth segmentation mask.
-        multiclass (bool): Flag indicating whether it is a multiclass or single-class segmentation.
-                           If True, the input and target are expected to have shape (batch_size, num_classes, ...).
-                           If False, the input and target are expected to have shape (batch_size, ...) or (...,).
 
-    Returns:
-        float: The computed Dice coefficient.
-    """
-    if multiclass:
-        # Multiclass Dice coefficient
-        dice_metric = DiceMetric(
-            include_background=True,
-            reduction="mean",
-            get_not_nans=False,
-        )
-    else:
-        # Single-class Dice coefficient
-        dice_metric = DiceMetric(
-            include_background=False,
-            reduction="mean",
-            get_not_nans=False,
+# -------------------------------------------------------Jaccard loss function --------------------------------
+def jaccard_coef(
+    input: Tensor,
+    target: Tensor,
+    reduce_batch_first: bool = False,
+    epsilon=1e-6,
+):
+    # Average of Dice coefficient for all batches, or for a single mask
+    assert input.size() == target.size()
+    if input.dim() == 2 and reduce_batch_first:
+        raise ValueError(
+            f"Dice: asked to reduce batch but got tensor without batch dimension (shape {input.shape})"
         )
 
-    dice_metric.reset()  # Reset the metric before computing
+    if input.dim() == 2 or reduce_batch_first:
+        inter = torch.dot(input.reshape(-1), target.reshape(-1))
+        sets_sum = torch.sum(torch.pow(input, 2)) + torch.sum(
+            torch.pow(target, 2)
+        )
+        if sets_sum.item() == 0:
+            sets_sum = 2 * inter
 
-    if input.dim() == target.dim():
-        # No batch size, compute Dice coefficient directly
-        dice_metric(y_pred=input.unsqueeze(0), y=target.unsqueeze(0))
+        return (inter + epsilon) / (sets_sum - inter + epsilon)
     else:
-        # Batch size exists, compute Dice coefficient for each batch
+        # compute and average metric for each batch element
+        jaccard = 0
         for i in range(input.shape[0]):
-            dice_metric(
-                y_pred=input[i].unsqueeze(0), y=target[i].unsqueeze(0)
-            )
-
-    # Aggregate the results and return the mean Dice coefficient
-    return dice_metric.aggregate().item()
+            jaccard += jaccard_coef(input[i, ...], target[i, ...])
+        return jaccard / input.shape[0]
 
 
-def compute_f1_score(input: Tensor, target: Tensor):
-    """
-    Compute the F1 score for segmentation.
-
-    Args:
-        input (Tensor): The predicted segmentation mask.
-        target (Tensor): The ground truth segmentation mask.
-
-    Returns:
-        float: The computed F1 score.
-    """
-    confusion_matrix = ConfusionMatrixMetric(
-        include_background=True,
-        metric_name="f1_score",
-        reduction="mean",
-    )
-    confusion_matrix.reset()  # Reset the metric before computing
-
-    if input.dim() == target.dim():
-        # No batch size, compute F1 score directly
-        confusion_matrix(
-            y_pred=input.unsqueeze(0), y=target.unsqueeze(0)
+def multiclass_jaccard_coeff(
+    input: Tensor,
+    target: Tensor,
+    reduce_batch_first: bool = False,
+    epsilon=1e-6,
+):
+    # Average of jaccard coefficient for all classes
+    assert input.size() == target.size()
+    jaccard = 0
+    for channel in range(input.shape[1]):
+        jaccard += jaccard_coef(
+            input[:, channel, ...],
+            target[:, channel, ...],
+            reduce_batch_first,
+            epsilon,
         )
-    else:
-        # Batch size exists, compute F1 score for each batch
-        for i in range(input.shape[0]):
-            confusion_matrix(
-                y_pred=input[i].unsqueeze(0), y=target[i].unsqueeze(0)
-            )
+    return jaccard_coef / input.shape[1]
 
-    # Aggregate the results and return the mean F1 score
-    return confusion_matrix.aggregate()[0].item()
+
+def jaccard_loss(
+    input: Tensor, target: Tensor, multiclass: bool = False
+):
+    # Jaccard loss (objective to minimize) between 0 and 1
+    assert input.size() == target.size()
+    fn = multiclass_jaccard_coeff if multiclass else jaccard_coef
+    return 1 - fn(input, target, reduce_batch_first=True)

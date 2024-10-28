@@ -10,7 +10,7 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from monkey.model.loss_functions import compute_dice_coefficient
+from monkey.model.loss_functions import dice_coeff
 
 
 def train_one_epoch(
@@ -32,11 +32,10 @@ def train_one_epoch(
         optimizer.zero_grad()
 
         logits_pred = model(images)
-        logits_pred = activation(logits_pred)
+        pred = activation(logits_pred)
 
-        loss = loss_fn.compute_loss(logits_pred, true_labels)
+        loss = loss_fn.compute_loss(pred, true_labels)
         loss.backward()
-
         optimizer.step()
 
         epoch_loss += loss.item() * images.size(0)
@@ -47,7 +46,7 @@ def train_one_epoch(
 def validate_one_epoch(
     model: nn.Module,
     validation_loader: DataLoader,
-    wandb_run: wandb.run,
+    wandb_run: Optional[wandb.run] = None,
     activation: torch.nn = torch.nn.Sigmoid,
 ):
     running_dice = 0.0
@@ -57,7 +56,7 @@ def validate_one_epoch(
     ):
         images, true_masks = (
             data["image"].cuda().float(),
-            data["mask"].cuda().int(),
+            data["mask"].cuda().float(),
         )
         with torch.no_grad():
             logits_pred = model(images)
@@ -66,26 +65,26 @@ def validate_one_epoch(
             threshold = 0.5
             mask_pred_binary = (mask_pred > threshold).float()
 
-            dice_score = compute_dice_coefficient(
-                mask_pred_binary, true_masks, multiclass=False
-            )
+            dice_score = dice_coeff(mask_pred_binary, true_masks)
 
         running_dice += dice_score * images.size(0)
 
     # Log an example prediction to WandB
-    log_data = {
-        "images": wandb.Image(images[0, :3, :, :].cpu()),
-        "masks": {
-            "true": wandb.Image(true_masks[0].float().cpu()),
-            "Original_pred": wandb.Image(
-                logits_pred[0, 0, :, :].float().cpu()
-            ),
-            "Final_pred": wandb.Image(
-                mask_pred_binary[0, 0, :, :].float().cpu()
-            ),
-        },
-    }
-    wandb_run.log(log_data)
+    if wandb_run is not None:
+        log_data = {
+            "images": wandb.Image(images[0, :3, :, :].cpu()),
+            "masks": {
+                "true": wandb.Image(true_masks[0].float().cpu()),
+                "pred_probs": wandb.Image(
+                    logits_pred[0, 0, :, :].float().cpu(), mode="L"
+                ),
+                "Final_pred": wandb.Image(
+                    mask_pred_binary[0, 0, :, :].float().cpu(),
+                    mode="L",
+                ),
+            },
+        }
+        wandb_run.log(log_data)
 
     avg_dice = running_dice / len(validation_loader.sampler)
     return avg_dice
@@ -100,7 +99,7 @@ def train_det_net(
     activation: torch.nn,
     save_dir: str,
     epochs: int,
-    wandb_run: wandb.run,
+    wandb_run: Optional[wandb.run] = None,
     scheduler: Optional[lr_scheduler.LRScheduler] = None,
 ) -> torch.nn.Module:
     pprint("Starting training")
@@ -128,7 +127,8 @@ def train_det_net(
             "Val score": avg_score,
             "Learning rate": optimizer.param_groups[0]["lr"],
         }
-        wandb_run.log(log_data)
+        if wandb_run is not None:
+            wandb_run.log(log_data)
         pprint(log_data)
 
         if avg_score > best_val_score:

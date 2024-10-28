@@ -2,6 +2,7 @@
 
 import os
 
+import segmentation_models_pytorch as smp
 import torch
 import wandb
 from torch.optim import lr_scheduler
@@ -16,17 +17,18 @@ from monkey.train.train_cell_detection import train_det_net
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Cell_Det",
+    "project_name": "Monkey_Experimental",
     "model_name": "efficientunetb0",
     "batch_size": 32,
-    "val_fold": 4,  # [1-4]
-    "optimizer": "RMSProp",
-    "learning_rate": 0.03,
+    "val_fold": 2,  # [1-4]
+    "optimizer": "AdamW",
+    "learning_rate": 0.003,
     "weight_decay": 0.0004,
-    "epochs": 100,
+    "epochs": 50,
     "loss_function": "BCE_Dice",
-    "disk_radius": 9,
-    "do_augmentation": False,
+    "disk_radius": 13,
+    "regression_map": True,
+    "do_augmentation": True,
     "activation_function": "sigmoid",
     "module": "detection",
 }
@@ -55,6 +57,7 @@ train_loader, val_loader = get_dataloaders(
     task=1,
     batch_size=run_config["batch_size"],
     disk_radius=run_config["disk_radius"],
+    regression_map=run_config["regression_map"],
     do_augmentation=run_config["do_augmentation"],
 )
 
@@ -64,11 +67,11 @@ loss_fn = get_loss_function(run_config["loss_function"])
 activation_fn = get_activation_function(
     run_config["activation_function"]
 )
-optimizer = torch.optim.RMSprop(
+optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
-    momentum=0.9,
+    # momentum=0.9,
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
     optimizer,
@@ -82,6 +85,8 @@ run = wandb.init(
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
+run.watch(model, log_freq=1000)
+# run = None
 
 # Start training
 model = train_det_net(
@@ -110,4 +115,5 @@ model_path = os.path.join(
 )
 torch.save(final_checkpoint, model_path)
 
-wandb.finish()
+if run is not None:
+    wandb.finish()

@@ -3,6 +3,7 @@ import os
 
 import albumentations as alb
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
@@ -49,6 +50,7 @@ class InflammatoryDataset(Dataset):
         phase: str = "train",
         do_augment: bool = False,
         disk_radius: int = 9,
+        regression_map: bool = False,
         module: str = "detection",
     ):
         self.IOConfig = IOConfig
@@ -57,6 +59,7 @@ class InflammatoryDataset(Dataset):
         self.do_augment = do_augment
         self.disk_radius = disk_radius
         self.module = module
+        self.regression_map = regression_map
 
         if self.do_augment:
             self.augmentation = get_augmentation(
@@ -87,13 +90,17 @@ class InflammatoryDataset(Dataset):
             )
 
         # Dilate cell centroids
-        cell_binary_mask = dilate_mask(
+        cell_map = dilate_mask(
             cell_binary_mask, disk_radius=self.disk_radius
         )
         # Generate regression map
-        cell_map = generate_regression_map(
-            binary_mask=cell_binary_mask, d_thresh=7, alpha=5, scale=1
-        )
+        if self.regression_map:
+            cell_map = generate_regression_map(
+                binary_mask=cell_binary_mask,
+                d_thresh=7,
+                alpha=5,
+                scale=1,
+            )
 
         # HxW -> 1xHxW
         cell_map = cell_map[np.newaxis, :, :]
@@ -117,6 +124,7 @@ def get_dataloaders(
     task=1,
     batch_size=4,
     disk_radius=11,
+    regression_map: bool = False,
     module: str = "detection",
     do_augmentation: bool = False,
 ):
@@ -146,6 +154,7 @@ def get_dataloaders(
         phase="Train",
         do_augment=do_augmentation,
         disk_radius=disk_radius,
+        regression_map=regression_map,
         module=module,
     )
     val_dataset = InflammatoryDataset(
@@ -154,6 +163,7 @@ def get_dataloaders(
         phase="test",
         do_augment=False,
         disk_radius=disk_radius,
+        regression_map=regression_map,
         module=module,
     )
 
