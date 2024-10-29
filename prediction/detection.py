@@ -236,4 +236,6 @@ def wsi_detection_in_mask(
         )
         detected_points.extend(output_points_tile)
 
+    # Filter detected_points using ROI mask
+
     return detected_points

@@ -40,6 +40,13 @@ def load_json_annotation(
     return annotation
 
 
+def parse_json_annotations(json_path: str):
+    """Extract annotations from json file"""
+    with open(json_path, "r") as f:
+        annotations = json.load(f)
+    return annotations
+
+
 def extract_id(file_name: str):
     """
     Give a file name such as 'A_P000001_PAS_CPG.tif',

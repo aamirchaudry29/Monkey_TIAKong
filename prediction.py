@@ -18,7 +18,7 @@ if __name__ == "__main__":
         resolution=0,
         units="level",
         stride=224,
-        threshold=0.5,
+        threshold=0.3,
     )
 
     wsi_name = "A_P000001_PAS_CPG.tif"
