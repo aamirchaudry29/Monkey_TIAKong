@@ -6,22 +6,17 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.utils.data import (
-    DataLoader,
-    Dataset,
-    WeightedRandomSampler,
-)
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.augmentation import get_augmentation
 from monkey.data.data_utils import (
     dilate_mask,
     generate_regression_map,
-    get_file_names,
+    get_split_from_json,
     imagenet_normalise,
     load_image,
     load_mask,
-    get_split_from_json
 )
 
 
@@ -144,13 +139,15 @@ def get_dataloaders(
         raise ValueError(f"Module {module} is in invalid")
 
     split = get_split_from_json(IOConfig, val_fold)
+    train_file_ids = split["train_file_ids"]
+    test_file_ids = split["test_file_ids"]
 
     train_sampler = get_sampler(
-        file_ids=split["train_file_ids"], IOConfig=IOConfig
+        file_ids=train_file_ids, IOConfig=IOConfig
     )
 
-    print(f"no train patches = {len(split["train_file_ids"])}")
-    print(f"no test patches = {len(split["test_file_ids"])}")
+    print(f"train patches: {len(train_file_ids)}")
+    print(f"test patches: {len(test_file_ids)}")
 
     train_dataset = InflammatoryDataset(
         IOConfig=IOConfig,
