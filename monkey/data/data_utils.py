@@ -35,16 +35,14 @@ def load_json_annotation(
     """Load patch-level cell coordinates"""
     json_name = f"{file_id}.json"
     json_path = os.path.join(IOConfig.json_dir, json_name)
-    with open(json_path, "r") as file:
-        annotation = json.load(file)
-    return annotation
+    return open_json_file(json_path)
 
 
-def parse_json_annotations(json_path: str):
+def open_json_file(json_path: str):
     """Extract annotations from json file"""
     with open(json_path, "r") as f:
-        annotations = json.load(f)
-    return annotations
+        data = json.load(f)
+    return data
 
 
 def extract_id(file_name: str):
@@ -106,6 +104,27 @@ def centre_cross_validation_split(
     split = {
         "train_file_ids": train_file_ids,
         "val_file_ids": val_file_ids,
+    }
+    return split
+
+
+def get_split_from_json(
+    IOConfig: TrainingIOConfig,
+    val_fold: int = 1
+):
+    """
+    Retrieve train and validation patch ids from pre-processed json file
+    """
+    split_info_json_path = os.path.join(
+        IOConfig.dataset_dir,
+        'patch_level_split.json'
+    )
+
+    split_info = open_json_file(split_info_json_path)
+    fold_info = split_info[f'Fold_{val_fold}']
+    split = {
+        "train_file_ids": fold_info['train_files'],
+        "test_file_ids": fold_info['test_files']
     }
     return split
 
