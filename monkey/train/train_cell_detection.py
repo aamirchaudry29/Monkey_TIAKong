@@ -32,7 +32,7 @@ def train_one_epoch(
         optimizer.zero_grad()
 
         logits_pred = model(images)
-        pred = torch.sigmoid(logits_pred)
+        pred = activation(logits_pred)
 
         loss = loss_fn.compute_loss(pred, true_labels)
         loss.backward()
@@ -60,7 +60,7 @@ def validate_one_epoch(
         )
         with torch.no_grad():
             logits_pred = model(images)
-            mask_pred = torch.sigmoid(logits_pred)
+            mask_pred = activation(logits_pred)
 
             threshold = 0.5
             mask_pred_binary = (mask_pred > threshold).float()

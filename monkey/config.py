@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 # Change this
 DEFAULT_DATA_DIR = "/home/u1910100/Documents/Monkey/patches_256"
@@ -15,9 +14,11 @@ class TrainingIOConfig:
         self.save_dir = save_dir
         self.image_dir = ""
         self.mask_dir = ""
+        self.json_dir = ""
         self.checkpoint_save_dir = ""
         self.set_image_dir()
         self.set_mask_dir()
+        self.set_json_dir()
         self.check_dirs_exist()
 
     def set_image_dir(self):
@@ -30,6 +31,10 @@ class TrainingIOConfig:
         )
         self.mask_dir = mask_dir
 
+    def set_json_dir(self):
+        json_dir = os.path.join(self.dataset_dir, "annotations/json/")
+        self.json_dir = json_dir
+
     def set_checkpoint_save_dir(self, run_name: str):
         dir = os.path.join(self.save_dir, run_name)
         if not os.path.exists(dir):
@@ -38,6 +43,41 @@ class TrainingIOConfig:
 
     def check_dirs_exist(self):
         for dir in [self.image_dir, self.mask_dir, self.save_dir]:
+            if not os.path.exists(dir):
+                print(f"{dir} does not exist!")
+                raise ValueError(f"{dir} does not exist!")
+
+
+class PredictionIOConfig:
+    def __init__(
+        self,
+        wsi_dir: str,
+        mask_dir: str,
+        output_dir: str,
+        model_name: str,
+        model_path: str,
+        patch_size: int = 256,
+        resolution: float = 0,
+        units: str = "level",
+        stride: int = 256,
+        threshold: float = 0.9,
+    ):
+        self.wsi_dir = wsi_dir
+        self.mask_dir = mask_dir
+        self.output_dir = output_dir
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir, exist_ok=True)
+        self.check_dirs_exist()
+        self.model_name = model_name
+        self.model_path = model_path
+        self.patch_size = patch_size
+        self.stride = stride
+        self.resolution = resolution
+        self.units = units
+        self.threshold = threshold
+
+    def check_dirs_exist(self):
+        for dir in [self.wsi_dir, self.mask_dir, self.output_dir]:
             if not os.path.exists(dir):
                 print(f"{dir} does not exist!")
                 raise ValueError(f"{dir} does not exist!")
