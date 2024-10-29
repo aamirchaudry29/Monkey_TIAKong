@@ -1,14 +1,16 @@
 import json
 import os
 import re
-from typing import Tuple
 
 import cv2
 import numpy as np
 import scipy.ndimage as ndi
+import torch
+from shapely import Polygon
 from skimage.feature import peak_local_max
+from tiatoolbox.annotation.storage import Annotation, SQLiteStore
 
-from monkey.config import TrainingIOConfig
+from monkey.config import PredictionIOConfig, TrainingIOConfig
 
 
 def load_image(
@@ -36,6 +38,13 @@ def load_json_annotation(
     with open(json_path, "r") as file:
         annotation = json.load(file)
     return annotation
+
+
+def parse_json_annotations(json_path: str):
+    """Extract annotations from json file"""
+    with open(json_path, "r") as f:
+        annotations = json.load(f)
+    return annotations
 
 
 def extract_id(file_name: str):
@@ -115,6 +124,19 @@ def imagenet_normalise(img: np.ndarray) -> np.ndarray:
     std = np.array([0.229, 0.224, 0.225])
     img = img - mean
     img = img / std
+    return img
+
+
+def imagenet_normalise_torch(img: torch.tensor) -> torch.tensor:
+    """Normalises input image to ImageNet mean and std
+    Input torch tensor (B,3,H,W)
+    """
+
+    mean = torch.tensor([0.485, 0.456, 0.406])
+    std = torch.tensor([0.229, 0.224, 0.225])
+
+    for i in range(3):
+        img[:, i, :, :] = (img[:, i, :, :] - mean[i]) / std[i]
     return img
 
 
@@ -205,6 +227,19 @@ def generate_regression_map(
     return M
 
 
+def px_to_mm(px: int, mpp: float = 0.24199951445730394):
+    """
+    Convert pixel coordinate to millimeters
+    """
+    return px * mpp / 1000
+
+
+def write_json_file(location, content):
+    # Writes a json file
+    with open(location, "w") as f:
+        f.write(json.dumps(content, indent=4))
+
+
 def extract_dotmaps(
     original_prediction: np.ndarray,
     distance_threshold_local_max: int,
@@ -242,3 +277,147 @@ def extract_dotmaps(
     else:
         raise ValueError(f"Unknown postprocessing method: {method}")
     return centroids_list
+
+
+def collate_fn(batch):
+    # Apply the make_writable function to each element in the batch
+    batch = np.asarray(batch)
+    writable_batch = batch.copy()
+    # Convert each element to a tensor
+    return torch.as_tensor(writable_batch, dtype=torch.float)
+
+
+def check_coord_in_mask(x, y, mask, coord_res, mask_res):
+    """Checks if a given coordinate is inside the tissue mask
+    Coordinate (x, y)
+    Binary tissue mask default at 1.25x
+    """
+    if mask is None:
+        return True
+
+    try:
+        return mask[int(np.round(y)), int(np.round(x))] == 1
+    except IndexError:
+        return False
+
+
+def scale_coords(coords: list, scale_factor: float = 1):
+    new_coords = []
+    for coord in coords:
+        x = int(coord[0] * scale_factor)
+        y = int(coord[1] * scale_factor)
+        new_coords.append([x, y])
+
+    return new_coords
+
+
+def detection_to_annotation_store(
+    detection_records: list[dict], scale_factor: float = 1
+):
+    """
+    Convert detection records to annotation store
+
+    Args:
+        detection_records: list of {'x','y', 'type', 'probability'}
+    """
+    annotation_store = SQLiteStore()
+
+    for record in detection_records:
+        x = int(record["x"] * scale_factor)
+        y = int(record["y"] * scale_factor)
+        annotation_store.append(
+            Annotation(
+                geometry=Polygon.from_bounds(
+                    x - 16, y - 16, x + 16, y + 16
+                ),
+                properties={
+                    "type": record["type"],
+                    "prob": record["prob"],
+                },
+            )
+        )
+
+    return annotation_store
+
+
+def save_detection_records_monkey(
+    detection_records: list[dict], IOConfig: PredictionIOConfig
+):
+    """
+    Save cell detection records into Monkey challenge format
+    """
+    output_dir = IOConfig.output_dir
+
+    output_dict_lymphocytes = {
+        "name": "lymphocytes",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+
+    output_dict_monocytes = {
+        "name": "monocytes",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+
+    output_dict_inflammatory_cells = {
+        "name": "inflammatory-cells",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+
+    for i, record in enumerate(detection_records):
+        counter = i + 1
+        x = record["x"]
+        y = record["y"]
+        confidence = record["prob"]
+        cell_type = record["type"]
+        prediction_record = {
+            "name": "Point " + str(counter),
+            "point": [
+                px_to_mm(x, 0.24199951445730394),
+                px_to_mm(y, 0.24199951445730394),
+                0.24199951445730394,
+            ],
+            "probability": confidence,
+        }
+        if cell_type == "lymphocyte":
+            output_dict_lymphocytes["points"].append(
+                prediction_record
+            )
+        if cell_type == "monocytes":
+            output_dict_monocytes["points"].append(prediction_record)
+        output_dict_inflammatory_cells["points"].append(
+            prediction_record
+        )
+
+    json_filename_lymphocytes = "detected-lymphocytes.json"
+    output_path_json = os.path.join(
+        output_dir, json_filename_lymphocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_lymphocytes
+    )
+
+    json_filename_monocytes = "detected-monocytes.json"
+    output_path_json = os.path.join(
+        output_dir, json_filename_monocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_monocytes
+    )
+
+    json_filename_inflammatory_cells = (
+        "detected-inflammatory-cells.json"
+    )
+    # it should be replaced with correct json files
+    output_path_json = os.path.join(
+        output_dir, json_filename_inflammatory_cells
+    )
+    write_json_file(
+        location=output_path_json,
+        content=output_dict_inflammatory_cells,
+    )
