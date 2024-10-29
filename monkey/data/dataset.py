@@ -169,10 +169,10 @@ def get_dataloaders(
     )
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, sampler=train_sampler
+        train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=2
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=True
+        val_dataset, batch_size=batch_size, shuffle=True, num_workers=2
     )
     return train_loader, val_loader
 

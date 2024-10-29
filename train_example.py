@@ -17,17 +17,17 @@ from monkey.train.train_cell_detection import train_det_net
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Experimental",
-    "model_name": "efficientunetb0",
+    "project_name": "Monkey",
+    "model_name": "MiTb0Unet",
     "batch_size": 32,
-    "val_fold": 2,  # [1-4]
+    "val_fold": 1,  # [1-4]
     "optimizer": "AdamW",
     "learning_rate": 0.003,
     "weight_decay": 0.0004,
-    "epochs": 50,
+    "epochs": 100,
     "loss_function": "BCE_Dice",
-    "disk_radius": 13,
-    "regression_map": True,
+    "disk_radius": 11,
+    "regression_map": False,
     "do_augmentation": True,
     "activation_function": "sigmoid",
     "module": "detection",
@@ -37,11 +37,22 @@ run_config = {
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
-    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/runs",
+    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{run_config['model_name']}",
 )
 # Create model
-model = get_efficientunet_b0_MBConv(out_channels=1)
+# model = get_efficientunet_b0_MBConv(out_channels=1)
+model = smp.Unet(
+    encoder_name='mit_b0',
+    encoder_weights='imagenet',
+    decoder_attention_type='scse',
+    in_channels=3,
+    classes=1
+)
 model.to("cuda")
+torch.compile(
+    model,
+    mode="default"
+)
 # -----------------------------------------------------------------------
 
 
@@ -81,7 +92,7 @@ scheduler = lr_scheduler.ReduceLROnPlateau(
 
 # Create WandB session
 run = wandb.init(
-    project=f"{run_config['project_name']}_{run_config['model_name']}",
+    project=f"{run_config['project_name']}_{run_config['model_name']}_exp",
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
