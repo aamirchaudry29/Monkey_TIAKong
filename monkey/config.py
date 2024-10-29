@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 # Change this
 DEFAULT_DATA_DIR = "/home/u1910100/Documents/Monkey/patches_256"
@@ -58,10 +57,10 @@ class PredictionIOConfig:
         model_name: str,
         model_path: str,
         patch_size: int = 256,
-        resolution: float = 0, 
+        resolution: float = 0,
         units: str = "level",
         stride: int = 256,
-        threshold: float = 0.9
+        threshold: float = 0.9,
     ):
         self.wsi_dir = wsi_dir
         self.mask_dir = mask_dir

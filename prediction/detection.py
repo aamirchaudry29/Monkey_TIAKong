@@ -1,27 +1,26 @@
 import os
-
-
+from typing import Tuple
 
 import numpy as np
+import segmentation_models_pytorch as smp
+import skimage.measure
+import skimage.morphology
 import torch
-
+from tiatoolbox.models.engine.semantic_segmentor import (
+    SemanticSegmentor,
+)
 from tiatoolbox.tools.patchextraction import get_patch_extractor
-
 from tiatoolbox.wsicore.wsireader import VirtualWSIReader, WSIReader
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from tiatoolbox.models.engine.semantic_segmentor import SemanticSegmentor
-import skimage.morphology
-import skimage.measure
-import segmentation_models_pytorch as smp
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
+    check_coord_in_mask,
     collate_fn,
     imagenet_normalise_torch,
     px_to_mm,
     write_json_file,
-    check_coord_in_mask
 )
 
 
@@ -29,7 +28,20 @@ def detection_in_tile(
     image_tile: np.ndarray,
     model: torch.nn.Module,
     IOConfig: PredictionIOConfig,
-):
+) -> Tuple[list[np.ndarray], list[np.ndarray]]:
+    """
+    Detection in tile image [1024x1024]
+
+    Args:
+        image_tile: input tile image
+        model: model to be used
+        IOConfig: PredictionIOConfig object
+    Returns:
+        (predictions, coordinates):
+            prediction: a list of raw patch predictions.
+            coordinates: a list of bounding boxes corresponding to
+                each patch prediction
+    """
     patch_size = IOConfig.patch_size
     stride = IOConfig.stride
 
@@ -66,7 +78,6 @@ def detection_in_tile(
             out = torch.sigmoid(out)
             out = out.cpu().detach().numpy()[:, 0, :, :]
 
-
         # out_mask = skimage.morphology.remove_small_objects(
         #     ar=out_mask, min_size=128
         # )
@@ -76,21 +87,34 @@ def detection_in_tile(
 
 
 def process_tile_detection_masks(
-    pred_masks: list,
+    pred_masks: list[np.ndarray],
     coordinate_list: list,
     x_start: int,
     y_start: int,
     threshold: float = 0.5,
     mpp: float = 0.24,
-    tissue_mask: np.ndarray|None = None # 1.25 objective power
+    tissue_mask: np.ndarray | None = None,  # 1.25 objective power
 ):
+    """
+    Process cell detection of tile image
+    x_start and y_start are used to convert detected cells to WSI coordinates
+
+    Args:
+        pred_masks: list of raw predictions [1024x1024]
+        coordinate_list: list of coordinates from patch extractor
+        x_start: starting x coordinate of this tile
+        y_start: starting y coordinate of this tile
+        threshold: threshold for raw prediction
+    Returns:
+        detected_points: list[dict]
+            A list of detection records: [{'x', 'y', 'type', 'probability'}]
+
+    """
     if len(pred_masks) == 0:
-        tile_prediction = np.zeros(shape=(1024,1024), dtype=np.uint8)
+        tile_prediction = np.zeros(shape=(1024, 1024), dtype=np.uint8)
     else:
         tile_prediction = SemanticSegmentor.merge_prediction(
-            (1024,1024),
-            pred_masks,
-            coordinate_list
+            (1024, 1024), pred_masks, coordinate_list
         )
 
     tile_prediction_binary = tile_prediction > threshold
@@ -120,7 +144,7 @@ def process_tile_detection_masks(
             "x": np.round(c1),
             "y": np.round(r1),
             "type": "inflammatory",
-            "probability": float(confidence),
+            "prob": float(confidence),
         }
 
         points.append(prediction_record)
@@ -128,27 +152,36 @@ def process_tile_detection_masks(
     return points
 
 
-
-
 def wsi_detection_in_mask(
     wsi_name: str, mask_name: str, IOConfig: PredictionIOConfig
-):
+) -> list[dict]:
+    """
+    Cell Detection in WSI
+
+    Args:
+        wsi_name: name of the wsi with file extension
+        mask_name: name of the mask with file extension (multi-res)
+        IOConfig: PredictionIOConfig object
+    Returns:
+        detected_points: list[dict]
+            A list of detection records: [{'x', 'y', 'type', 'prob'}]
+    """
     wsi_dir = IOConfig.wsi_dir
     mask_dir = IOConfig.mask_dir
     output_dir = IOConfig.output_dir
     model_path = IOConfig.model_path
 
     # create model
-    model = smp.Unet(   
-    encoder_name='mit_b0',
-    encoder_weights=None,
-    decoder_attention_type='scse',
-    in_channels=3,
-    classes=1
+    model = smp.Unet(
+        encoder_name="mit_b0",
+        encoder_weights=None,
+        decoder_attention_type="scse",
+        in_channels=3,
+        classes=1,
     )
     model.to("cuda")
     checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint['model'])
+    model.load_state_dict(checkpoint["model"])
 
     wsi_without_ext = os.path.splitext(wsi_name)[0]
 
@@ -190,7 +223,9 @@ def wsi_detection_in_mask(
         bounding_box = tile_extractor.coordinate_list[
             i
         ]  # (x_start, y_start, x_end, y_end)
-        predictions, coordinates = detection_in_tile(tile, model, IOConfig)
+        predictions, coordinates = detection_in_tile(
+            tile, model, IOConfig
+        )
         output_points_tile = process_tile_detection_masks(
             predictions,
             coordinates,
@@ -201,9 +236,4 @@ def wsi_detection_in_mask(
         )
         detected_points.extend(output_points_tile)
 
-
-
     return detected_points
-
-
-

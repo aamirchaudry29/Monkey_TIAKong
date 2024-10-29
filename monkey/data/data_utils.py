@@ -1,17 +1,17 @@
 import json
 import os
 import re
-from typing import Tuple
 
 import cv2
 import numpy as np
 import scipy.ndimage as ndi
 import torch
-from skimage.feature import peak_local_max
 from shapely import Polygon
-
-from monkey.config import TrainingIOConfig
+from skimage.feature import peak_local_max
 from tiatoolbox.annotation.storage import Annotation, SQLiteStore
+
+from monkey.config import PredictionIOConfig, TrainingIOConfig
+
 
 def load_image(
     file_id: str, IOConfig: TrainingIOConfig
@@ -292,7 +292,6 @@ def check_coord_in_mask(x, y, mask, coord_res, mask_res):
         return mask[int(np.round(y)), int(np.round(x))] == 1
     except IndexError:
         return False
-    
 
 
 def scale_coords(coords: list, scale_factor: float = 1):
@@ -305,23 +304,113 @@ def scale_coords(coords: list, scale_factor: float = 1):
     return new_coords
 
 
-def points_to_annotation_store(points: list, scale_factor: float = 1):
+def detection_to_annotation_store(
+    detection_records: list[dict], scale_factor: float = 1
+):
     """
-    Args: points(list): list of (x,y) coordinates
+    Convert detection records to annotation store
+
+    Args:
+        detection_records: list of {'x','y', 'type', 'probability'}
     """
     annotation_store = SQLiteStore()
 
-    for coord in points:
-        x = int(coord[0] * scale_factor)
-        y = int(coord[1] * scale_factor)
+    for record in detection_records:
+        x = int(record["x"] * scale_factor)
+        y = int(record["y"] * scale_factor)
         annotation_store.append(
             Annotation(
                 geometry=Polygon.from_bounds(
                     x - 16, y - 16, x + 16, y + 16
                 ),
-                properties={"class": 1, "type": "Cell"},
+                properties={
+                    "type": record["type"],
+                    "prob": record["prob"],
+                },
             )
-            # Annotation(geometry=Point(coord[0], coord[1]), properties={"class": 1, "type": "TIL"})
         )
 
     return annotation_store
+
+
+def save_detection_records_monkey(
+    detection_records: list[dict], IOConfig: PredictionIOConfig
+):
+    """
+    Save cell detection records into Monkey challenge format
+    """
+    output_dir = IOConfig.output_dir
+
+    output_dict_lymphocytes = {
+        "name": "lymphocytes",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+
+    output_dict_monocytes = {
+        "name": "monocytes",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+
+    output_dict_inflammatory_cells = {
+        "name": "inflammatory-cells",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+
+    for i, record in enumerate(detection_records):
+        counter = i + 1
+        x = record["x"]
+        y = record["y"]
+        confidence = record["prob"]
+        cell_type = record["type"]
+        prediction_record = {
+            "name": "Point " + str(counter),
+            "point": [
+                px_to_mm(x, 0.24199951445730394),
+                px_to_mm(y, 0.24199951445730394),
+                0.24199951445730394,
+            ],
+            "probability": confidence,
+        }
+        if cell_type == "lymphocyte":
+            output_dict_lymphocytes["points"].append(
+                prediction_record
+            )
+        if cell_type == "monocytes":
+            output_dict_monocytes["points"].append(prediction_record)
+        output_dict_inflammatory_cells["points"].append(
+            prediction_record
+        )
+
+    json_filename_lymphocytes = "detected-lymphocytes.json"
+    output_path_json = os.path.join(
+        output_dir, json_filename_lymphocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_lymphocytes
+    )
+
+    json_filename_monocytes = "detected-monocytes.json"
+    output_path_json = os.path.join(
+        output_dir, json_filename_monocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_monocytes
+    )
+
+    json_filename_inflammatory_cells = (
+        "detected-inflammatory-cells.json"
+    )
+    # it should be replaced with correct json files
+    output_path_json = os.path.join(
+        output_dir, json_filename_inflammatory_cells
+    )
+    write_json_file(
+        location=output_path_json,
+        content=output_dict_inflammatory_cells,
+    )
