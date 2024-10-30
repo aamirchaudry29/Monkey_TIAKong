@@ -6,7 +6,9 @@ import segmentation_models_pytorch as smp
 import skimage.measure
 import skimage.morphology
 import torch
-from tiatoolbox.models.engine.semantic_segmentor import SemanticSegmentor
+from tiatoolbox.models.engine.semantic_segmentor import (
+    SemanticSegmentor,
+)
 from tiatoolbox.tools.patchextraction import get_patch_extractor
 from tiatoolbox.wsicore.wsireader import VirtualWSIReader, WSIReader
 from torch.utils.data import DataLoader

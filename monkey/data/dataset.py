@@ -6,7 +6,11 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from torch.utils.data import (
+    DataLoader,
+    Dataset,
+    WeightedRandomSampler,
+)
 
 from monkey.config import TrainingIOConfig
 from monkey.data.augmentation import get_augmentation
@@ -151,7 +155,7 @@ def get_dataloaders(
 
     train_dataset = InflammatoryDataset(
         IOConfig=IOConfig,
-        file_ids=split["train_file_ids"],
+        file_ids=train_file_ids,
         phase="Train",
         do_augment=do_augmentation,
         disk_radius=disk_radius,
@@ -160,7 +164,7 @@ def get_dataloaders(
     )
     val_dataset = InflammatoryDataset(
         IOConfig=IOConfig,
-        file_ids=split["val_file_ids"],
+        file_ids=test_file_ids,
         phase="test",
         do_augment=False,
         disk_radius=disk_radius,
@@ -169,10 +173,16 @@ def get_dataloaders(
     )
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=2
+        train_dataset,
+        batch_size=batch_size,
+        sampler=train_sampler,
+        num_workers=2,
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=True, num_workers=2
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=2,
     )
     return train_loader, val_loader
 
