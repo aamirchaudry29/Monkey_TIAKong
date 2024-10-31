@@ -2,7 +2,6 @@ import os
 from typing import Tuple
 
 import numpy as np
-import segmentation_models_pytorch as smp
 import skimage.measure
 import skimage.morphology
 import torch
@@ -19,7 +18,6 @@ from monkey.data.data_utils import (
     imagenet_normalise_torch,
     slide_nms,
 )
-from monkey.model.efficientunetb0.architecture import get_efficientunet_b0_MBConv
 
 
 def detection_in_tile(
@@ -150,7 +148,10 @@ def process_tile_detection_masks(
 
 
 def wsi_detection_in_mask(
-    wsi_name: str, mask_name: str, IOConfig: PredictionIOConfig
+    wsi_name: str,
+    mask_name: str,
+    IOConfig: PredictionIOConfig,
+    model: torch.nn.Module,
 ) -> list[dict]:
     """
     Cell Detection in WSI
@@ -165,21 +166,6 @@ def wsi_detection_in_mask(
     """
     wsi_dir = IOConfig.wsi_dir
     mask_dir = IOConfig.mask_dir
-    output_dir = IOConfig.output_dir
-    model_path = IOConfig.model_path
-
-    # create model
-    model = get_efficientunet_b0_MBConv(pretrained=False)
-    # model = smp.Unet(
-    #     encoder_name="mit_b5",
-    #     encoder_weights=None,
-    #     decoder_attention_type="scse",
-    #     in_channels=3,
-    #     classes=1,
-    # )
-    model.to("cuda")
-    checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint["model"])
 
     wsi_without_ext = os.path.splitext(wsi_name)[0]
 

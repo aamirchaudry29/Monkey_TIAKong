@@ -54,8 +54,6 @@ class PredictionIOConfig:
         wsi_dir: str,
         mask_dir: str,
         output_dir: str,
-        model_name: str,
-        model_path: str,
         patch_size: int = 256,
         resolution: float = 0,
         units: str = "level",
@@ -69,8 +67,6 @@ class PredictionIOConfig:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir, exist_ok=True)
         self.check_dirs_exist()
-        self.model_name = model_name
-        self.model_path = model_path
         self.patch_size = patch_size
         self.stride = stride
         self.resolution = resolution

@@ -1,5 +1,6 @@
 import os
 
+import torch
 from tqdm import tqdm
 
 from monkey.config import PredictionIOConfig
@@ -9,18 +10,17 @@ from monkey.data.data_utils import (
     open_json_file,
     save_detection_records_monkey,
 )
+from monkey.model.efficientunetb0.architecture import get_efficientunet_b0_MBConv
 from prediction.detection import wsi_detection_in_mask
 
 if __name__ == "__main__":
-    fold = 3
+    fold = 1
     model_name = "efficientunetb0"
 
     config = PredictionIOConfig(
         wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
         mask_dir="/home/u1910100/Downloads/Monkey/images/tissue-masks",
         output_dir=f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{fold}",
-        model_name=model_name,
-        model_path=f"/home/u1910100/Documents/Monkey/runs/{model_name}/fold_{fold}/epoch_100.pth",
         patch_size=256,
         resolution=0,
         units="level",
@@ -28,6 +28,8 @@ if __name__ == "__main__":
         threshold=0.9,
         min_size=20,
     )
+
+    model_path = f"/home/u1910100/Documents/Monkey/runs/{model_name}/fold_{fold}/epoch_100.pth"
 
     split_info = open_json_file(
         "/home/u1910100/Documents/Monkey/patches_256/wsi_level_split.json"
@@ -37,13 +39,20 @@ if __name__ == "__main__":
 
     print(val_wsi_files)
 
+    # create model
+    model = get_efficientunet_b0_MBConv(pretrained=False)
+    checkpoint = torch.load(model_path)
+    model.load_state_dict(checkpoint["model"])
+    model.to("cuda")
+    model.eval()
+
     for wsi_name in tqdm(val_wsi_files):
         wsi_name_without_ext = os.path.splitext(wsi_name)[0]
         wsi_id = extract_id(wsi_name)
         mask_name = f"{wsi_id}_mask.tif"
 
         detection_records = wsi_detection_in_mask(
-            wsi_name, mask_name, config
+            wsi_name, mask_name, config, model
         )
 
         # wsi_name = "A_P000001_PAS_CPG.tif"
