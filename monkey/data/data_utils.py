@@ -358,7 +358,9 @@ def detection_to_annotation_store(
 
 
 def save_detection_records_monkey(
-    detection_records: list[dict], IOConfig: PredictionIOConfig
+    detection_records: list[dict],
+    IOConfig: PredictionIOConfig,
+    wsi_id: str | None = None,
 ):
     """
     Save cell detection records into Monkey challenge format
@@ -411,7 +413,21 @@ def save_detection_records_monkey(
             prediction_record
         )
 
-    json_filename_lymphocytes = "detected-lymphocytes.json"
+    if wsi_id is not None:
+        json_filename_lymphocytes = (
+            f"{wsi_id}_detected-lymphocytes.json"
+        )
+        json_filename_monocytes = f"{wsi_id}_detected-monocytes.json"
+        json_filename_inflammatory_cells = (
+            f"{wsi_id}_detected-inflammatory-cells.json"
+        )
+    else:
+        json_filename_lymphocytes = "detected-lymphocytes.json"
+        json_filename_monocytes = "detected-monocytes.json"
+        json_filename_inflammatory_cells = (
+            "detected-inflammatory-cells.json"
+        )
+
     output_path_json = os.path.join(
         output_dir, json_filename_lymphocytes
     )
@@ -419,7 +435,6 @@ def save_detection_records_monkey(
         location=output_path_json, content=output_dict_lymphocytes
     )
 
-    json_filename_monocytes = "detected-monocytes.json"
     output_path_json = os.path.join(
         output_dir, json_filename_monocytes
     )
@@ -427,9 +442,6 @@ def save_detection_records_monkey(
         location=output_path_json, content=output_dict_monocytes
     )
 
-    json_filename_inflammatory_cells = (
-        "detected-inflammatory-cells.json"
-    )
     # it should be replaced with correct json files
     output_path_json = os.path.join(
         output_dir, json_filename_inflammatory_cells
@@ -438,3 +450,43 @@ def save_detection_records_monkey(
         location=output_path_json,
         content=output_dict_inflammatory_cells,
     )
+
+
+def filter_detection_with_mask(
+    detection_records: list[dict],
+    mask: np.ndarray,
+    points_mpp: float = 0.24,
+    mask_mpp: float = 8.0,
+) -> list[dict]:
+    """
+    Filter detected points: [{'x','y','type','prob'}]
+    Using binary mask.
+    Points outside the binary mask are removed
+
+    Args:
+        detection_records: [{'x','y','type','prob'}]
+        mask: binary mask to for filtering
+        points_mpp: resolution of the detected points in mpp
+        mask_mpp: resolution of the binary mask in mpp
+    Returns:
+        fitlered_records: [{'x','y','type','prob'}]
+    """
+    scale_factor = mask_mpp / points_mpp
+
+    filtered_records: list[dict] = []
+    for record in detection_records:
+        x = record["x"]
+        y = record["y"]
+
+        x_in_mask = int(np.round(x / scale_factor))
+        y_in_mask = int(np.round(y / scale_factor))
+
+        try:
+            if mask[y_in_mask, x_in_mask] != 0:
+                filtered_records.append(record)
+            else:
+                continue
+        except IndexError:
+            continue
+
+    return filtered_records

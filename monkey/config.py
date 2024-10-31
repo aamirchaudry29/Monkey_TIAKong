@@ -61,6 +61,7 @@ class PredictionIOConfig:
         units: str = "level",
         stride: int = 256,
         threshold: float = 0.9,
+        min_size: int = 96,
     ):
         self.wsi_dir = wsi_dir
         self.mask_dir = mask_dir
@@ -75,6 +76,7 @@ class PredictionIOConfig:
         self.resolution = resolution
         self.units = units
         self.threshold = threshold
+        self.min_size = min_size
 
     def check_dirs_exist(self):
         for dir in [self.wsi_dir, self.mask_dir, self.output_dir]:

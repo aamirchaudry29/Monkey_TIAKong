@@ -6,11 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.utils.data import (
-    DataLoader,
-    Dataset,
-    WeightedRandomSampler,
-)
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.augmentation import get_augmentation
