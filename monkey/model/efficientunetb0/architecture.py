@@ -234,12 +234,13 @@ class EfficientUnet_MBConv(nn.Module):
 def get_efficientunet_b0_MBConv(
     out_channels=1, concat_input=True, pretrained=True
 ):
-    encoder = efficientnet_b0(
-        weights="EfficientNet_B0_Weights.DEFAULT"
-    )
-    # encoder.avgpool =Identity()
-    # encoder.classifier = Identity()
-    # encoder.final_conv =Identity()
+    if pretrained:
+        encoder = efficientnet_b0(
+            weights="EfficientNet_B0_Weights.DEFAULT"
+        )
+    else:
+        encoder = efficientnet_b0()
+
     encoder = encoder.features
     model = EfficientUnet_MBConv(encoder, out_channels=out_channels)
     #

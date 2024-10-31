@@ -63,9 +63,6 @@ ENV PYTHONUNBUFFERED=1
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-
-
-
 RUN groupadd -r user && useradd -m --no-log-init -r -g user user
 
 # update permissions
@@ -78,14 +75,7 @@ WORKDIR /opt/app
 
 COPY --chown=user:user resources /opt/app/resources
 COPY --chown=user:user monkey /opt/app/monkey
-
-# Update pip
-# RUN /venv/bin/python3.8 -m pip install pip --upgrade
-
-
-# You can add any Python dependencies to requirements.txt
-
-
+COPY --chown=user:user prediction /opt/app/prediction
 COPY --chown=user:user --chmod=0755 inference-docker/inference.py /opt/app/
 COPY --chown=user:user --chmod=0755 inference-docker/commands.sh /opt/app/
 
