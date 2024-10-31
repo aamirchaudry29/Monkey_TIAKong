@@ -170,6 +170,72 @@ def process(job):
     )
 
 
+def get_F1_scores(gt_dict, result_dict, radius: int):
+    """
+    Args:
+        gt_dict (dict): Ground truth data containing points and regions of interest (ROIs).
+        result_dict (dict): Result data containing detected points and their probabilities.
+        radius (int): The maximum distance in pixels for considering a detection as a true positive.
+
+    Returns:
+        dict: A dictionary containing F1, Precison, Recall.
+    """
+    # create a mask from the gt coordinates with circles of given radius
+    if len(gt_dict["points"]) == 0:
+        return {
+            "F1": 0,
+            "Precision": 0,
+            "Recall": 0,
+        }
+    gt_coords = [i["point"] for i in gt_dict["points"]]
+    gt_rois = [i["polygon"] for i in gt_dict["rois"]]
+    # compute the area of the polygon in roi
+    area_mm2 = (
+        SPACING_LEVEL0
+        * SPACING_LEVEL0
+        * gt_dict["area_rois"]
+        / 1000000
+    )
+    # result_prob = [i['probability'] for i in result_dict['points']]
+    result_prob = [i["probability"] for i in result_dict["points"]]
+    # make some dummy values between 0 and 1 for the result prob
+    # result_prob = [np.random.rand() for i in range(len(result_dict['points']))]
+    result_coords = [
+        [i["point"][0], i["point"][1]] for i in result_dict["points"]
+    ]
+
+    # prepare the data for the FROC curve computation with monai
+    (
+        tp,
+        fn,
+        fp,
+        tp_probs,
+        fp_probs,
+    ) = match_coordinates(
+        gt_coords, result_coords, result_prob, radius
+    )
+
+    try:
+        precision = tp / (tp + fp)
+    except ZeroDivisionError:
+        precision = 0
+    try:
+        recall = tp / (tp + fn)
+    except ZeroDivisionError:
+        recall = 0
+
+    if tp == 0 and fp == 0 and fn == 0:
+        f1 = 0
+    else:
+        f1 = (2 * tp) / (2 * tp + fp + fn)
+
+    return {
+        "F1": f1,
+        "Precision": precision,
+        "Recall": recall,
+    }
+
+
 def get_froc_vals(gt_dict, result_dict, radius: int):
     """
     Computes the Free-Response Receiver Operating Characteristic (FROC) values for given ground truth and result data.

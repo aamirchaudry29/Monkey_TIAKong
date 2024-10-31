@@ -12,20 +12,21 @@ from monkey.data.data_utils import (
 from prediction.detection import wsi_detection_in_mask
 
 if __name__ == "__main__":
-    fold = 2
+    fold = 3
+    model_name = "efficientunetb0"
 
     config = PredictionIOConfig(
         wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
         mask_dir="/home/u1910100/Downloads/Monkey/images/tissue-masks",
-        output_dir=f"/home/u1910100/Documents/Monkey/local_output/Fold_{fold}",
-        model_name="efficientunetb0",
-        model_path=f"/home/u1910100/Documents/Monkey/runs/efficientunetb0/fold_{fold}/epoch_100.pth",
+        output_dir=f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{fold}",
+        model_name=model_name,
+        model_path=f"/home/u1910100/Documents/Monkey/runs/{model_name}/fold_{fold}/epoch_100.pth",
         patch_size=256,
         resolution=0,
         units="level",
         stride=224,
         threshold=0.9,
-        min_size=32,
+        min_size=20,
     )
 
     split_info = open_json_file(
@@ -53,7 +54,7 @@ if __name__ == "__main__":
         #     wsi_name, mask_name, config
         # )
 
-        # print(f"{len(detection_records)} detected cells")
+        print(f"{len(detection_records)} final detected cells")
 
         # # Save to AnnotationStore for visualization
         # # scale_factor = 0.25 / 0.24199951445730394

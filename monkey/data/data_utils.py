@@ -6,9 +6,11 @@ import cv2
 import numpy as np
 import scipy.ndimage as ndi
 import torch
-from shapely import Polygon
+from shapely import Point, Polygon
 from skimage.feature import peak_local_max
-from tiatoolbox.annotation.storage import Annotation, SQLiteStore
+from tiatoolbox.annotation.storage import Annotation, AnnotationStore, SQLiteStore
+from tiatoolbox.tools.patchextraction import get_patch_extractor
+from tiatoolbox.wsicore.wsireader import WSIReader
 
 from monkey.config import PredictionIOConfig, TrainingIOConfig
 
@@ -329,7 +331,9 @@ def scale_coords(coords: list, scale_factor: float = 1):
 
 
 def detection_to_annotation_store(
-    detection_records: list[dict], scale_factor: float = 1
+    detection_records: list[dict],
+    scale_factor: float = 1,
+    type="polygon",
 ):
     """
     Convert detection records to annotation store
@@ -342,8 +346,9 @@ def detection_to_annotation_store(
     for record in detection_records:
         x = int(record["x"] * scale_factor)
         y = int(record["y"] * scale_factor)
-        annotation_store.append(
-            Annotation(
+
+        if type == "polygon":
+            entry = Annotation(
                 geometry=Polygon.from_bounds(
                     x - 16, y - 16, x + 16, y + 16
                 ),
@@ -352,7 +357,16 @@ def detection_to_annotation_store(
                     "prob": record["prob"],
                 },
             )
-        )
+        else:
+            entry = Annotation(
+                geometry=Point(x, y),
+                properties={
+                    "type": record["type"],
+                    "prob": record["prob"],
+                },
+            )
+
+        annotation_store.append(entry)
 
     return annotation_store
 
@@ -490,3 +504,141 @@ def filter_detection_with_mask(
             continue
 
     return filtered_records
+
+
+def non_max_suppression_fast(boxes, overlapThresh):
+    """Very efficient NMS function taken from pyimagesearch"""
+
+    # if there are no boxes, return an empty list
+    if len(boxes) == 0:
+        return []
+    # if the bounding boxes integers, convert them to floats --
+    # this is important since we'll be doing a bunch of divisions
+    if boxes.dtype.kind == "i":
+        boxes = boxes.astype("float")
+    # initialize the list of picked indexes
+    pick = []
+    # grab the coordinates of the bounding boxes
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+    # compute the area of the bounding boxes and sort the bounding
+    # boxes by the bottom-right y-coordinate of the bounding box
+    area = (x2 - x1 + 1) * (y2 - y1 + 1)
+    idxs = np.argsort(y2)
+    # keep looping while some indexes still remain in the indexes
+    # list
+    while len(idxs) > 0:
+        # grab the last index in the indexes list and add the
+        # index value to the list of picked indexes
+        last = len(idxs) - 1
+        i = idxs[last]
+        pick.append(i)
+        # find the largest (x, y) coordinates for the start of
+        # the bounding box and the smallest (x, y) coordinates
+        # for the end of the bounding box
+        xx1 = np.maximum(x1[i], x1[idxs[:last]])
+        yy1 = np.maximum(y1[i], y1[idxs[:last]])
+        xx2 = np.minimum(x2[i], x2[idxs[:last]])
+        yy2 = np.minimum(y2[i], y2[idxs[:last]])
+        # compute the width and height of the bounding box
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+        # compute the ratio of overlap
+        overlap = (w * h) / area[idxs[:last]]
+        # delete all indexes from the index list that have
+        idxs = np.delete(
+            idxs,
+            np.concatenate(
+                ([last], np.where(overlap > overlapThresh)[0])
+            ),
+        )
+    # return only the bounding boxes that were picked using the
+    # integer data type
+    # return boxes[pick].astype("int")
+    return pick
+
+
+def get_centerpoints(box, dist):
+    """Returns centerpoints of box"""
+    return (box[0] + dist, box[1] + dist)
+
+
+def get_points_within_box(
+    annotation_store: AnnotationStore, box
+) -> list:
+    query_poly = Polygon.from_bounds(box[0], box[1], box[2], box[3])
+    anns = annotation_store.query(geometry=query_poly)
+    results = []
+    for point in anns.items():
+        entry = {
+            "x": point[1].coords[0][0],
+            "y": point[1].coords[0][1],
+            "type": point[1].properties["type"],
+            "prob": point[1].properties["prob"],
+        }
+        results.append(entry)
+    return results
+
+
+def point_to_box(x, y, size):
+    """Convert centerpoint to bounding box of fixed size"""
+    return np.array([x - size, y - size, x + size, y + size])
+
+
+def slide_nms(
+    wsi_reader: WSIReader,
+    binary_mask: np.ndarray,
+    detection_record: list[dict],
+    tile_size: int = 2048,
+    box_size: int = 5,
+    overlap_thresh: float = 0.5,
+):
+    """
+    Iterate over detection records and perform NMS.
+    For this to properly work, tiles need to be larger than
+    model inference patches.
+    """
+    # Open WSI and detection points file
+
+    tile_extractor = get_patch_extractor(
+        input_img=wsi_reader,
+        input_mask=binary_mask,
+        method_name="slidingwindow",
+        patch_size=(tile_size, tile_size),
+        resolution=0,
+        units="level",
+    )
+
+    annotation_store = detection_to_annotation_store(
+        detection_record, scale_factor=1, type="Point"
+    )
+
+    center_nms_points = []
+    # get 2048x2048 patch coordinates without overlap
+    for bb in tile_extractor.coordinate_list:
+        x_pos = bb[0]
+        y_pos = bb[1]
+        # Select annotations within 2048x2048 box
+        box = [x_pos, y_pos, x_pos + tile_size, y_pos + tile_size]
+        patch_points = get_points_within_box(annotation_store, box)
+
+        if len(patch_points) < 2:
+            continue
+
+        # Convert each point to a 5x5 box
+        boxes = np.array(
+            [
+                point_to_box(entry["x"], entry["y"], box_size)
+                for entry in patch_points
+            ]
+        )
+        # nms_boxes = non_max_suppression_fast(boxes, 0.5)
+        indices = non_max_suppression_fast(boxes, overlap_thresh)
+        for i in indices:
+            center_nms_points.append(patch_points[i])
+        # for box in nms_boxes:
+        #     center_nms_points.append(get_centerpoints(box, box_size))
+
+    return center_nms_points

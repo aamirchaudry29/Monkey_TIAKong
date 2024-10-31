@@ -17,6 +17,7 @@ from monkey.data.data_utils import (
     collate_fn,
     filter_detection_with_mask,
     imagenet_normalise_torch,
+    slide_nms,
 )
 from monkey.model.efficientunetb0.architecture import get_efficientunet_b0_MBConv
 
@@ -169,6 +170,13 @@ def wsi_detection_in_mask(
 
     # create model
     model = get_efficientunet_b0_MBConv(pretrained=False)
+    # model = smp.Unet(
+    #     encoder_name="mit_b5",
+    #     encoder_weights=None,
+    #     decoder_attention_type="scse",
+    #     in_channels=3,
+    #     classes=1,
+    # )
     model.to("cuda")
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint["model"])
@@ -233,5 +241,15 @@ def wsi_detection_in_mask(
     final_detected_records = filter_detection_with_mask(
         detected_points, binary_mask, points_mpp=base_mpp, mask_mpp=8
     )
+    print(f"Before nms: {len(final_detected_records)}")
+    # nms
+    nms_records = slide_nms(
+        wsi_reader=wsi_reader,
+        binary_mask=binary_mask,
+        detection_record=final_detected_records,
+        tile_size=2048,
+        box_size=30,
+        overlap_thresh=0.5,
+    )
 
-    return final_detected_records
+    return nms_records
