@@ -2,13 +2,10 @@ import os
 from typing import Tuple
 
 import numpy as np
-import segmentation_models_pytorch as smp
 import skimage.measure
 import skimage.morphology
 import torch
-from tiatoolbox.models.engine.semantic_segmentor import (
-    SemanticSegmentor,
-)
+from tiatoolbox.models.engine.semantic_segmentor import SemanticSegmentor
 from tiatoolbox.tools.patchextraction import get_patch_extractor
 from tiatoolbox.wsicore.wsireader import VirtualWSIReader, WSIReader
 from torch.utils.data import DataLoader
@@ -16,11 +13,10 @@ from tqdm import tqdm
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
-    check_coord_in_mask,
     collate_fn,
+    filter_detection_with_mask,
     imagenet_normalise_torch,
-    px_to_mm,
-    write_json_file,
+    slide_nms,
 )
 
 
@@ -92,8 +88,7 @@ def process_tile_detection_masks(
     x_start: int,
     y_start: int,
     threshold: float = 0.5,
-    mpp: float = 0.24,
-    tissue_mask: np.ndarray | None = None,  # 1.25 objective power
+    min_size: int = 96,
 ):
     """
     Process cell detection of tile image
@@ -119,7 +114,7 @@ def process_tile_detection_masks(
 
     tile_prediction_binary = tile_prediction > threshold
     tile_prediction_binary = skimage.morphology.remove_small_objects(
-        ar=tile_prediction_binary, min_size=128
+        ar=tile_prediction_binary, min_size=min_size
     )
 
     mask_labels = skimage.measure.label(tile_prediction_binary)
@@ -153,7 +148,10 @@ def process_tile_detection_masks(
 
 
 def wsi_detection_in_mask(
-    wsi_name: str, mask_name: str, IOConfig: PredictionIOConfig
+    wsi_name: str,
+    mask_name: str,
+    IOConfig: PredictionIOConfig,
+    model: torch.nn.Module,
 ) -> list[dict]:
     """
     Cell Detection in WSI
@@ -168,20 +166,6 @@ def wsi_detection_in_mask(
     """
     wsi_dir = IOConfig.wsi_dir
     mask_dir = IOConfig.mask_dir
-    output_dir = IOConfig.output_dir
-    model_path = IOConfig.model_path
-
-    # create model
-    model = smp.Unet(
-        encoder_name="mit_b0",
-        encoder_weights=None,
-        decoder_attention_type="scse",
-        in_channels=3,
-        classes=1,
-    )
-    model.to("cuda")
-    checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint["model"])
 
     wsi_without_ext = os.path.splitext(wsi_name)[0]
 
@@ -197,7 +181,9 @@ def wsi_detection_in_mask(
     )[0]
     print(f"baseline mpp = {base_mpp}")
     # Get ROI mask
-    mask_thumbnail = mask_reader.slide_thumbnail()
+    mask_thumbnail = mask_reader.slide_thumbnail(
+        resolution=8.0, units="mpp"
+    )
     binary_mask = mask_thumbnail[:, :, 0]
     # Create tile extractor
     resolution = IOConfig.resolution
@@ -232,10 +218,24 @@ def wsi_detection_in_mask(
             bounding_box[0],
             bounding_box[1],
             threshold=IOConfig.threshold,
-            tissue_mask=binary_mask,
+            min_size=IOConfig.min_size,
         )
         detected_points.extend(output_points_tile)
 
+    print(f"Before filtering: {len(detected_points)}")
     # Filter detected_points using ROI mask
+    final_detected_records = filter_detection_with_mask(
+        detected_points, binary_mask, points_mpp=base_mpp, mask_mpp=8
+    )
+    print(f"Before nms: {len(final_detected_records)}")
+    # nms
+    nms_records = slide_nms(
+        wsi_reader=wsi_reader,
+        binary_mask=binary_mask,
+        detection_record=final_detected_records,
+        tile_size=2048,
+        box_size=30,
+        overlap_thresh=0.5,
+    )
 
-    return detected_points
+    return nms_records
