@@ -31,6 +31,20 @@ def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
     return mask
 
 
+def load_nuclick_annotation(file_id, IOConfig: TrainingIOConfig):
+    """
+    Nuclick file format: 5 channel .np file
+    channel 1-3: RGB image
+    channel 4: instance map
+    channel 5: class map (1:lymphocytes,2:monocytes)
+    """
+    mask_name = f"{file_id}.npy"
+    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
+    mask = np.load(mask_path)
+    mask = mask.astype(np.uint8)
+    return mask[:,:,4]
+
+
 def load_json_annotation(
     file_id: str, IOConfig: TrainingIOConfig
 ) -> np.ndarray:
