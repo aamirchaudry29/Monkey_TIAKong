@@ -54,13 +54,12 @@ class PredictionIOConfig:
         wsi_dir: str,
         mask_dir: str,
         output_dir: str,
-        model_name: str,
-        model_path: str,
         patch_size: int = 256,
         resolution: float = 0,
         units: str = "level",
         stride: int = 256,
         threshold: float = 0.9,
+        min_size: int = 96,
     ):
         self.wsi_dir = wsi_dir
         self.mask_dir = mask_dir
@@ -68,13 +67,12 @@ class PredictionIOConfig:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir, exist_ok=True)
         self.check_dirs_exist()
-        self.model_name = model_name
-        self.model_path = model_path
         self.patch_size = patch_size
         self.stride = stride
         self.resolution = resolution
         self.units = units
         self.threshold = threshold
+        self.min_size = min_size
 
     def check_dirs_exist(self):
         for dir in [self.wsi_dir, self.mask_dir, self.output_dir]:

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --job-name=monkey_1 # Job name for tracking
+#SBATCH --job-name=monkey # Job name for tracking
 #SBATCH --partition=gpu  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1      # Number of CPU threads used by your job
@@ -22,5 +22,5 @@ echo "done"
 
 ## Run Python Program ##
 echo "starting python program"
-python3 /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/train_example.py
+python3.11 /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/train_example.py
 echo "finished"
