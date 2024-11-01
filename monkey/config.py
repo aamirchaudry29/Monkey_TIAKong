@@ -26,18 +26,16 @@ class TrainingIOConfig:
         self.set_image_dir(image_dir)
         self.set_mask_dir(mask_dir)
         self.set_json_dir(json_dir)
+        self.check_dirs_exist()
 
     def set_image_dir(self, image_dir):
         self.image_dir = image_dir
-        self.check_dirs_exist()
 
     def set_mask_dir(self, mask_dir):
         self.mask_dir = mask_dir
-        self.check_dirs_exist()
 
     def set_json_dir(self, json_dir):
         self.json_dir = json_dir
-        self.check_dirs_exist()
 
     def set_checkpoint_save_dir(self, run_name: str):
         dir = os.path.join(self.save_dir, run_name)

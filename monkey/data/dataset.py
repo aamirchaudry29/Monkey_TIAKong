@@ -17,7 +17,7 @@ from monkey.data.data_utils import (
     imagenet_normalise,
     load_image,
     load_mask,
-    load_nuclick_annotation
+    load_nuclick_annotation,
 )
 
 
@@ -52,7 +52,7 @@ class InflammatoryDataset(Dataset):
         disk_radius: int = 9,
         regression_map: bool = False,
         module: str = "detection",
-        use_nuclick_masks: bool = False
+        use_nuclick_masks: bool = False,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -77,7 +77,9 @@ class InflammatoryDataset(Dataset):
         image = load_image(file_id, self.IOConfig)
 
         if self.use_nuclick_masks:
-            cell_mask = load_nuclick_annotation(file_id, self.IOConfig)
+            cell_mask = load_nuclick_annotation(
+                file_id, self.IOConfig
+            )
         else:
             cell_mask = load_mask(file_id, self.IOConfig)
 
@@ -95,10 +97,13 @@ class InflammatoryDataset(Dataset):
                 augmented_data["mask"],
             )
 
-        # Dilate cell centroids
-        cell_map = dilate_mask(
-            cell_binary_mask, disk_radius=self.disk_radius
-        )
+        if self.use_nuclick_masks:
+            cell_map = cell_binary_mask
+        else:
+            # Dilate cell centroids
+            cell_map = dilate_mask(
+                cell_binary_mask, disk_radius=self.disk_radius
+            )
         # Generate regression map
         if self.regression_map:
             cell_map = generate_regression_map(
@@ -133,7 +138,7 @@ def get_dataloaders(
     regression_map: bool = False,
     module: str = "detection",
     do_augmentation: bool = False,
-    use_nuclick_masks: bool = False
+    use_nuclick_masks: bool = False,
 ):
     """Get training and validation dataloaders
     Task 1: Overall Inflammation cell (MNL) detection
@@ -165,7 +170,7 @@ def get_dataloaders(
         disk_radius=disk_radius,
         regression_map=regression_map,
         module=module,
-        use_nuclick_masks=use_nuclick_masks
+        use_nuclick_masks=use_nuclick_masks,
     )
     val_dataset = InflammatoryDataset(
         IOConfig=IOConfig,
@@ -175,7 +180,7 @@ def get_dataloaders(
         disk_radius=disk_radius,
         regression_map=regression_map,
         module=module,
-        use_nuclick_masks=use_nuclick_masks
+        use_nuclick_masks=use_nuclick_masks,
     )
 
     train_loader = DataLoader(

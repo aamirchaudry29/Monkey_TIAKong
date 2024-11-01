@@ -42,7 +42,7 @@ def load_nuclick_annotation(file_id, IOConfig: TrainingIOConfig):
     mask_path = os.path.join(IOConfig.mask_dir, mask_name)
     mask = np.load(mask_path)
     mask = mask.astype(np.uint8)
-    return mask[:,:,4]
+    return mask[:, :, 4]
 
 
 def load_json_annotation(

@@ -26,12 +26,12 @@ run_config = {
     "weight_decay": 0.0004,
     "epochs": 50,
     "loss_function": "BCE_Dice",
-    "disk_radius": 11,
+    "disk_radius": 11,  # Ignored for NuClick masks
     "regression_map": False,
     "do_augmentation": True,
     "activation_function": "sigmoid",
     "module": "detection",
-    "use_nuclick_masks": True, # Whether to use NuClick segmentation masks
+    "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks
 }
 
 # Specify IO config
@@ -41,7 +41,7 @@ IOconfig = TrainingIOConfig(
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{run_config['model_name']}",
 )
 # If use nuclick masks, change mask dir
-if run_config['use_nuclick_masks']:
+if run_config["use_nuclick_masks"]:
     IOconfig.set_mask_dir("/mnt/lab-share/Monkey/nuclick_hovernext")
 
 
@@ -76,7 +76,7 @@ train_loader, val_loader = get_dataloaders(
     disk_radius=run_config["disk_radius"],
     regression_map=run_config["regression_map"],
     do_augmentation=run_config["do_augmentation"],
-    use_nuclick_masks=run_config['use_nuclick_masks']
+    use_nuclick_masks=run_config["use_nuclick_masks"],
 )
 
 
