@@ -12,6 +12,8 @@ class TrainingIOConfig:
     ):
         self.dataset_dir = dataset_dir
         self.save_dir = save_dir
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir, exist_ok=True)
         self.image_dir = ""
         self.mask_dir = ""
         self.json_dir = ""

@@ -18,13 +18,13 @@ from monkey.train.train_cell_detection import train_det_net
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey",
-    "model_name": "efficientunetb0_seg",
+    "model_name": "efficientunetb0_seg_bm",
     "batch_size": 32,
-    "val_fold": 4,  # [1-4]
+    "val_fold": 1,  # [1-4]
     "optimizer": "AdamW",
-    "learning_rate": 0.003,
+    "learning_rate": 0.03,
     "weight_decay": 0.0004,
-    "epochs": 50,
+    "epochs": 100,
     "loss_function": "BCE_Dice",
     "disk_radius": 11,  # Ignored for NuClick masks
     "regression_map": False,
@@ -103,7 +103,7 @@ run = wandb.init(
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
-run.watch(model, log_freq=1000)
+# run.watch(model, log_freq=1000)
 # run = None
 
 # Start training

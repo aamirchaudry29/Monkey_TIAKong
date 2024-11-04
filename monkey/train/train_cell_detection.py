@@ -70,23 +70,25 @@ def validate_one_epoch(
             ]  # Exclude channel dim
             true_masks = true_masks[:, 0, :, :]
             logits_pred = logits_pred[:, 0, :, :]
-            f1_score = get_patch_F1_score_batch(
+            metrics = get_patch_F1_score_batch(
                 mask_pred_binary, true_masks, logits_pred
             )
 
-        running_val_score += f1_score * images.size(0)
+        running_val_score += metrics["F1"] * images.size(0)
 
     # Log an example prediction to WandB
     if wandb_run is not None:
         log_data = {
             "images": wandb.Image(images[0, :3, :, :].cpu()),
             "masks": {
-                "true": wandb.Image(true_masks[0].float().cpu()),
+                "true": wandb.Image(
+                    true_masks[0].float().cpu(), mode="L"
+                ),
                 "pred_probs": wandb.Image(
-                    logits_pred[0, 0, :, :].float().cpu(), mode="L"
+                    logits_pred[0, :, :].float().cpu()
                 ),
                 "Final_pred": wandb.Image(
-                    mask_pred_binary[0, 0, :, :].float().cpu(),
+                    mask_pred_binary[0, :, :].float().cpu(),
                     mode="L",
                 ),
             },
