@@ -16,7 +16,7 @@ from prediction.detection import wsi_detection_in_mask
 if __name__ == "__main__":
     for fold in range(1, 5):
         # fold = 1
-        model_name = "efficientunetb0_seg"
+        model_name = "efficientunetb0"
 
         config = PredictionIOConfig(
             wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -26,11 +26,11 @@ if __name__ == "__main__":
             resolution=0,
             units="level",
             stride=224,
-            threshold=0.9,
+            threshold=0.3,
             min_size=32,
         )
 
-        model_path = f"/home/u1910100/Documents/Monkey/runs/{model_name}/fold_{fold}/epoch_50.pth"
+        model_path = f"/home/u1910100/Documents/Monkey/runs/{model_name}/fold_{fold}/epoch_100.pth"
 
         split_info = open_json_file(
             "/home/u1910100/Documents/Monkey/patches_256/wsi_level_split.json"

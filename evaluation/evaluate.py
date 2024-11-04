@@ -23,14 +23,11 @@ import json
 # for local debugging
 import os
 from pathlib import Path
-from pprint import pformat, pprint
 
 import numpy as np
 from monai.metrics import compute_froc_curve_data, compute_froc_score
 from scipy.spatial import distance
 from sklearn.metrics import auc
-
-from evaluation.helpers import run_prediction_processing
 
 INPUT_DIRECTORY = Path(f"{os.getcwd()}/test/input")
 OUTPUT_DIRECTORY = Path(f"{os.getcwd()}/test/output")
@@ -44,131 +41,36 @@ GROUND_TRUTH_DIRECTORY = Path(f"{os.getcwd()}/ground_truth")
 SPACING_LEVEL0 = 0.24199951445730394
 
 
-def process(job):
-    """Processes a single algorithm job, looking at the outputs"""
-    report = "Processing:\n"
-    report += pformat(job)
-    report += "\n"
+def calculate_f1_metrics(tp: float, fn: float, fp: float) -> dict:
+    """
+    Calculate F1, Precision, Recall
 
-    # Firstly, find the location of the results
-    location_detected_lymphocytes = get_file_location(
-        job_pk=job["pk"],
-        values=job["outputs"],
-        slug="detected-lymphocytes",
-    )
-    location_detected_monocytes = get_file_location(
-        job_pk=job["pk"],
-        values=job["outputs"],
-        slug="detected-monocytes",
-    )
-    location_detected_inflammatory_cells = get_file_location(
-        job_pk=job["pk"],
-        values=job["outputs"],
-        slug="detected-inflammatory-cells",
-    )
+    Args:
+        tp
+        fn
+        fp
+    Returns:
+        metrics: {"F1", "Precision", "Recall"}
+    """
+    try:
+        precision = tp / (tp + fp)
+    except ZeroDivisionError:
+        precision = 0
+    try:
+        recall = tp / (tp + fn)
+    except ZeroDivisionError:
+        recall = 0
 
-    # Secondly, read the results
-    result_detected_lymphocytes = load_json_file(
-        location=location_detected_lymphocytes,
-    )
-    result_detected_lymphocytes = convert_mm_to_pixel(
-        result_detected_lymphocytes
-    )
+    if tp == 0 and fp == 0 and fn == 0:
+        f1 = 0
+    else:
+        f1 = (2 * tp) / (2 * tp + fp + fn)
 
-    result_detected_monocytes = load_json_file(
-        location=location_detected_monocytes,
-    )
-    result_detected_monocytes = convert_mm_to_pixel(
-        result_detected_monocytes
-    )
-
-    result_detected_inflammatory_cells = load_json_file(
-        location=location_detected_inflammatory_cells,
-    )
-    result_detected_inflammatory_cells = convert_mm_to_pixel(
-        result_detected_inflammatory_cells
-    )
-
-    # Thirdly, retrieve the input image name to match it with an image in your ground truth
-    file_id = get_image_name(
-        values=job["inputs"],
-        slug="kidney-transplant-biopsy",
-    )
-    file_id = file_id.split("_PAS")[0]
-    # Fourthly, load your ground truth
-    # Include it in your evaluation container by placing it in ground_truth/
-    gt_lymphocytes = load_json_file(
-        location=GROUND_TRUTH_DIRECTORY
-        / f"{file_id}_lymphocytes.json"
-    )
-    gt_monocytes = load_json_file(
-        location=GROUND_TRUTH_DIRECTORY / f"{file_id}_monocytes.json"
-    )
-    gt_inf_cells = load_json_file(
-        location=GROUND_TRUTH_DIRECTORY
-        / f"{file_id}_inflammatory-cells.json"
-    )
-
-    # compare the results to your ground truth and compute some metrics
-    lymphocytes_froc = get_froc_vals(
-        gt_lymphocytes,
-        result_detected_lymphocytes,
-        radius=int(4 / SPACING_LEVEL0),
-    )  # margin for lymphocytes is 4um at spacing 0.25 um / pixel
-    monocytes_froc = get_froc_vals(
-        gt_monocytes, result_detected_monocytes, radius=int(10 / 0.25)
-    )  # margin for monocytes is 10um at spacing 0.25 um / pixel
-    inflamm_froc = get_froc_vals(
-        gt_inf_cells,
-        result_detected_inflammatory_cells,
-        radius=int(7.5 / SPACING_LEVEL0),
-    )  # margin for inflammatory cells is 7.5um at spacing 0.24 um / pixel
-
-    report += (
-        "Lymphocytes FROC:\n"
-        + pformat(
-            {
-                k: v
-                for k, v in lymphocytes_froc.items()
-                if type(v) is not list
-            }
-        )
-        + "\n"
-    )
-    report += (
-        "Monocytes FROC:\n"
-        + pformat(
-            {
-                k: v
-                for k, v in monocytes_froc.items()
-                if type(v) is not list
-            }
-        )
-        + "\n"
-    )
-    report += (
-        "Inflammatory cells FROC:\n"
-        + pformat(
-            {
-                k: v
-                for k, v in inflamm_froc.items()
-                if type(v) is not list
-            }
-        )
-        + "\n"
-    )
-
-    print(report)
-
-    # Finally, calculate by comparing the ground truth to the actual results
-    return (
-        file_id,
-        {
-            "lymphocytes": lymphocytes_froc,
-            "monocytes": monocytes_froc,
-            "inflammatory-cells": inflamm_froc,
-        },
-    )
+    return {
+        "F1": f1,
+        "Precision": precision,
+        "Recall": recall,
+    }
 
 
 def get_F1_scores(gt_dict, result_dict, radius: int):
@@ -216,25 +118,7 @@ def get_F1_scores(gt_dict, result_dict, radius: int):
         gt_coords, result_coords, result_prob, radius
     )
 
-    try:
-        precision = tp / (tp + fp)
-    except ZeroDivisionError:
-        precision = 0
-    try:
-        recall = tp / (tp + fn)
-    except ZeroDivisionError:
-        recall = 0
-
-    if tp == 0 and fp == 0 and fn == 0:
-        f1 = 0
-    else:
-        f1 = (2 * tp) / (2 * tp + fp + fn)
-
-    return {
-        "F1": f1,
-        "Precision": precision,
-        "Recall": recall,
-    }
+    return calculate_f1_metrics(fp, fn, fp)
 
 
 def get_froc_vals(gt_dict, result_dict, radius: int):
@@ -335,9 +219,20 @@ def match_coordinates(ground_truth, predictions, pred_prob, margin):
         tp_probs (list of floats): Probabilities of the true positive predictions.
         fp_probs (list of floats): Probabilities of the false positive predictions.
     """
-    if len(ground_truth) == 0 or len(predictions) == 0:
+    if len(ground_truth) == 0 and len(predictions) == 0:
         return 0, 0, 0, np.array([]), np.array([])
-        # return true_positives, false_negatives, false_positives, np.array(tp_probs), np.array(fp_probs)
+    # return true_positives, false_negatives, false_positives, np.array(tp_probs), np.array(fp_probs)
+    if len(ground_truth) == 0 and len(predictions) != 0:
+        return (
+            0,
+            0,
+            len(predictions),
+            np.array([]),
+            np.array(pred_prob),
+        )
+    if len(ground_truth) != 0 and len(predictions) == 0:
+        return 0, len(ground_truth), 0, np.array([]), np.array([])
+
     # Convert lists to numpy arrays for easier distance calculations
     gt_array = np.array(ground_truth)
     pred_array = np.array(predictions)
@@ -356,8 +251,12 @@ def match_coordinates(ground_truth, predictions, pred_prob, margin):
         if dist_matrix[gt_idx, closest_pred_idx] <= margin:
             matched_gt.add(gt_idx)
             matched_pred.add(closest_pred_idx)
+            dist_matrix[:, closest_pred_idx] = np.inf
 
     # Calculate true positives, false negatives, and false positives
+    # print(f"preds {len(predictions)}")
+    # print(f"gts {len(ground_truth)}")
+
     true_positives = len(matched_gt)
     false_negatives = len(ground_truth) - true_positives
     false_positives = len(predictions) - true_positives
@@ -377,71 +276,6 @@ def match_coordinates(ground_truth, predictions, pred_prob, margin):
         np.array(tp_probs),
         np.array(fp_probs),
     )
-
-
-def main():
-    print_inputs()
-    predictions = read_predictions()
-    metrics = {}
-
-    # We now process each algorithm job for this submission
-    # Note that the jobs are not in any order!
-    # We work that out from predictions.json
-
-    # Use concurrent workers to process the predictions more efficiently
-    results = run_prediction_processing(
-        fn=process, predictions=predictions
-    )
-    file_ids = [r[0] for r in results]
-    metrics_per_slide = [r[1] for r in results]
-    metrics["per_slide"] = {
-        file_id: metrics_per_slide[i]
-        for i, file_id in enumerate(file_ids)
-    }
-
-    # We have the results per prediction, we can aggregate over the results and
-    # generate an overall score(s) for this submission
-    lymphocytes_metrics = format_metrics_for_aggr(
-        metrics_per_slide, "lymphocytes"
-    )
-    monocytes_metrics = format_metrics_for_aggr(
-        metrics_per_slide, "monocytes"
-    )
-    inflammatory_cells_metrics = format_metrics_for_aggr(
-        metrics_per_slide, "inflammatory-cells"
-    )
-    aggregated_metrics = {
-        "lymphocytes": get_aggr_froc(lymphocytes_metrics),
-        "monocytes": get_aggr_froc(monocytes_metrics),
-        "inflammatory-cells": get_aggr_froc(
-            inflammatory_cells_metrics
-        ),
-    }
-
-    # clean up the per file metrics
-    for file_id, file_metrics in metrics["per_slide"].items():
-        for cell_type in [
-            "lymphocytes",
-            "monocytes",
-            "inflammatory-cells",
-        ]:
-            for i in [
-                "sensitivity_slide",
-                "fp_per_slide",
-                "fp_probs_slide",
-                "tp_probs_slide",
-                "total_pos_slide",
-            ]:
-                if i in file_metrics[cell_type]:
-                    del file_metrics[cell_type][i]
-
-    # Aggregate the metrics_per_slide
-    metrics["aggregates"] = aggregated_metrics
-
-    # Make sure to save the metrics
-    write_metrics(metrics=metrics)
-
-    return 0
 
 
 def get_aggr_froc(metrics_dict):
@@ -507,19 +341,6 @@ def format_metrics_for_aggr(metrics_list, cell_type):
             aggr[key].append(value)
 
     return aggr
-
-
-def print_inputs():
-    # Just for convenience, in the logs you can then see what files you have to work with
-    input_files = [
-        str(x)
-        for x in Path(INPUT_DIRECTORY).rglob("*")
-        if x.is_file()
-    ]
-
-    print("Input Files:")
-    pprint(input_files)
-    print("")
 
 
 def read_predictions():
@@ -592,7 +413,3 @@ def write_metrics(*, metrics):
     # Write a json document used for ranking results on the leaderboard
     with open(OUTPUT_DIRECTORY / "metrics.json", "w") as f:
         f.write(json.dumps(metrics, indent=4))
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
