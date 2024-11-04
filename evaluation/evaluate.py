@@ -91,14 +91,6 @@ def get_F1_scores(gt_dict, result_dict, radius: int):
             "Recall": 0,
         }
     gt_coords = [i["point"] for i in gt_dict["points"]]
-    gt_rois = [i["polygon"] for i in gt_dict["rois"]]
-    # compute the area of the polygon in roi
-    area_mm2 = (
-        SPACING_LEVEL0
-        * SPACING_LEVEL0
-        * gt_dict["area_rois"]
-        / 1000000
-    )
     # result_prob = [i['probability'] for i in result_dict['points']]
     result_prob = [i["probability"] for i in result_dict["points"]]
     # make some dummy values between 0 and 1 for the result prob
@@ -118,7 +110,7 @@ def get_F1_scores(gt_dict, result_dict, radius: int):
         gt_coords, result_coords, result_prob, radius
     )
 
-    return calculate_f1_metrics(fp, fn, fp)
+    return calculate_f1_metrics(tp, fn, fp)
 
 
 def get_froc_vals(gt_dict, result_dict, radius: int):

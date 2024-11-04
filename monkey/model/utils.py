@@ -1,6 +1,7 @@
 import numpy as np
 import torch.nn
 from skimage.measure import label, regionprops
+from torch import Tensor
 
 from evaluation.evaluate import calculate_f1_metrics, match_coordinates
 
@@ -48,6 +49,54 @@ def get_cell_centers(
     return {"centers": centers, "probs": probs}
 
 
+def get_patch_F1_score_batch(
+    batch_pred_patch: np.ndarray | Tensor,
+    batch_target_patch: np.ndarray | Tensor,
+    batch_intensity_image: np.ndarray | Tensor | None,
+) -> dict:
+    """
+    Calculate detection F1 score from binary masks
+    Average over batches
+
+    Args:
+        pred_patch: Prediction mask [BxHxW]
+        target_parch: ground truth mask [BxHxW]
+    Returns:
+        metrics: {"F1", "Precision", "Recall"}
+    """
+
+    if torch.is_tensor(batch_pred_patch):
+        batch_pred_patch = batch_pred_patch.numpy(force=True)
+    if torch.is_tensor(batch_target_patch):
+        batch_target_patch = batch_target_patch.numpy(force=True)
+    if torch.is_tensor(batch_intensity_image):
+        batch_intensity_image = batch_intensity_image.numpy(
+            force=True
+        )
+
+    sum_f1 = 0.0
+    sum_precision = 0.0
+    sum_recall = 0.0
+
+    batch_count = batch_pred_patch.shape[0]
+    for i in range(batch_count):
+        pred_patch = batch_pred_patch[i, :, :]
+        target_patch = batch_target_patch[i, :, :]
+        intensity_image = batch_intensity_image[i, :, :]
+        metrics = get_patch_F1_score(
+            pred_patch, target_patch, intensity_image
+        )
+        sum_f1 += metrics["F1"]
+        sum_precision += metrics["Precision"]
+        sum_recall += metrics["Recall"]
+
+    return {
+        "F1": sum_f1 / batch_count,
+        "Precision": sum_precision / batch_count,
+        "Recall": sum_recall / batch_count,
+    }
+
+
 def get_patch_F1_score(
     pred_patch: np.ndarray,
     target_patch: np.ndarray,
@@ -59,6 +108,7 @@ def get_patch_F1_score(
     Args:
         pred_patch: Prediction mask [HxW]
         target_parch: ground truth mask [HxW]
+        intensity_image: [HxW]
     Returns:
         metrics: {"F1", "Precision", "Recall"}
     """

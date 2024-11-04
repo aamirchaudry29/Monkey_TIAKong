@@ -641,14 +641,13 @@ def slide_nms(
         if len(patch_points) < 2:
             continue
 
-        # Convert each point to a 5x5 box
+        # Convert each point to a box
         boxes = np.array(
             [
                 point_to_box(entry["x"], entry["y"], box_size)
                 for entry in patch_points
             ]
         )
-        # nms_boxes = non_max_suppression_fast(boxes, 0.5)
         indices = non_max_suppression_fast(boxes, overlap_thresh)
         for i in indices:
             center_nms_points.append(patch_points[i])

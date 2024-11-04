@@ -113,9 +113,9 @@ def process_tile_detection_masks(
         )
 
     tile_prediction_binary = tile_prediction > threshold
-    tile_prediction_binary = skimage.morphology.remove_small_objects(
-        ar=tile_prediction_binary, min_size=min_size
-    )
+    # tile_prediction_binary = skimage.morphology.remove_small_objects(
+    #     ar=tile_prediction_binary, min_size=min_size
+    # )
 
     mask_labels = skimage.measure.label(tile_prediction_binary)
     stats = skimage.measure.regionprops(
