@@ -31,6 +31,20 @@ def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
     return mask
 
 
+def load_nuclick_annotation(file_id, IOConfig: TrainingIOConfig):
+    """
+    Nuclick file format: 5 channel .np file
+    channel 1-3: RGB image
+    channel 4: instance map
+    channel 5: class map (1:lymphocytes,2:monocytes)
+    """
+    mask_name = f"{file_id}.npy"
+    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
+    mask = np.load(mask_path)
+    mask = mask.astype(np.uint8)
+    return mask[:, :, 4]
+
+
 def load_json_annotation(
     file_id: str, IOConfig: TrainingIOConfig
 ) -> np.ndarray:
@@ -627,14 +641,13 @@ def slide_nms(
         if len(patch_points) < 2:
             continue
 
-        # Convert each point to a 5x5 box
+        # Convert each point to a box
         boxes = np.array(
             [
                 point_to_box(entry["x"], entry["y"], box_size)
                 for entry in patch_points
             ]
         )
-        # nms_boxes = non_max_suppression_fast(boxes, 0.5)
         indices = non_max_suppression_fast(boxes, overlap_thresh)
         for i in indices:
             center_nms_points.append(patch_points[i])
@@ -642,3 +655,11 @@ def slide_nms(
         #     center_nms_points.append(get_centerpoints(box, box_size))
 
     return center_nms_points
+
+
+def erode_mask(mask, size=3):
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (size, size)
+    )
+    mask = cv2.erode(mask, kernel, iterations=1)
+    return mask

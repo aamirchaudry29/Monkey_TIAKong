@@ -49,10 +49,16 @@ class MSE_loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("MSE", False)
 
-    def compute_loss(self, input: Tensor, target: Tensor):
+    def compute_loss(
+        self,
+        input: Tensor,
+        target: Tensor,
+        pos_Weight: float = 1000.0,
+    ):
         assert (
             input.size() == target.size()
         )  # "Input size {} must be the same as target size {}".format(input.size(), target.size())
+        target = target * pos_Weight
         return nn.MSELoss()(input, target)
 
         ####

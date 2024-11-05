@@ -10,7 +10,7 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from monkey.model.loss_functions import dice_coeff
+from monkey.model.utils import get_patch_F1_score_batch
 
 
 def train_one_epoch(
@@ -49,7 +49,7 @@ def validate_one_epoch(
     wandb_run: Optional[wandb.run] = None,
     activation: torch.nn = torch.nn.Sigmoid,
 ):
-    running_dice = 0.0
+    running_val_score = 0.0
     model.eval()
     for i, data in enumerate(
         tqdm(validation_loader, desc="validation", leave=False)
@@ -62,31 +62,40 @@ def validate_one_epoch(
             logits_pred = model(images)
             mask_pred = activation(logits_pred)
 
-            threshold = 0.5
-            mask_pred_binary = (mask_pred > threshold).float()
+            mask_pred_binary = (mask_pred > 0.5).float()
 
-            dice_score = dice_coeff(mask_pred_binary, true_masks)
+            # Compute binary detection F1 score
+            mask_pred_binary = mask_pred_binary[
+                :, 0, :, :
+            ]  # Exclude channel dim
+            true_masks = true_masks[:, 0, :, :]
+            logits_pred = logits_pred[:, 0, :, :]
+            metrics = get_patch_F1_score_batch(
+                mask_pred_binary, true_masks, logits_pred
+            )
 
-        running_dice += dice_score * images.size(0)
+        running_val_score += metrics["F1"] * images.size(0)
 
     # Log an example prediction to WandB
     if wandb_run is not None:
         log_data = {
             "images": wandb.Image(images[0, :3, :, :].cpu()),
             "masks": {
-                "true": wandb.Image(true_masks[0].float().cpu()),
+                "true": wandb.Image(
+                    true_masks[0].float().cpu(), mode="L"
+                ),
                 "pred_probs": wandb.Image(
-                    logits_pred[0, 0, :, :].float().cpu(), mode="L"
+                    logits_pred[0, :, :].float().cpu()
                 ),
                 "Final_pred": wandb.Image(
-                    mask_pred_binary[0, 0, :, :].float().cpu(),
+                    mask_pred_binary[0, :, :].float().cpu(),
                     mode="L",
                 ),
             },
         }
         wandb_run.log(log_data)
 
-    avg_dice = running_dice / len(validation_loader.sampler)
+    avg_dice = running_val_score / len(validation_loader.sampler)
     return avg_dice
 
 
