@@ -14,10 +14,10 @@ from tqdm import tqdm
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     collate_fn,
+    erode_mask,
     filter_detection_with_mask,
     imagenet_normalise_torch,
     slide_nms,
-    erode_mask
 )
 
 
@@ -69,7 +69,9 @@ def detection_in_tile(
         imgs = imagenet_normalise_torch(imgs)
         imgs = imgs.to("cuda").float()
 
-        final_out = np.zeros(shape=(imgs.shape[0],patch_size, patch_size))
+        final_out = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
         with torch.no_grad():
             for model in models:
                 model.eval()
@@ -77,7 +79,7 @@ def detection_in_tile(
                 out = torch.sigmoid(out)
                 out = out.cpu().detach().numpy()[:, 0, :, :]
                 final_out += out
-        
+
         final_out = final_out / len(models)
 
         # out_mask = skimage.morphology.remove_small_objects(
@@ -118,7 +120,9 @@ def process_tile_detection_masks(
             (1024, 1024), pred_masks, coordinate_list
         )
 
-    tile_prediction_binary = (tile_prediction > threshold).astype(np.uint8)
+    tile_prediction_binary = (tile_prediction > threshold).astype(
+        np.uint8
+    )
     # tile_prediction_binary = erode_mask(tile_prediction_binary)
     tile_prediction_binary = skimage.morphology.remove_small_objects(
         ar=tile_prediction_binary.astype(bool), min_size=min_size

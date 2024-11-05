@@ -658,6 +658,8 @@ def slide_nms(
 
 
 def erode_mask(mask, size=3):
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (size, size)
+    )
     mask = cv2.erode(mask, kernel, iterations=1)
     return mask

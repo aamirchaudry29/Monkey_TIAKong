@@ -1,8 +1,8 @@
 import os
 
+import segmentation_models_pytorch as smp
 import torch
 from tqdm import tqdm
-import segmentation_models_pytorch as smp
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
@@ -16,7 +16,10 @@ from prediction.detection import wsi_detection_in_mask
 
 if __name__ == "__main__":
     thresholds = [
-       0.3, 0.3, 0.3, 0.3
+        0.3,
+        0.3,
+        0.3,
+        0.3,
     ]  # optimal threshold for each fold
 
     for fold in range(1, 2):
@@ -55,7 +58,6 @@ if __name__ == "__main__":
         model_1.to("cuda")
         model_1.eval()
         models.append(model_1)
-
 
         for wsi_name in tqdm(val_wsi_files):
             wsi_name_without_ext = os.path.splitext(wsi_name)[0]
