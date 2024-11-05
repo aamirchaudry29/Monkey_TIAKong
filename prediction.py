@@ -2,6 +2,7 @@ import os
 
 import torch
 from tqdm import tqdm
+import segmentation_models_pytorch as smp
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
@@ -15,15 +16,12 @@ from prediction.detection import wsi_detection_in_mask
 
 if __name__ == "__main__":
     thresholds = [
-        0.3,
-        0.5,
-        0.3,
-        0.5,
+       0.3, 0.3, 0.3, 0.3
     ]  # optimal threshold for each fold
 
-    for fold in range(1, 5):
+    for fold in range(1, 2):
         # fold = 1
-        model_name = "efficientunetb0"
+        model_name = "efficientunetb0_seg_bm"
 
         thresh = thresholds[fold - 1]
 
@@ -36,7 +34,7 @@ if __name__ == "__main__":
             units="level",
             stride=224,
             threshold=thresh,
-            min_size=0,
+            min_size=7,
         )
 
         model_path = f"/home/u1910100/Documents/Monkey/runs/{model_name}/fold_{fold}/epoch_100.pth"
@@ -50,11 +48,14 @@ if __name__ == "__main__":
         print(val_wsi_files)
 
         # create model
-        model = get_efficientunet_b0_MBConv(pretrained=False)
+        models = []
+        model_1 = get_efficientunet_b0_MBConv(pretrained=False)
         checkpoint = torch.load(model_path)
-        model.load_state_dict(checkpoint["model"])
-        model.to("cuda")
-        model.eval()
+        model_1.load_state_dict(checkpoint["model"])
+        model_1.to("cuda")
+        model_1.eval()
+        models.append(model_1)
+
 
         for wsi_name in tqdm(val_wsi_files):
             wsi_name_without_ext = os.path.splitext(wsi_name)[0]
@@ -62,7 +63,7 @@ if __name__ == "__main__":
             mask_name = f"{wsi_id}_mask.tif"
 
             detection_records = wsi_detection_in_mask(
-                wsi_name, mask_name, config, model
+                wsi_name, mask_name, config, models
             )
 
             print(f"{len(detection_records)} final detected cells")
