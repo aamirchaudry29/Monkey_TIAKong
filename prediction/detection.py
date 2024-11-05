@@ -14,6 +14,7 @@ from tqdm import tqdm
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     collate_fn,
+    erode_mask,
     filter_detection_with_mask,
     imagenet_normalise_torch,
     slide_nms,
@@ -22,7 +23,7 @@ from monkey.data.data_utils import (
 
 def detection_in_tile(
     image_tile: np.ndarray,
-    model: torch.nn.Module,
+    models: list[torch.nn.Module],
     IOConfig: PredictionIOConfig,
 ) -> Tuple[list[np.ndarray], list[np.ndarray]]:
     """
@@ -62,22 +63,29 @@ def detection_in_tile(
         collate_fn=collate_fn,
     )
 
-    model.eval()
     for i, imgs in enumerate(dataloader):
         imgs = torch.permute(imgs, (0, 3, 1, 2))
         imgs = imgs / 255
         imgs = imagenet_normalise_torch(imgs)
         imgs = imgs.to("cuda").float()
 
+        final_out = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
         with torch.no_grad():
-            out = model(imgs)
-            out = torch.sigmoid(out)
-            out = out.cpu().detach().numpy()[:, 0, :, :]
+            for model in models:
+                model.eval()
+                out = model(imgs)
+                out = torch.sigmoid(out)
+                out = out.cpu().detach().numpy()[:, 0, :, :]
+                final_out += out
+
+        final_out = final_out / len(models)
 
         # out_mask = skimage.morphology.remove_small_objects(
         #     ar=out_mask, min_size=128
         # )
-        predictions.extend(list(out))
+        predictions.extend(list(final_out))
 
     return predictions, patch_extractor.coordinate_list
 
@@ -88,7 +96,7 @@ def process_tile_detection_masks(
     x_start: int,
     y_start: int,
     threshold: float = 0.5,
-    min_size: int = 96,
+    min_size: int = 7,
 ):
     """
     Process cell detection of tile image
@@ -112,9 +120,12 @@ def process_tile_detection_masks(
             (1024, 1024), pred_masks, coordinate_list
         )
 
-    tile_prediction_binary = tile_prediction > threshold
+    tile_prediction_binary = (tile_prediction > threshold).astype(
+        np.uint8
+    )
+    # tile_prediction_binary = erode_mask(tile_prediction_binary)
     tile_prediction_binary = skimage.morphology.remove_small_objects(
-        ar=tile_prediction_binary, min_size=min_size
+        ar=tile_prediction_binary.astype(bool), min_size=min_size
     )
 
     mask_labels = skimage.measure.label(tile_prediction_binary)
@@ -151,7 +162,7 @@ def wsi_detection_in_mask(
     wsi_name: str,
     mask_name: str,
     IOConfig: PredictionIOConfig,
-    model: torch.nn.Module,
+    models: list[torch.nn.Module],
 ) -> list[dict]:
     """
     Cell Detection in WSI
@@ -210,7 +221,7 @@ def wsi_detection_in_mask(
             i
         ]  # (x_start, y_start, x_end, y_end)
         predictions, coordinates = detection_in_tile(
-            tile, model, IOConfig
+            tile, models, IOConfig
         )
         output_points_tile = process_tile_detection_masks(
             predictions,
