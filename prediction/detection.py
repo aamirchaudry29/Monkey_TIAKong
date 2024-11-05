@@ -82,9 +82,6 @@ def detection_in_tile(
 
         final_out = final_out / len(models)
 
-        # out_mask = skimage.morphology.remove_small_objects(
-        #     ar=out_mask, min_size=128
-        # )
         predictions.extend(list(final_out))
 
     return predictions, patch_extractor.coordinate_list
