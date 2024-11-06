@@ -6,6 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torchvision.transforms.v2 as transforms
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 from monkey.config import TrainingIOConfig
@@ -13,8 +14,10 @@ from monkey.data.augmentation import get_augmentation
 from monkey.data.data_utils import (
     dilate_mask,
     generate_regression_map,
+    get_label_from_class_id,
     get_split_from_json,
     imagenet_normalise,
+    load_classification_data_example,
     load_image,
     load_mask,
     load_nuclick_annotation,
@@ -37,7 +40,7 @@ def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
     return binary_mask
 
 
-class InflammatoryDataset(Dataset):
+class DetectionDataset(Dataset):
     """Dataset for overall cell detection
     Detecting Lymphocytes and Monocytes
     Data: RGB image and binary cell mask
@@ -129,7 +132,167 @@ class InflammatoryDataset(Dataset):
         return data
 
 
-def get_dataloaders(
+class ClassificationDataset(Dataset):
+    """Dataset for cell classification
+    Lymphocytes vs Monocytes
+    Data: RGB image,binary cell mask, class label
+    1 -> lymphocyte, 2 -> monocyte
+    """
+
+    def __init__(
+        self,
+        IOConfig: TrainingIOConfig,
+        file_ids: list,
+        phase: str = "train",
+        do_augment: bool = False,
+        module: str = "classification",
+    ):
+        self.IOConfig = IOConfig
+        self.file_ids = file_ids
+        self.phase = phase
+        self.do_augment = do_augment
+        self.module = module
+        self.patch_size = 32
+
+        if self.do_augment:
+            self.augmentation = get_augmentation(
+                module=self.module, gt_type="mask", aug_prob=0.7
+            )
+
+        self.transform = transforms.Compose(
+            [
+                transforms.ToPILImage(),
+                transforms.RandomCrop(
+                    size=(self.patch_size, self.patch_size)
+                ),
+            ]
+        )
+
+    def crop_transform(self, image):
+        out = self.transform(image)
+        out = np.array(out)
+        return out
+
+    def __len__(self) -> int:
+        return len(self.file_ids)
+
+    def __getitem__(self, idx: int) -> dict:
+        # Load image and mask
+        file_id = self.file_ids[idx]
+        data = load_classification_data_example(
+            file_id, self.IOConfig
+        )
+
+        image = data["image"]
+        mask = data["mask"]
+        label = data["label"]
+
+        image = self.crop_transform(image)
+        mask = self.crop_transform(mask)
+
+        # augmentation
+        if self.do_augment:
+            augmented_data = self.augmentation(image=image, mask=mask)
+            image, mask = (
+                augmented_data["image"],
+                augmented_data["mask"],
+            )
+
+        # HxW -> 1xHxW
+        mask = mask[np.newaxis, :, :]
+        # HxWx3 -> 3xHxW
+        image = image / 255
+        image = imagenet_normalise(image)
+        image = np.moveaxis(image, -1, 0)
+
+        data = {
+            "id": file_id,
+            "image": image,
+            "mask": mask,
+            "label": label,
+        }
+
+        return data
+
+
+def get_classification_dataloaders(
+    IOConfig: TrainingIOConfig,
+    val_fold=1,
+    batch_size=4,
+    do_augmentation: bool = False,
+):
+    split = get_split_from_json(IOConfig, val_fold)
+    train_file_ids = split["train_file_ids"]
+    test_file_ids = split["test_file_ids"]
+
+    train_sampler = get_classification_sampler(
+        file_ids=train_file_ids
+    )
+
+    print(f"train patches: {len(train_file_ids)}")
+    print(f"test patches: {len(test_file_ids)}")
+
+    train_dataset = ClassificationDataset(
+        IOConfig=IOConfig,
+        file_ids=train_file_ids,
+        phase="Train",
+        do_augment=do_augmentation,
+    )
+    val_dataset = ClassificationDataset(
+        IOConfig=IOConfig,
+        file_ids=test_file_ids,
+        phase="Test",
+        do_augment=False,
+    )
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        sampler=train_sampler,
+        num_workers=2,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=2,
+    )
+    return train_loader, val_loader
+
+
+def get_classification_sampler(file_ids):
+    """
+    Get Weighted Sampler.
+    To balance lymphocyte and monocyte patches.
+    """
+    class_instances = []
+    class_counts = [0, 0]  # [lymphocytes, monocytes]
+
+    for id in file_ids:
+        label = get_label_from_class_id(id)
+        if label == 0:
+            class_instances.append(0)
+            class_counts[0] += 1
+        else:
+            class_instances.append(1)
+            class_counts[1] += 1
+
+    print(class_counts)
+
+    sample_weights = []
+    for i in class_instances:
+        sample_weights.append(1 / class_counts[i])
+
+    weighted_sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(file_ids),
+        replacement=True,
+    )
+
+    return weighted_sampler
+
+
+def get_detection_dataloaders(
     IOConfig: TrainingIOConfig,
     val_fold=1,
     task=1,
@@ -148,21 +311,21 @@ def get_dataloaders(
     if task not in [1, 2]:
         raise ValueError(f"Task {task} is in invalid")
 
-    if module not in ["detection", "classification", "segmentation"]:
+    if module not in ["detection", "segmentation"]:
         raise ValueError(f"Module {module} is in invalid")
 
     split = get_split_from_json(IOConfig, val_fold)
     train_file_ids = split["train_file_ids"]
     test_file_ids = split["test_file_ids"]
 
-    train_sampler = get_sampler(
+    train_sampler = get_detection_sampler(
         file_ids=train_file_ids, IOConfig=IOConfig
     )
 
     print(f"train patches: {len(train_file_ids)}")
     print(f"test patches: {len(test_file_ids)}")
 
-    train_dataset = InflammatoryDataset(
+    train_dataset = DetectionDataset(
         IOConfig=IOConfig,
         file_ids=train_file_ids,
         phase="Train",
@@ -172,10 +335,10 @@ def get_dataloaders(
         module=module,
         use_nuclick_masks=use_nuclick_masks,
     )
-    val_dataset = InflammatoryDataset(
+    val_dataset = DetectionDataset(
         IOConfig=IOConfig,
         file_ids=test_file_ids,
-        phase="test",
+        phase="Test",
         do_augment=False,
         disk_radius=disk_radius,
         regression_map=regression_map,
@@ -198,7 +361,7 @@ def get_dataloaders(
     return train_loader, val_loader
 
 
-def get_sampler(file_ids, IOConfig):
+def get_detection_sampler(file_ids, IOConfig):
     """
     Get Weighted Sampler.
     To balance positive and negative patches.

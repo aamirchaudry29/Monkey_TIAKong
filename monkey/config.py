@@ -28,7 +28,6 @@ class TrainingIOConfig:
         self.set_image_dir(image_dir)
         self.set_mask_dir(mask_dir)
         self.set_json_dir(json_dir)
-        self.check_dirs_exist()
 
     def set_image_dir(self, image_dir):
         self.image_dir = image_dir
