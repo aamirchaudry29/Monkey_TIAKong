@@ -1,4 +1,4 @@
-# Example training code for overall cell detection
+# Training code for overall cell detection
 
 import os
 
