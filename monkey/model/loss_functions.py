@@ -20,7 +20,7 @@ def get_loss_function(loss_type):
         "BCE_Dice": BCE_Dice_Loss,
         "Weighted_BCE_Dice": Weighted_BCE_Dice_Loss,
         "MSE": MSE_loss,
-        "Weighted_CrossEntropy": CrossEntropy_loss
+        "Weighted_CrossEntropy": CrossEntropy_loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
