@@ -22,5 +22,5 @@ echo "done"
 
 ## Run Python Program ##
 echo "starting python program"
-python3.11 /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/train_example.py
+python3.11 /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/train_classification.py
 echo "finished"
