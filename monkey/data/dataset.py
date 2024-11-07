@@ -1,11 +1,6 @@
 import json
 import os
-
-import albumentations as alb
-import cv2
-import matplotlib.pyplot as plt
 import numpy as np
-import torch
 import torchvision.transforms.v2 as transforms
 from torch.utils.data import (
     DataLoader,
@@ -150,6 +145,7 @@ class ClassificationDataset(Dataset):
         phase: str = "train",
         do_augment: bool = False,
         module: str = "classification",
+        stack_mask: bool = False
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -157,6 +153,7 @@ class ClassificationDataset(Dataset):
         self.do_augment = do_augment
         self.module = module
         self.patch_size = 32
+        self.stack_mask = stack_mask
 
         if self.do_augment:
             self.augmentation = get_augmentation(
@@ -209,6 +206,9 @@ class ClassificationDataset(Dataset):
         image = imagenet_normalise(image)
         image = np.moveaxis(image, -1, 0)
 
+        if self.stack_mask:
+            image = np.concatenate((image, mask), axis=0)
+
         data = {
             "id": file_id,
             "image": image,
@@ -224,6 +224,7 @@ def get_classification_dataloaders(
     val_fold=1,
     batch_size=4,
     do_augmentation: bool = False,
+    stack_mask: bool = False,
 ):
     split = get_split_from_json(IOConfig, val_fold)
     train_file_ids = split["train_file_ids"]
@@ -241,12 +242,14 @@ def get_classification_dataloaders(
         file_ids=train_file_ids,
         phase="Train",
         do_augment=do_augmentation,
+        stack_mask=stack_mask
     )
     val_dataset = ClassificationDataset(
         IOConfig=IOConfig,
         file_ids=test_file_ids,
         phase="Test",
         do_augment=False,
+        stack_mask=stack_mask
     )
 
     train_loader = DataLoader(
