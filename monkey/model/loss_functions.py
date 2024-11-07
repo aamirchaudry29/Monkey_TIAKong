@@ -48,7 +48,7 @@ class Loss_Function(ABC):
 class CrossEntropy_loss(Loss_Function):
     def __init__(self, use_weights=True):
         super().__init__("name", use_weights)
-        self.class_weight = torch.tensor([0.5, 0.5], device='cuda')
+        self.class_weight = torch.tensor([0.5, 0.5], device="cuda")
 
     def set_weight(self, class_weight):
         self.class_weight = class_weight

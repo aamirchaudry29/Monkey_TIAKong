@@ -1,5 +1,6 @@
 import json
 import os
+
 import numpy as np
 import torchvision.transforms.v2 as transforms
 from torch.utils.data import (
@@ -145,7 +146,7 @@ class ClassificationDataset(Dataset):
         phase: str = "train",
         do_augment: bool = False,
         module: str = "classification",
-        stack_mask: bool = False
+        stack_mask: bool = False,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -242,14 +243,14 @@ def get_classification_dataloaders(
         file_ids=train_file_ids,
         phase="Train",
         do_augment=do_augmentation,
-        stack_mask=stack_mask
+        stack_mask=stack_mask,
     )
     val_dataset = ClassificationDataset(
         IOConfig=IOConfig,
         file_ids=test_file_ids,
         phase="Test",
         do_augment=False,
-        stack_mask=stack_mask
+        stack_mask=stack_mask,
     )
 
     train_loader = DataLoader(

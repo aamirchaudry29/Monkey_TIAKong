@@ -54,7 +54,7 @@ train_loader, val_loader = get_classification_dataloaders(
     val_fold=run_config["val_fold"],
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
-    stack_mask=run_config['stack_mask']
+    stack_mask=run_config["stack_mask"],
 )
 
 # Create Classification Model
