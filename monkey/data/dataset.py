@@ -7,7 +7,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision.transforms.v2 as transforms
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from torch.utils.data import (
+    DataLoader,
+    Dataset,
+    WeightedRandomSampler,
+)
 
 from monkey.config import TrainingIOConfig
 from monkey.data.augmentation import get_augmentation

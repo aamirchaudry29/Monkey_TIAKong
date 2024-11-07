@@ -10,7 +10,7 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from monkey.model.utils import get_classification_metrics
 
 
 def train_one_epoch(
@@ -18,7 +18,7 @@ def train_one_epoch(
     training_loader: DataLoader,
     optimizer: Optimizer,
     loss_fn,
-    activation: torch.nn = torch.nn.Sigmoid,
+    activation: torch.nn = torch.nn.Softmax,
 ):
     epoch_loss = 0.0
     model.train()
@@ -47,7 +47,7 @@ def validate_one_epoch(
     model: nn.Module,
     validation_loader: DataLoader,
     wandb_run: Optional[wandb.run] = None,
-    activation: torch.nn = torch.nn.Sigmoid,
+    activation: torch.nn = torch.nn.Softmax,
 ):
     running_val_score = 0.0
     model.eval()
@@ -58,27 +58,27 @@ def validate_one_epoch(
             data["image"].cuda().float(),
             data["label"].cuda().long(),
         )
+
+        pred_labels_list = []
+        true_labels_list = true_labels.cpu().tolist()
+
         with torch.no_grad():
             logits_pred = model(images)
-            mask_pred = activation(logits_pred)
+            pred_probs = activation(logits_pred)
 
-            mask_pred_binary = (mask_pred > 0.5).float()
+            pred_labels = (
+                torch.argmax(pred_probs, dim=1).cpu().tolist()
+            )
+            pred_labels_list.extend(pred_labels)
 
-            # Compute binary detection F1 score
-            mask_pred_binary = mask_pred_binary[
-                :, 0, :, :
-            ]  # Exclude channel dim
-            true_labels = true_labels[:, 0, :, :]
-            logits_pred = logits_pred[:, 0, :, :]
-            metrics = get_patch_F1_score_batch(
-                mask_pred_binary, true_labels, logits_pred
+            metrics = get_classification_metrics(
+                true_labels_list, pred_labels_list
             )
 
         running_val_score += metrics["F1"] * images.size(0)
 
-
-    avg_dice = running_val_score / len(validation_loader.sampler)
-    return avg_dice
+    avg_f1 = running_val_score / len(validation_loader.sampler)
+    return avg_f1
 
 
 def train_cls_net(
