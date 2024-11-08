@@ -19,14 +19,14 @@ from monkey.train.train_cell_detection import train_det_net
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey",
-    "model_name": "efficientunetb0_seg_bm",
-    "batch_size": 32,
+    "project_name": "Monkey_Detection",
+    "model_name": "unet++_resnext101_32x16d",
+    "batch_size": 16,
     "val_fold": 1,  # [1-4]
     "optimizer": "AdamW",
     "learning_rate": 0.03,
     "weight_decay": 0.0004,
-    "epochs": 100,
+    "epochs": 75,
     "loss_function": "BCE_Dice",
     "disk_radius": 11,  # Ignored for NuClick masks
     "regression_map": False,
@@ -48,14 +48,14 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-model = get_efficientunet_b0_MBConv(out_channels=1)
-# model = smp.Unet(
-#     encoder_name='mit_b0',
-#     encoder_weights='imagenet',
-#     decoder_attention_type='scse',
-#     in_channels=3,
-#     classes=1
-# )
+# model = get_efficientunet_b0_MBConv(out_channels=1)
+model = smp.UnetPlusPlus(
+    encoder_name="tu-resnext101_32x16d",
+    encoder_weights="imagenet",
+    decoder_attention_type="scse",
+    in_channels=3,
+    classes=1,
+)
 model.to("cuda")
 # torch.compile(
 #     model,

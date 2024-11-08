@@ -50,6 +50,9 @@ def validate_one_epoch(
     activation: torch.nn = torch.nn.Softmax,
 ):
     running_val_score = 0.0
+    running_accuracy = 0.0
+    running_precision = 0.0
+    running_recall = 0.0
     model.eval()
     for i, data in enumerate(
         tqdm(validation_loader, desc="validation", leave=False)
@@ -76,9 +79,22 @@ def validate_one_epoch(
             )
 
         running_val_score += metrics["F1"] * images.size(0)
+        running_accuracy += metrics[
+            "Balanced_Accuracy"
+        ] * images.size(0)
+        running_precision += metrics["Precision"] * images.size(0)
+        running_recall += metrics["Recall"] * images.size(0)
 
     avg_f1 = running_val_score / len(validation_loader.sampler)
-    return avg_f1
+    avg_accuracy = running_accuracy / len(validation_loader.sampler)
+    avg_precision = running_precision / len(validation_loader.sampler)
+    avg_recall = running_precision / len(validation_loader.sampler)
+    return {
+        "F1": avg_f1,
+        "Accuracy": avg_accuracy,
+        "Precision": avg_precision,
+        "Recall": avg_recall,
+    }
 
 
 def train_cls_net(
@@ -105,25 +121,28 @@ def train_cls_net(
         avg_train_loss = train_one_epoch(
             model, train_loader, optimizer, loss_fn, activation
         )
-        avg_score = validate_one_epoch(
+        metrics = validate_one_epoch(
             model, validation_loader, wandb_run, activation
         )
 
         if scheduler is not None:
-            scheduler.step(avg_score)
+            scheduler.step(metrics["F1"])
 
         log_data = {
             "Epoch": epoch,
             "Train loss": avg_train_loss,
-            "Val score": avg_score,
+            "F1 score": metrics["F1"],
+            "Accuracy": metrics["Accuracy"],
+            "Precision": metrics["Precision"],
+            "Recall": metrics["Recall"],
             "Learning rate": optimizer.param_groups[0]["lr"],
         }
         if wandb_run is not None:
             wandb_run.log(log_data)
         pprint(log_data)
 
-        if avg_score > best_val_score:
-            best_val_score = avg_score
+        if metrics["F1"] > best_val_score:
+            best_val_score = metrics["F1"]
             pprint(f"Check Point {epoch}")
             checkpoint = {
                 "epoch": epoch,
