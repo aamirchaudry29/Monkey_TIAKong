@@ -6,7 +6,7 @@ import numpy as np
 def get_augmentation(
     module: str, gt_type=None, augment=True, aug_prob=0.7
 ):
-    if module == "detection" or module == "segmentation":
+    if module == "detection" or module == "multiclass_detection":
         aug = alb.Compose(
             [
                 alb.OneOf(

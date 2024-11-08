@@ -9,9 +9,7 @@ from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
-from monkey.model.efficientunetb0.architecture import (
-    get_efficientunet_b0_MBConv,
-)
+from monkey.model.efficientunetb0.architecture import get_efficientunet_b0_MBConv
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
 from monkey.train.train_cell_detection import train_det_net
@@ -32,7 +30,7 @@ run_config = {
     "regression_map": False,
     "do_augmentation": True,
     "activation_function": "sigmoid",
-    "module": "detection",
+    "module": "multiclass_detection",
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks
 }
 

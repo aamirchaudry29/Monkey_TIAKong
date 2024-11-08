@@ -6,9 +6,7 @@ import torch
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import save_detection_records_monkey
-from monkey.model.efficientunetb0.architecture import (
-    get_efficientunet_b0_MBConv,
-)
+from monkey.model.efficientunetb0.architecture import get_efficientunet_b0_MBConv
 from prediction.detection import wsi_detection_in_mask
 
 INPUT_PATH = Path("/input")

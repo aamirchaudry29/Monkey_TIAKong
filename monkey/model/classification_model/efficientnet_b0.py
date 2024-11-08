@@ -1,7 +1,7 @@
 import timm
+import torch
 import torch.nn as nn
 from torchvision.ops import MLP
-import torch
 
 
 class EfficientNet_B0(nn.Module):
@@ -27,13 +27,13 @@ class EfficientNet_B0(nn.Module):
                 is not None,
             )
             with torch.no_grad():
-                new_conv_stem.weight[:, :3] = (
-                    self.feature_extractor.conv_stem.weight
-                )
-                new_conv_stem.weight[:, 3] = (
-                    self.feature_extractor.conv_stem.weight.mean(
-                        dim=1
-                    )
+                new_conv_stem.weight[
+                    :, :3
+                ] = self.feature_extractor.conv_stem.weight
+                new_conv_stem.weight[
+                    :, 3
+                ] = self.feature_extractor.conv_stem.weight.mean(
+                    dim=1
                 )
 
             self.feature_extractor.conv_stem = new_conv_stem

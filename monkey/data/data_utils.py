@@ -8,11 +8,7 @@ import scipy.ndimage as ndi
 import torch
 from shapely import Point, Polygon
 from skimage.feature import peak_local_max
-from tiatoolbox.annotation.storage import (
-    Annotation,
-    AnnotationStore,
-    SQLiteStore,
-)
+from tiatoolbox.annotation.storage import Annotation, AnnotationStore, SQLiteStore
 from tiatoolbox.tools.patchextraction import get_patch_extractor
 from tiatoolbox.wsicore.wsireader import WSIReader
 

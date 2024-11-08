@@ -11,9 +11,7 @@ from monkey.data.data_utils import (
     open_json_file,
     save_detection_records_monkey,
 )
-from monkey.model.efficientunetb0.architecture import (
-    get_efficientunet_b0_MBConv,
-)
+from monkey.model.efficientunetb0.architecture import get_efficientunet_b0_MBConv
 from prediction.detection import wsi_detection_in_mask
 
 if __name__ == "__main__":

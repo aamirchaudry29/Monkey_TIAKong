@@ -9,10 +9,7 @@ from sklearn.metrics import (
 )
 from torch import Tensor
 
-from evaluation.evaluate import (
-    calculate_f1_metrics,
-    match_coordinates,
-)
+from evaluation.evaluate import calculate_f1_metrics, match_coordinates
 
 
 def get_activation_function(name: str):

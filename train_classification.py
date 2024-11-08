@@ -9,9 +9,7 @@ from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_classification_dataloaders
-from monkey.model.classification_model.efficientnet_b0 import (
-    EfficientNet_B0,
-)
+from monkey.model.classification_model.efficientnet_b0 import EfficientNet_B0
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
 from monkey.train.train_cell_classification import train_cls_net

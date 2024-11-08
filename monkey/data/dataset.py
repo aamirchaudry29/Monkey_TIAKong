@@ -3,11 +3,7 @@ import os
 
 import numpy as np
 import torchvision.transforms.v2 as transforms
-from torch.utils.data import (
-    DataLoader,
-    Dataset,
-    WeightedRandomSampler,
-)
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.augmentation import get_augmentation
@@ -25,7 +21,7 @@ from monkey.data.data_utils import (
 
 
 def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
-    """Converts 2D cell class mask to binary mask
+    """Converts cell class mask to binary mask
     Example:
         [1,0,0
          0,0,2
@@ -38,6 +34,34 @@ def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
     binary_mask = np.zeros_like(class_mask)
     binary_mask[class_mask != 0] = 1
     return binary_mask
+
+
+def class_mask_to_multichannel_mask(
+    class_mask: np.ndarray,
+) -> np.ndarray:
+    """Converts cell class mask to multi-channel masks
+    Example:
+        [1,0,0
+         0,0,2
+         0,0,1]
+         ->
+        [[1,0,0
+         0,0,0
+         0,0,1],
+         [0,0,0
+         0,0,1
+         0,0,0]]
+    """
+    num_classes = 2
+
+    mask = np.zeros(
+        shape=(num_classes, class_mask.shape[0], class_mask.shape[1]),
+        dtype=np.uint8,
+    )
+    for idx in range(num_classes):
+        label = idx + 1
+        mask[idx, :, :] = np.where(class_mask == label, 1, 0)
+    return mask
 
 
 class DetectionDataset(Dataset):
@@ -86,38 +110,53 @@ class DetectionDataset(Dataset):
         else:
             cell_mask = load_mask(file_id, self.IOConfig)
 
-        # Convert cell class mask to binary mask
-        # for overall detection
-        cell_binary_mask = class_mask_to_binary(cell_mask)
-
         # augmentation
         if self.do_augment:
             augmented_data = self.augmentation(
-                image=image, mask=cell_binary_mask
+                image=image, mask=cell_mask
             )
-            image, cell_binary_mask = (
+            image, cell_mask = (
                 augmented_data["image"],
                 augmented_data["mask"],
             )
 
-        if self.use_nuclick_masks:
-            cell_map = cell_binary_mask
+        if self.module == "multiclass_detection":
+            cell_mask = class_mask_to_multichannel_mask(cell_mask)
         else:
-            # Dilate cell centroids
-            cell_map = dilate_mask(
-                cell_binary_mask, disk_radius=self.disk_radius
-            )
+            cell_mask = class_mask_to_binary(cell_mask)
+
+        # Dilate cell centroids
+        if not self.use_nuclick_masks:
+            if len(cell_mask.shape) == 2:
+                cell_mask = dilate_mask(
+                    cell_mask, disk_radius=self.disk_radius
+                )
+            else:
+                for i in range(cell_mask.shape[0]):
+                    cell_mask[i] = dilate_mask(
+                        cell_mask[i], disk_radius=self.disk_radius
+                    )
         # Generate regression map
         if self.regression_map:
-            cell_map = generate_regression_map(
-                binary_mask=cell_binary_mask,
-                d_thresh=7,
-                alpha=5,
-                scale=1,
-            )
+            if len(cell_mask.shape) == 2:
+                cell_mask = generate_regression_map(
+                    binary_mask=cell_mask,
+                    d_thresh=7,
+                    alpha=5,
+                    scale=1,
+                )
+            else:
+                for i in range(cell_mask.shape[0]):
+                    cell_mask[i] = generate_regression_map(
+                        binary_mask=cell_mask[i],
+                        d_thresh=7,
+                        alpha=5,
+                        scale=1,
+                    )
 
-        # HxW -> 1xHxW
-        cell_map = cell_map[np.newaxis, :, :]
+        if len(cell_mask.shape) == 2:
+            # HxW -> 1xHxW
+            cell_mask = cell_mask[np.newaxis, :, :]
         # HxWx3 -> 3xHxW
         image = image / 255
         image = imagenet_normalise(image)
@@ -126,7 +165,7 @@ class DetectionDataset(Dataset):
         data = {
             "id": file_id,
             "image": image,
-            "mask": cell_map,
+            "mask": cell_mask,
         }
 
         return data
@@ -319,7 +358,7 @@ def get_detection_dataloaders(
     if task not in [1, 2]:
         raise ValueError(f"Task {task} is in invalid")
 
-    if module not in ["detection", "segmentation"]:
+    if module not in ["detection", "multiclass_detection"]:
         raise ValueError(f"Module {module} is in invalid")
 
     split = get_split_from_json(IOConfig, val_fold)
