@@ -3,7 +3,11 @@ import os
 
 import numpy as np
 import torchvision.transforms.v2 as transforms
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from torch.utils.data import (
+    DataLoader,
+    Dataset,
+    WeightedRandomSampler,
+)
 
 from monkey.config import TrainingIOConfig
 from monkey.data.augmentation import get_augmentation
@@ -206,7 +210,7 @@ class ClassificationDataset(Dataset):
                 transforms.RandomCrop(
                     size=(self.patch_size, self.patch_size)
                 ),
-                transforms.Resize((224,224))
+                transforms.Resize((224, 224)),
             ]
         )
 

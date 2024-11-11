@@ -1,7 +1,11 @@
 from pprint import pprint
 
 import torch
-from segment_anything import SamAutomaticMaskGenerator, SamPredictor, sam_model_registry
+from segment_anything import (
+    SamAutomaticMaskGenerator,
+    SamPredictor,
+    sam_model_registry,
+)
 from torchvision.transforms import v2
 
 if __name__ == "__main__":

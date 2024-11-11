@@ -9,7 +9,10 @@ from sklearn.metrics import (
 )
 from torch import Tensor
 
-from evaluation.evaluate import calculate_f1_metrics, match_coordinates
+from evaluation.evaluate import (
+    calculate_f1_metrics,
+    match_coordinates,
+)
 
 
 def get_activation_function(name: str):
@@ -22,7 +25,7 @@ def get_activation_function(name: str):
         "relu": torch.nn.ReLU,
         "sigmoid": torch.nn.Sigmoid,
         "softmax": torch.nn.Softmax,
-        "tanh": torch.nn.Tanh
+        "tanh": torch.nn.Tanh,
     }  # add more as needed
 
     name = name.lower()
