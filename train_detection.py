@@ -22,6 +22,7 @@ run_config = {
     "project_name": "Monkey_Detection",
     "model_name": "efficientunetb0",
     "val_fold": 1,  # [1-4]
+    "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0003,
     "weight_decay": 0.0004,
