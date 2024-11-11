@@ -95,8 +95,8 @@ def validate_one_epoch(
         }
         wandb_run.log(log_data)
 
-    avg_dice = running_val_score / len(validation_loader.sampler)
-    return avg_dice
+    avg_score = running_val_score / len(validation_loader.sampler)
+    return avg_score
 
 
 def train_det_net(

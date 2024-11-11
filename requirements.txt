@@ -2,3 +2,4 @@ tiatoolbox
 torch-summary
 monai
 segmentation-models-pytorch
+timm

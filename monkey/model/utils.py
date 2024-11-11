@@ -1,9 +1,18 @@
 import numpy as np
 import torch.nn
 from skimage.measure import label, regionprops
+from sklearn.metrics import (
+    balanced_accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 from torch import Tensor
 
-from evaluation.evaluate import calculate_f1_metrics, match_coordinates
+from evaluation.evaluate import (
+    calculate_f1_metrics,
+    match_coordinates,
+)
 
 
 def get_activation_function(name: str):
@@ -15,11 +24,16 @@ def get_activation_function(name: str):
     functions = {
         "relu": torch.nn.ReLU,
         "sigmoid": torch.nn.Sigmoid,
+        "softmax": torch.nn.Softmax,
+        "tanh": torch.nn.Tanh,
     }  # add more as needed
 
     name = name.lower()
     if name in functions:
-        return functions[name]()
+        if name == "softmax":
+            return functions[name](dim=1)
+        else:
+            return functions[name]()
     else:
         raise ValueError(f"Undefined loss function: {name}")
 
@@ -157,3 +171,46 @@ def evaluate_cell_predictions(
     # print(f"tp:{tp}, fn:{fn}, fp:{fp}")
 
     return calculate_f1_metrics(tp, fn, fp)
+
+
+def get_classification_metrics(
+    gt_labels: np.ndarray | list, pred_labels: np.ndarray | list
+):
+    """
+    Calculate:
+    accuracy_score, precision_score,
+    recall_score, f1_score, roc_auc_score
+
+    Args:
+        gt: list [N] of true labels
+        pred: list [N] of pred labels
+    Returns:
+        metrics: {"Balanced_Accuracy", "Precision", "Recall", "F1"}
+    """
+
+    metrics = {
+        "Balanced_Accuracy": 0.0,
+        "Precision": 0.0,
+        "Recall": 0.0,
+        "F1": 0.0,
+    }
+
+    accuracy = balanced_accuracy_score(gt_labels, pred_labels)
+    precision = precision_score(
+        gt_labels, pred_labels, average="binary", zero_division=0.0
+    )
+    recall = recall_score(
+        gt_labels, pred_labels, average="binary", zero_division=0.0
+    )
+    f1 = f1_score(
+        gt_labels, pred_labels, average="binary", zero_division=0.0
+    )
+
+    metrics = {
+        "Balanced_Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1": f1,
+    }
+
+    return metrics

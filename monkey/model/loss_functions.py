@@ -20,6 +20,7 @@ def get_loss_function(loss_type):
         "BCE_Dice": BCE_Dice_Loss,
         "Weighted_BCE_Dice": Weighted_BCE_Dice_Loss,
         "MSE": MSE_loss,
+        "Weighted_CrossEntropy": CrossEntropy_loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -44,6 +45,23 @@ class Loss_Function(ABC):
 
 
 # -------------------------------------Classes implementing loss functions---------------------------------
+class CrossEntropy_loss(Loss_Function):
+    def __init__(self, use_weights=True):
+        super().__init__("name", use_weights)
+        self.class_weight = torch.tensor([0.5, 0.5], device="cuda")
+
+    def set_weight(self, class_weight):
+        self.class_weight = class_weight
+
+    def compute_loss(
+        self,
+        input: Tensor,
+        target: Tensor,
+    ):
+        loss = nn.CrossEntropyLoss(weight=self.class_weight)
+        return loss(input, target)
+
+
 # MSE loss
 class MSE_loss(Loss_Function):
     def __init__(self) -> None:

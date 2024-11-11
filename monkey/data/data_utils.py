@@ -8,7 +8,11 @@ import scipy.ndimage as ndi
 import torch
 from shapely import Point, Polygon
 from skimage.feature import peak_local_max
-from tiatoolbox.annotation.storage import Annotation, AnnotationStore, SQLiteStore
+from tiatoolbox.annotation.storage import (
+    Annotation,
+    AnnotationStore,
+    SQLiteStore,
+)
 from tiatoolbox.tools.patchextraction import get_patch_extractor
 from tiatoolbox.wsicore.wsireader import WSIReader
 
@@ -18,6 +22,9 @@ from monkey.config import PredictionIOConfig, TrainingIOConfig
 def load_image(
     file_id: str, IOConfig: TrainingIOConfig
 ) -> np.ndarray:
+    """
+    Load a single RGB image for cell detection
+    """
     image_name = f"{file_id}.npy"
     image_path = os.path.join(IOConfig.image_dir, image_name)
     image = np.load(image_path)
@@ -25,14 +32,18 @@ def load_image(
 
 
 def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
+    """
+    Load a single mask for cell detection
+    """
     mask_name = f"{file_id}.npy"
     mask_path = os.path.join(IOConfig.mask_dir, mask_name)
     mask = np.load(mask_path)
     return mask
 
 
-def load_nuclick_annotation(file_id, IOConfig: TrainingIOConfig):
+def load_nuclick_annotation(file_id: str, IOConfig: TrainingIOConfig):
     """
+    Load a single NuClick annotation mask
     Nuclick file format: 5 channel .np file
     channel 1-3: RGB image
     channel 4: instance map
@@ -43,6 +54,43 @@ def load_nuclick_annotation(file_id, IOConfig: TrainingIOConfig):
     mask = np.load(mask_path)
     mask = mask.astype(np.uint8)
     return mask[:, :, 4]
+
+
+def get_label_from_class_id(file_id: str):
+    """
+    Get cell type from classification file_id
+    Example file_id "D_P000019_9856_52192_10112_52448_lymph_3"
+    Returns 0 for lymphocyte, 1 for monocyte
+    """
+    parts = file_id.split("_")
+    name = parts[-2]
+    if name == "lymph":
+        return 0
+    elif name == "mono":
+        return 1
+    else:
+        raise ValueError(f"Unknown name {name}")
+
+
+def load_classification_data_example(
+    file_id: str, IOConfig: TrainingIOConfig
+):
+    """
+    Load a single classification image patch.
+    channel 1-3: RGB image
+    channel 4: binary segmentation mask
+
+    Returns:
+        {"image","mask","label"}
+    """
+    file_name = f"{file_id}.npy"
+    class_label = get_label_from_class_id(file_id)
+    data_path = os.path.join(IOConfig.mask_dir, file_name)
+    data = np.load(data_path)
+    data = data.astype(np.uint8)
+    image = data[:, :, 0:3]
+    mask = data[:, :, 3]
+    return {"image": image, "mask": mask, "label": class_label}
 
 
 def load_json_annotation(
