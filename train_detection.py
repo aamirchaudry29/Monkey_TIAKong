@@ -20,19 +20,19 @@ from monkey.train.train_cell_detection import train_det_net
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Detection",
-    "model_name": "unet++_resnext101_32x16d",
-    "batch_size": 16,
+    "model_name": "efficientunetb0",
     "val_fold": 1,  # [1-4]
+    "batch_size": 32,
     "optimizer": "AdamW",
-    "learning_rate": 0.03,
+    "learning_rate": 0.0003,
     "weight_decay": 0.0004,
     "epochs": 75,
-    "loss_function": "BCE_Dice",
+    "loss_function": "Dice",
     "disk_radius": 11,  # Ignored for NuClick masks
     "regression_map": False,
     "do_augmentation": True,
     "activation_function": "sigmoid",
-    "module": "multiclass_detection",
+    "module": "multiclass_detection",  # 'detection' or 'multiclass_detection'
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks
 }
 
@@ -40,7 +40,7 @@ run_config = {
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
-    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{run_config['model_name']}",
+    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
 # If use nuclick masks, change mask dir
 if run_config["use_nuclick_masks"]:
@@ -48,19 +48,15 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-# model = get_efficientunet_b0_MBConv(out_channels=1)
-model = smp.UnetPlusPlus(
-    encoder_name="tu-resnext101_32x16d",
-    encoder_weights="imagenet",
-    decoder_attention_type="scse",
-    in_channels=3,
-    classes=1,
-)
-model.to("cuda")
-# torch.compile(
-#     model,
-#     mode="default"
+model = get_efficientunet_b0_MBConv(out_channels=2)
+# model = smp.UnetPlusPlus(
+#     encoder_name="tu-resnext101_32x16d",
+#     encoder_weights="imagenet",
+#     decoder_attention_type="scse",
+#     in_channels=3,
+#     classes=1,
 # )
+model.to("cuda")
 # -----------------------------------------------------------------------
 
 
@@ -79,11 +75,15 @@ train_loader, val_loader = get_detection_dataloaders(
     regression_map=run_config["regression_map"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
+    module=run_config["module"],
 )
 
 
 # Create loss function, optimizer and scheduler
 loss_fn = get_loss_function(run_config["loss_function"])
+if run_config["module"] == "multiclass_detection":
+    loss_fn.set_multiclass(True)
+    print("using multiclass loss")
 activation_fn = get_activation_function(
     run_config["activation_function"]
 )
@@ -101,11 +101,10 @@ scheduler = lr_scheduler.ReduceLROnPlateau(
 
 # Create WandB session
 run = wandb.init(
-    project=f"{run_config['project_name']}_{run_config['model_name']}_bm",
-    name=f"fold_{run_config['val_fold']}",
+    project=f"{run_config['project_name']}_{run_config['model_name']}_exp",
+    name=f"fold_{run_config['val_fold']}_{run_config['module']}",
     config=run_config,
 )
-# run.watch(model, log_freq=1000)
 # run = None
 
 # Start training
@@ -119,6 +118,7 @@ model = train_det_net(
     scheduler=scheduler,
     save_dir=IOconfig.checkpoint_save_dir,
     epochs=run_config["epochs"],
+    module=run_config["module"],
     wandb_run=run,
 )
 

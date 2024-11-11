@@ -10,14 +10,16 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from monkey.model.utils import get_patch_F1_score_batch
+from monkey.model.loss_functions import Loss_Function
+from monkey.model.utils import get_multiclass_patch_F1_score_batch
 
 
 def train_one_epoch(
     model: nn.Module,
     training_loader: DataLoader,
     optimizer: Optimizer,
-    loss_fn,
+    loss_fn: Loss_Function,
+    module: str,
     activation: torch.nn = torch.nn.Sigmoid,
 ):
     epoch_loss = 0.0
@@ -46,6 +48,7 @@ def train_one_epoch(
 def validate_one_epoch(
     model: nn.Module,
     validation_loader: DataLoader,
+    module: str,
     wandb_run: Optional[wandb.run] = None,
     activation: torch.nn = torch.nn.Sigmoid,
 ):
@@ -64,13 +67,8 @@ def validate_one_epoch(
 
             mask_pred_binary = (mask_pred > 0.5).float()
 
-            # Compute binary detection F1 score
-            mask_pred_binary = mask_pred_binary[
-                :, 0, :, :
-            ]  # Exclude channel dim
-            true_masks = true_masks[:, 0, :, :]
-            logits_pred = logits_pred[:, 0, :, :]
-            metrics = get_patch_F1_score_batch(
+            # Compute detection F1 score
+            metrics = get_multiclass_patch_F1_score_batch(
                 mask_pred_binary, true_masks, logits_pred
             )
 
@@ -78,21 +76,42 @@ def validate_one_epoch(
 
     # Log an example prediction to WandB
     if wandb_run is not None:
-        log_data = {
-            "images": wandb.Image(images[0, :3, :, :].cpu()),
-            "masks": {
-                "true": wandb.Image(
-                    true_masks[0].float().cpu(), mode="L"
-                ),
-                "pred_probs": wandb.Image(
-                    logits_pred[0, :, :].float().cpu()
-                ),
-                "Final_pred": wandb.Image(
-                    mask_pred_binary[0, :, :].float().cpu(),
-                    mode="L",
-                ),
-            },
-        }
+        if module == "detection":
+            log_data = {
+                "images": wandb.Image(images[0, :3, :, :].cpu()),
+                "masks": {
+                    "true": wandb.Image(
+                        true_masks[0].float().cpu(), mode="L"
+                    ),
+                    "pred_probs": wandb.Image(
+                        logits_pred[0, 0, :, :].float().cpu()
+                    ),
+                    "Final_pred": wandb.Image(
+                        mask_pred_binary[0, 0, :, :].float().cpu(),
+                        mode="L",
+                    ),
+                },
+            }
+        elif module == "multiclass_detection":
+            log_data = {
+                "images": wandb.Image(images[0, :3, :, :].cpu()),
+                "masks": {
+                    "true_lymph": wandb.Image(
+                        true_masks[0, 0, :, :].float().cpu(), mode="L"
+                    ),
+                    "true_mono": wandb.Image(
+                        true_masks[0, 1, :, :].float().cpu(), mode="L"
+                    ),
+                    "pred_lymph_probs": wandb.Image(
+                        logits_pred[0, 0, :, :].float().cpu()
+                    ),
+                    "pred_mono_probs": wandb.Image(
+                        logits_pred[0, 1, :, :].float().cpu()
+                    ),
+                },
+            }
+        else:
+            log_data = {}
         wandb_run.log(log_data)
 
     avg_score = running_val_score / len(validation_loader.sampler)
@@ -104,10 +123,11 @@ def train_det_net(
     train_loader: DataLoader,
     validation_loader: DataLoader,
     optimizer: Optimizer,
-    loss_fn,
+    loss_fn: Loss_Function,
     activation: torch.nn,
     save_dir: str,
     epochs: int,
+    module: str,
     wandb_run: Optional[wandb.run] = None,
     scheduler: Optional[lr_scheduler.LRScheduler] = None,
 ) -> torch.nn.Module:
@@ -121,10 +141,15 @@ def train_det_net(
         pprint(f"EPOCH {epoch}")
 
         avg_train_loss = train_one_epoch(
-            model, train_loader, optimizer, loss_fn, activation
+            model,
+            train_loader,
+            optimizer,
+            loss_fn,
+            module,
+            activation,
         )
         avg_score = validate_one_epoch(
-            model, validation_loader, wandb_run, activation
+            model, validation_loader, module, wandb_run, activation
         )
 
         if scheduler is not None:

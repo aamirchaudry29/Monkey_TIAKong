@@ -10,8 +10,31 @@ import torch.nn as nn
 from torch import Tensor
 
 
+# Abstract class for loss functions
+# All loss functions need to a subclass of this class
+class Loss_Function(ABC):
+    def __init__(self, name, use_weights) -> None:
+        self.name = name
+        self.use_weight = use_weights
+
+    @abstractmethod
+    def compute_loss(self):
+        pass
+
+    @abstractmethod
+    def set_multiclass(self):
+        pass
+
+
 # Returns a Loss Function instance depending on the loss type
-def get_loss_function(loss_type):
+def get_loss_function(loss_type: str) -> Loss_Function:
+    """
+    Returns an initialized loss function object.
+
+    Options:
+        {"Jaccard_Loss", "Dice", "BCE", "Weighted_BCE", "BCE_Dice",
+        "Weighted_BCE_Dice","MSE", "Weighted_CrossEntropy"}
+    """
     loss_functions = {
         "Jaccard_Loss": Jaccard_Loss,
         "Dice": Dice_Loss,
@@ -30,18 +53,6 @@ def get_loss_function(loss_type):
         return loss_functions[loss_type]()
     else:
         raise ValueError(f"Undefined loss function: {loss_type}")
-
-
-# Abstract class for loss functions
-# All loss functions need to a subclass of this class
-class Loss_Function(ABC):
-    def __init__(self, name, use_weights) -> None:
-        self.name = name
-        self.use_weight = use_weights
-
-    @abstractmethod
-    def compute_loss(self):
-        pass
 
 
 # -------------------------------------Classes implementing loss functions---------------------------------
@@ -86,10 +97,14 @@ class MSE_loss(Loss_Function):
 class Jaccard_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Jaccard Loss", False)
+        self.multiclass = False
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return jaccard_loss(
-            input.float(), target.float(), multiclass=False
+            input.float(), target.float(), multiclass=self.multiclass
         )
 
 
@@ -97,11 +112,28 @@ class Jaccard_Loss(Loss_Function):
 class Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Dice Loss", False)
+        self.multiclass = False
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        return dice_loss(
-            input.float(), target.float(), multiclass=False
-        )
+        input = input.float()
+        target = target.float()
+        if self.multiclass:
+            loss = dice_loss(
+                input, target, multiclass=self.multiclass
+            )
+            # Add loss for channel-wise exclusive predictions
+            channel_similarity = non_zero_similarity_score(
+                target[:, 0, :, :],
+                target[:, 1, :, :],
+            )
+            return loss + channel_similarity
+        else:
+            return dice_loss(
+                input, target, multiclass=self.multiclass
+            )
 
 
 # Binary cross entropy loss
@@ -128,10 +160,14 @@ class Weighted_BCE_Loss(Loss_Function):
 class BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("BCE + Dice Loss", False)
+        self.multiclass = False
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return nn.BCELoss()(input, target.float()) + dice_loss(
-            input.float(), target.float(), multiclass=False
+            input.float(), target.float(), multiclass=self.multiclass
         )
 
 
@@ -139,13 +175,19 @@ class BCE_Dice_Loss(Loss_Function):
 class Weighted_BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss + Dice Loss", True)
+        self.multiclass = False
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
 
     def compute_loss(
         self, input: Tensor, target: Tensor, weight: Tensor
     ):
         return nn.BCELoss(weight=weight)(
             input, target.float()
-        ) + dice_loss(input.float(), target.float(), multiclass=False)
+        ) + dice_loss(
+            input.float(), target.float(), multiclass=self.multiclass
+        )
 
 
 # ------------------------------------------Dice loss functions--------------------------------------
@@ -253,7 +295,7 @@ def multiclass_jaccard_coeff(
             reduce_batch_first,
             epsilon,
         )
-    return jaccard_coef / input.shape[1]
+    return jaccard / input.shape[1]
 
 
 def jaccard_loss(
@@ -263,3 +305,17 @@ def jaccard_loss(
     assert input.size() == target.size()
     fn = multiclass_jaccard_coeff if multiclass else jaccard_coef
     return 1 - fn(input, target, reduce_batch_first=True)
+
+
+def non_zero_similarity_score(
+    input: Tensor, target: Tensor, epsilon=1e-11
+):
+    non_zero_overlap = torch.dot(
+        input.reshape(-1), target.reshape(-1)
+    )
+    if non_zero_overlap == 0.0:
+        sets_sum = 1.0
+    else:
+        sets_sum = torch.sum(input) + torch.sum(target)
+
+    return (2 * non_zero_overlap + epsilon) / (sets_sum + epsilon)
