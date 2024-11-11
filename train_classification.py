@@ -18,18 +18,18 @@ from monkey.train.train_cell_classification import train_cls_net
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Classification",
-    "model_name": "efficientnetb0_4_channel",
-    "batch_size": 32,
-    "val_fold": 1,  # [1-4]
+    "model_name": "efficientnetb0",
+    "batch_size": 64,
+    "val_fold": 4,  # [1-4]
     "optimizer": "AdamW",
-    "learning_rate": 0.05,
+    "learning_rate": 0.0003,
     "weight_decay": 0.0001,
-    "epochs": 50,
-    "loss_function": "Weighted_CrossEntropy",
+    "epochs": 75,
+    "loss_function": "BCE",
     "do_augmentation": True,
-    "activation_function": "softmax",
+    "activation_function": "sigmoid",
     "module": "classification",
-    "stack_mask": True,  # Whether to use 4-channel input
+    "stack_mask": False,  # Whether to use 4-channel input
 }
 
 # Set IOConfig
@@ -58,14 +58,14 @@ train_loader, val_loader = get_classification_dataloaders(
 # Create Classification Model
 
 model = EfficientNet_B0(
-    input_channels=4, num_classes=2, pretrained=True
+    input_channels=3, num_classes=1, pretrained=True
 )
 model.to("cuda")
 
 # Create loss function, optimizer and scheduler
 
 loss_fn = get_loss_function(run_config["loss_function"])
-loss_fn.set_weight(torch.tensor([1.0, 1.0], device="cuda"))
+
 activation_fn = get_activation_function(
     run_config["activation_function"]
 )
@@ -82,7 +82,7 @@ scheduler = lr_scheduler.ReduceLROnPlateau(
 
 # Create WandB session
 run = wandb.init(
-    project=f"{run_config['project_name']}_{run_config['model_name']}_exp",
+    project=f"{run_config['project_name']}_{run_config['model_name']}_bm",
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )

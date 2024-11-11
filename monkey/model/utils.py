@@ -22,6 +22,7 @@ def get_activation_function(name: str):
         "relu": torch.nn.ReLU,
         "sigmoid": torch.nn.Sigmoid,
         "softmax": torch.nn.Softmax,
+        "tanh": torch.nn.Tanh
     }  # add more as needed
 
     name = name.lower()

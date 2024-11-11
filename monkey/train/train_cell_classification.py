@@ -27,8 +27,9 @@ def train_one_epoch(
     ):
         images, true_labels = (
             data["image"].cuda().float(),
-            data["label"].cuda().long(),
+            data["label"].cuda().float(),
         )
+        true_labels = torch.unsqueeze(true_labels, 1)
         optimizer.zero_grad()
 
         logits_pred = model(images)
@@ -59,7 +60,7 @@ def validate_one_epoch(
     ):
         images, true_labels = (
             data["image"].cuda().float(),
-            data["label"].cuda().long(),
+            data["label"].cuda().float(),
         )
 
         pred_labels_list = []
@@ -69,9 +70,9 @@ def validate_one_epoch(
             logits_pred = model(images)
             pred_probs = activation(logits_pred)
 
-            pred_labels = (
-                torch.argmax(pred_probs, dim=1).cpu().tolist()
-            )
+            pred_probs = torch.squeeze(pred_probs)
+            pred_labels = (pred_probs > 0.5).float()
+            pred_labels = pred_labels.cpu().tolist()
             pred_labels_list.extend(pred_labels)
 
             metrics = get_classification_metrics(

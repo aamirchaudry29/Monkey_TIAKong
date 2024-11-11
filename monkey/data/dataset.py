@@ -206,6 +206,7 @@ class ClassificationDataset(Dataset):
                 transforms.RandomCrop(
                     size=(self.patch_size, self.patch_size)
                 ),
+                transforms.Resize((224,224))
             ]
         )
 
