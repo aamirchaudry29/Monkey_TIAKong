@@ -97,10 +97,14 @@ class Jaccard_Loss(Loss_Function):
 class Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Dice Loss", False)
+        self.multiclass = False
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return dice_loss(
-            input.float(), target.float(), multiclass=False
+            input.float(), target.float(), multiclass=self.multiclass
         )
 
 
@@ -128,10 +132,14 @@ class Weighted_BCE_Loss(Loss_Function):
 class BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("BCE + Dice Loss", False)
+        self.multiclass = False
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return nn.BCELoss()(input, target.float()) + dice_loss(
-            input.float(), target.float(), multiclass=False
+            input.float(), target.float(), multiclass=self.multiclass
         )
 
 
@@ -139,13 +147,19 @@ class BCE_Dice_Loss(Loss_Function):
 class Weighted_BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss + Dice Loss", True)
+        self.multiclass = False
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
 
     def compute_loss(
         self, input: Tensor, target: Tensor, weight: Tensor
     ):
         return nn.BCELoss(weight=weight)(
             input, target.float()
-        ) + dice_loss(input.float(), target.float(), multiclass=False)
+        ) + dice_loss(
+            input.float(), target.float(), multiclass=self.multiclass
+        )
 
 
 # ------------------------------------------Dice loss functions--------------------------------------
