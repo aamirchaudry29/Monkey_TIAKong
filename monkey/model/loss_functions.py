@@ -10,8 +10,31 @@ import torch.nn as nn
 from torch import Tensor
 
 
+# Abstract class for loss functions
+# All loss functions need to a subclass of this class
+class Loss_Function(ABC):
+    def __init__(self, name, use_weights) -> None:
+        self.name = name
+        self.use_weight = use_weights
+
+    @abstractmethod
+    def compute_loss(self):
+        pass
+
+    @abstractmethod
+    def set_multiclass(self):
+        pass
+
+
 # Returns a Loss Function instance depending on the loss type
-def get_loss_function(loss_type):
+def get_loss_function(loss_type: str) -> Loss_Function:
+    """
+    Returns an initialized loss function object.
+
+    Options:
+        {"Jaccard_Loss", "Dice", "BCE", "Weighted_BCE", "BCE_Dice",
+        "Weighted_BCE_Dice","MSE", "Weighted_CrossEntropy"}
+    """
     loss_functions = {
         "Jaccard_Loss": Jaccard_Loss,
         "Dice": Dice_Loss,
@@ -30,18 +53,6 @@ def get_loss_function(loss_type):
         return loss_functions[loss_type]()
     else:
         raise ValueError(f"Undefined loss function: {loss_type}")
-
-
-# Abstract class for loss functions
-# All loss functions need to a subclass of this class
-class Loss_Function(ABC):
-    def __init__(self, name, use_weights) -> None:
-        self.name = name
-        self.use_weight = use_weights
-
-    @abstractmethod
-    def compute_loss(self):
-        pass
 
 
 # -------------------------------------Classes implementing loss functions---------------------------------
@@ -86,10 +97,14 @@ class MSE_loss(Loss_Function):
 class Jaccard_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Jaccard Loss", False)
+        self.multiclass = False
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return jaccard_loss(
-            input.float(), target.float(), multiclass=False
+            input.float(), target.float(), multiclass=self.multiclass
         )
 
 
@@ -103,9 +118,23 @@ class Dice_Loss(Loss_Function):
         self.multiclass = multiclass
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        return dice_loss(
-            input.float(), target.float(), multiclass=self.multiclass
-        )
+        input = input.float()
+        target = target.float()
+        if self.multiclass:
+            loss = dice_loss(
+                input, target, multiclass=self.multiclass
+            )
+            # Add loss for channel-wise exclusive predictions
+            channel_similarity = dice_coeff(
+                target[:, 0, :, :],
+                target[:, 1, :, :],
+                reduce_batch_first=True,
+            )
+            return loss + channel_similarity
+        else:
+            return dice_loss(
+                input, target, multiclass=self.multiclass
+            )
 
 
 # Binary cross entropy loss
@@ -267,7 +296,7 @@ def multiclass_jaccard_coeff(
             reduce_batch_first,
             epsilon,
         )
-    return jaccard_coef / input.shape[1]
+    return jaccard / input.shape[1]
 
 
 def jaccard_loss(

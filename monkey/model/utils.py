@@ -63,6 +63,55 @@ def get_cell_centers(
     return {"centers": centers, "probs": probs}
 
 
+def get_multiclass_patch_F1_score_batch(
+    batch_pred_patch: np.ndarray | Tensor,
+    batch_target_patch: np.ndarray | Tensor,
+    batch_intensity_image: np.ndarray | Tensor | None,
+) -> dict:
+    """
+    Calculate detection F1 score from binary masks
+    Average over batches and channels
+
+    Args:
+        batch_pred_patch: Prediction mask [BxCxHxW]
+        batch_target_parch: ground truth mask [BxCxHxW]
+        batch_intensity_image: [BxCxHxW]
+    Returns:
+        metrics: {"F1", "Precision", "Recall"}
+    """
+
+    if torch.is_tensor(batch_pred_patch):
+        batch_pred_patch = batch_pred_patch.numpy(force=True)
+    if torch.is_tensor(batch_target_patch):
+        batch_target_patch = batch_target_patch.numpy(force=True)
+    if torch.is_tensor(batch_intensity_image):
+        batch_intensity_image = batch_intensity_image.numpy(
+            force=True
+        )
+
+    sum_f1 = 0.0
+    sum_precision = 0.0
+    sum_recall = 0.0
+
+    class_count = batch_pred_patch.shape[1]
+    for i in range(class_count):
+        class_pred = batch_pred_patch[:, i, :, :]
+        class_target = batch_target_patch[:, i, :, :]
+        class_intensity = batch_intensity_image[:, i, :, :]
+        metrics = get_patch_F1_score_batch(
+            class_pred, class_target, class_intensity
+        )
+        sum_f1 += metrics["F1"]
+        sum_precision += metrics["Precision"]
+        sum_recall += metrics["Recall"]
+
+    return {
+        "F1": sum_f1 / class_count,
+        "Precision": sum_precision / class_count,
+        "Recall": sum_recall / class_count,
+    }
+
+
 def get_patch_F1_score_batch(
     batch_pred_patch: np.ndarray | Tensor,
     batch_target_patch: np.ndarray | Tensor,
@@ -73,8 +122,9 @@ def get_patch_F1_score_batch(
     Average over batches
 
     Args:
-        pred_patch: Prediction mask [BxHxW]
-        target_parch: ground truth mask [BxHxW]
+        batch_pred_patch: Prediction mask [BxHxW]
+        batch_target_parch: ground truth mask [BxHxW]
+        batch_intensity_image: [BxHxW]
     Returns:
         metrics: {"F1", "Precision", "Recall"}
     """
