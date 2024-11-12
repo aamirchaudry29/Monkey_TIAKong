@@ -6,15 +6,55 @@ import torch
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import save_detection_records_monkey
+from monkey.model.classification_model.efficientnet_b0 import (
+    EfficientNet_B0,
+)
 from monkey.model.efficientunetb0.architecture import (
     get_efficientunet_b0_MBConv,
 )
+from prediction.classification import detected_cell_classification
 from prediction.detection import wsi_detection_in_mask
 
 INPUT_PATH = Path("/input")
 OUTPUT_PATH = Path("/output")
 RESOURCE_PATH = Path("resources")
 MODEL_DIR = Path("/opt/ml/model")
+
+
+def load_detectors() -> list[torch.nn.Module]:
+    detectors = []
+    detector_weight_paths = [
+        os.path.join(MODEL_DIR, "efficientunetb0_seg_1.pth"),
+        os.path.join(MODEL_DIR, "efficientunetb0_seg_2.pth"),
+        os.path.join(MODEL_DIR, "efficientunetb0_seg_4.pth"),
+    ]
+    for weight_path in detector_weight_paths:
+        detector = get_efficientunet_b0_MBConv(pretrained=False)
+        checkpoint = torch.load(weight_path)
+        detector.load_state_dict(checkpoint["model"])
+        detector.eval()
+        detector.to("cuda")
+        detectors.append(detector)
+    return detectors
+
+
+def load_classifiers() -> list[torch.nn.Module]:
+    classifiers = []
+    classifier_weight_paths = [
+        os.path.join(MODEL_DIR, "efficientnetb0_cls_1.pth"),
+        os.path.join(MODEL_DIR, "efficientnetb0_cls_2.pth"),
+        os.path.join(MODEL_DIR, "efficientnetb0_cls_3.pth"),
+    ]
+    for weight_path in classifier_weight_paths:
+        classifier = EfficientNet_B0(
+            input_channels=3, num_classes=1, pretrained=False
+        )
+        checkpoint = torch.load(weight_path)
+        classifier.load_state_dict(checkpoint["model"])
+        classifier.eval()
+        classifier.to("cuda")
+        classifiers.append(classifier)
+    return classifiers
 
 
 def detect():
@@ -60,22 +100,38 @@ def detect():
         min_size=7,
     )
 
-    models = []
-    model_path = os.path.join(MODEL_DIR, "efficientunetb0_seg.pth")
-    model = get_efficientunet_b0_MBConv(pretrained=False)
-    checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint["model"])
-    model.to("cuda")
-    model.eval()
-    models.append(model)
-    detection_records = wsi_detection_in_mask(
-        wsi_name, mask_name, config, models
+    detectors = load_detectors()
+    classifiers = load_classifiers()
+
+    print("start overall detection")
+    overall_detection_records = wsi_detection_in_mask(
+        wsi_name, mask_name, config, detectors
     )
-    print(f"{len(detection_records)} final detected cells")
+    print(f"{len(overall_detection_records)} overall detected cells")
     # Save result in Monkey Challenge format
     save_detection_records_monkey(
-        detection_records, config, wsi_id=None
+        overall_detection_records,
+        config,
+        task="overall_detection",
+        wsi_id=None,
     )
+
+    print("start classification")
+
+    classification_detection_records = detected_cell_classification(
+        overall_detection_records,
+        wsi_name,
+        config,
+        classifiers,
+    )
+
+    save_detection_records_monkey(
+        classification_detection_records,
+        config,
+        wsi_id=None,
+        task="detection_classification",
+    )
+
     print("finished")
 
 

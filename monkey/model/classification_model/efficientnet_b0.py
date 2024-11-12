@@ -1,7 +1,6 @@
 import timm
 import torch
 import torch.nn as nn
-from torchvision.ops import MLP
 
 
 class EfficientNet_B0(nn.Module):
