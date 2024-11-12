@@ -436,11 +436,16 @@ def detection_to_annotation_store(
 def save_detection_records_monkey(
     detection_records: list[dict],
     IOConfig: PredictionIOConfig,
+    task: str = "overall_detection",
     wsi_id: str | None = None,
-):
+) -> None:
     """
     Save cell detection records into Monkey challenge format
     """
+
+    if task not in ["overall_detection", "detection_classification"]:
+        raise ValueError(f"task {task} is not valid")
+
     output_dir = IOConfig.output_dir
 
     output_dict_lymphocytes = {
@@ -449,45 +454,61 @@ def save_detection_records_monkey(
         "version": {"major": 1, "minor": 0},
         "points": [],
     }
-
     output_dict_monocytes = {
         "name": "monocytes",
         "type": "Multiple points",
         "version": {"major": 1, "minor": 0},
         "points": [],
     }
-
     output_dict_inflammatory_cells = {
         "name": "inflammatory-cells",
         "type": "Multiple points",
         "version": {"major": 1, "minor": 0},
         "points": [],
     }
-
-    for i, record in enumerate(detection_records):
-        counter = i + 1
-        x = record["x"]
-        y = record["y"]
-        confidence = record["prob"]
-        cell_type = record["type"]
-        prediction_record = {
-            "name": "Point " + str(counter),
-            "point": [
-                px_to_mm(x, 0.24199951445730394),
-                px_to_mm(y, 0.24199951445730394),
-                0.24199951445730394,
-            ],
-            "probability": confidence,
-        }
-        if cell_type == "lymphocyte":
-            output_dict_lymphocytes["points"].append(
+    if task == "overall_detection":
+        for i, record in enumerate(detection_records):
+            counter = i + 1
+            x = record["x"]
+            y = record["y"]
+            confidence = record["prob"]
+            cell_type = record["type"]
+            prediction_record = {
+                "name": "Point " + str(counter),
+                "point": [
+                    px_to_mm(x, 0.24199951445730394),
+                    px_to_mm(y, 0.24199951445730394),
+                    0.24199951445730394,
+                ],
+                "probability": confidence,
+            }
+            output_dict_inflammatory_cells["points"].append(
                 prediction_record
             )
-        if cell_type == "monocytes":
-            output_dict_monocytes["points"].append(prediction_record)
-        output_dict_inflammatory_cells["points"].append(
-            prediction_record
-        )
+    else:
+        for i, record in enumerate(detection_records):
+            counter = i + 1
+            x = record["x"]
+            y = record["y"]
+            confidence = record["prob"]
+            cell_type = record["type"]
+            prediction_record = {
+                "name": "Point " + str(counter),
+                "point": [
+                    px_to_mm(x, 0.24199951445730394),
+                    px_to_mm(y, 0.24199951445730394),
+                    0.24199951445730394,
+                ],
+                "probability": confidence,
+            }
+            if cell_type == "lymphocyte":
+                output_dict_lymphocytes["points"].append(
+                    prediction_record
+                )
+            if cell_type == "monocyte":
+                output_dict_monocytes["points"].append(
+                    prediction_record
+                )
 
     if wsi_id is not None:
         json_filename_lymphocytes = (
@@ -504,28 +525,42 @@ def save_detection_records_monkey(
             "detected-inflammatory-cells.json"
         )
 
-    output_path_json = os.path.join(
-        output_dir, json_filename_lymphocytes
-    )
-    write_json_file(
-        location=output_path_json, content=output_dict_lymphocytes
-    )
+    if task == "overall_detection":
+        output_path_json = os.path.join(
+            output_dir, json_filename_lymphocytes
+        )
+        write_json_file(
+            location=output_path_json, content=output_dict_lymphocytes
+        )
 
-    output_path_json = os.path.join(
-        output_dir, json_filename_monocytes
-    )
-    write_json_file(
-        location=output_path_json, content=output_dict_monocytes
-    )
+        output_path_json = os.path.join(
+            output_dir, json_filename_monocytes
+        )
+        write_json_file(
+            location=output_path_json, content=output_dict_monocytes
+        )
 
-    # it should be replaced with correct json files
-    output_path_json = os.path.join(
-        output_dir, json_filename_inflammatory_cells
-    )
-    write_json_file(
-        location=output_path_json,
-        content=output_dict_inflammatory_cells,
-    )
+        output_path_json = os.path.join(
+            output_dir, json_filename_inflammatory_cells
+        )
+        write_json_file(
+            location=output_path_json,
+            content=output_dict_inflammatory_cells,
+        )
+    else:
+        output_path_json = os.path.join(
+            output_dir, json_filename_lymphocytes
+        )
+        write_json_file(
+            location=output_path_json, content=output_dict_lymphocytes
+        )
+
+        output_path_json = os.path.join(
+            output_dir, json_filename_monocytes
+        )
+        write_json_file(
+            location=output_path_json, content=output_dict_monocytes
+        )
 
 
 def filter_detection_with_mask(
