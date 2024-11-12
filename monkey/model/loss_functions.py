@@ -3,10 +3,6 @@ from abc import ABC, abstractmethod
 import segmentation_models_pytorch as smp
 import torch
 import torch.nn as nn
-
-# import torch.nn.functional as F
-# from monai.losses import DiceCELoss, DiceLoss
-# from monai.metrics import ConfusionMatrixMetric, DiceMetric
 from torch import Tensor
 
 
@@ -125,11 +121,12 @@ class Dice_Loss(Loss_Function):
                 input, target, multiclass=self.multiclass
             )
             # Add loss for channel-wise exclusive predictions
-            channel_similarity = non_zero_similarity_score(
-                target[:, 0, :, :],
-                target[:, 1, :, :],
-            )
-            return loss + channel_similarity
+            # channel_similarity = non_zero_similarity_score(
+            #     target[:, 0, :, :],
+            #     target[:, 1, :, :],
+            # )
+            # return loss + channel_similarity
+            return loss
         else:
             return dice_loss(
                 input, target, multiclass=self.multiclass
