@@ -77,8 +77,8 @@ def detected_cell_classification(
         leave=False,
         desc=f"{wsi_without_ext} classification progress",
     ):
-        top_left_x = int(detection_record['x'] - 16)
-        top_left_y = int(detection_record['y'] - 16)
+        top_left_x = int(detection_record["x"] - 16)
+        top_left_y = int(detection_record["y"] - 16)
 
         image_patch = wsi_reader.read_rect(
             (top_left_x, top_left_y), (32, 32)
@@ -87,10 +87,10 @@ def detected_cell_classification(
         classification_result = classify_patch(image_patch, models)
 
         record = {
-            "x": detection_record['x'],
-            "y": detection_record['y'],
+            "x": detection_record["x"],
+            "y": detection_record["y"],
             "type": classification_result["type"],
-            "prob": detection_record['prob'],
+            "prob": detection_record["prob"],
         }
         detection_classification_records.append(record)
 
