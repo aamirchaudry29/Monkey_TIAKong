@@ -25,12 +25,12 @@ class EfficientNet_B0(nn.Module):
                 bias=self.model.conv_stem.bias is not None,
             )
             with torch.no_grad():
-                new_conv_stem.weight[
-                    :, :3
-                ] = self.model.conv_stem.weight
-                new_conv_stem.weight[
-                    :, 3
-                ] = self.model.conv_stem.weight.mean(dim=1)
+                new_conv_stem.weight[:, :3] = (
+                    self.model.conv_stem.weight
+                )
+                new_conv_stem.weight[:, 3] = (
+                    self.model.conv_stem.weight.mean(dim=1)
+                )
 
             self.model.conv_stem = new_conv_stem
 

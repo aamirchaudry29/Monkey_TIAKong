@@ -21,7 +21,7 @@ from prediction.classification import detected_cell_classification
 from prediction.detection import wsi_detection_in_mask
 
 if __name__ == "__main__":
-    for fold in range(2, 5):
+    for fold in range(1, 5):
         # fold = 1
         detector_model_name = "efficientunetb0_seg_bm"
 
@@ -50,8 +50,8 @@ if __name__ == "__main__":
         # Load models
         detector_weight_paths = [
             f"/home/u1910100/Documents/Monkey/runs/detection/{detector_model_name}/fold_1/epoch_100.pth",
-            f"/home/u1910100/Documents/Monkey/runs/detection/{detector_model_name}/fold_2/epoch_100.pth",
-            f"/home/u1910100/Documents/Monkey/runs/detection/{detector_model_name}/fold_4/epoch_100.pth",
+            # f"/home/u1910100/Documents/Monkey/runs/detection/{detector_model_name}/fold_2/epoch_100.pth",
+            # f"/home/u1910100/Documents/Monkey/runs/detection/{detector_model_name}/fold_4/epoch_100.pth",
         ]
         detectors = []
         for weight_path in detector_weight_paths:
