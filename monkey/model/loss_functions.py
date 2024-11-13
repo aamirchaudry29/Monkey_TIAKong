@@ -125,7 +125,7 @@ class Dice_Loss(Loss_Function):
             #     target[:, 0, :, :],
             #     target[:, 1, :, :],
             # )
-            return loss 
+            return loss
             # return loss
         else:
             return dice_loss(
