@@ -121,11 +121,11 @@ class Dice_Loss(Loss_Function):
                 input, target, multiclass=self.multiclass
             )
             # Add loss for channel-wise exclusive predictions
-            channel_similarity = inter_class_exclusion_loss(
-                target[:, 0, :, :],
-                target[:, 1, :, :],
-            )
-            return loss + channel_similarity
+            # channel_similarity = non_zero_similarity_score(
+            #     target[:, 0, :, :],
+            #     target[:, 1, :, :],
+            # )
+            return loss 
             # return loss
         else:
             return dice_loss(

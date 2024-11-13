@@ -20,8 +20,8 @@ from monkey.train.train_cell_detection import train_det_net
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Detection",
-    "model_name": "efficientunetb0",
-    "val_fold": 4,  # [1-4]
+    "model_name": "efficientunetb0_new",
+    "val_fold": 1,  # [1-4]
     "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0003,
@@ -31,7 +31,7 @@ run_config = {
     "disk_radius": 11,  # Ignored for NuClick masks
     "regression_map": False,
     "do_augmentation": True,
-    "activation_function": "softmax",
+    "activation_function": "sigmoid",
     "module": "multiclass_detection",  # 'detection' or 'multiclass_detection'
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks
 }
