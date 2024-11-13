@@ -19,7 +19,7 @@ def classify_patch(patch: np.ndarray, models: list[torch.nn.Module]):
         patch: RGB image: (HxWx3)
         models
     Returns:
-        result: {'type','prob'}
+        result: {'type'}
     """
     patch = np.moveaxis(patch, 2, 0)
     patch = torch.tensor(patch, dtype=torch.float)
@@ -41,9 +41,9 @@ def classify_patch(patch: np.ndarray, models: list[torch.nn.Module]):
     monocyte_prob = monocyte_prob / len(models)
 
     if monocyte_prob > 0.5:
-        return {"type": "monocyte", "prob": monocyte_prob}
+        return {"type": "monocyte"}
     else:
-        return {"type": "lymphocyte", "prob": 1 - monocyte_prob}
+        return {"type": "lymphocyte"}
 
 
 def detected_cell_classification(
@@ -70,19 +70,15 @@ def detected_cell_classification(
 
     wsi_reader = WSIReader.open(wsi_path)
 
-    centroids = [
-        [record["x"], record["y"]] for record in detected_cells
-    ]
-
     detection_classification_records = []
 
-    for centroid in tqdm(
-        centroids,
+    for detection_record in tqdm(
+        detected_cells,
         leave=False,
         desc=f"{wsi_without_ext} classification progress",
     ):
-        top_left_x = int(centroid[0] - 16)
-        top_left_y = int(centroid[1] - 16)
+        top_left_x = int(detection_record['x'] - 16)
+        top_left_y = int(detection_record['y'] - 16)
 
         image_patch = wsi_reader.read_rect(
             (top_left_x, top_left_y), (32, 32)
@@ -91,10 +87,10 @@ def detected_cell_classification(
         classification_result = classify_patch(image_patch, models)
 
         record = {
-            "x": centroid[0],
-            "y": centroid[1],
+            "x": detection_record['x'],
+            "y": detection_record['y'],
             "type": classification_result["type"],
-            "prob": classification_result["prob"],
+            "prob": detection_record['prob'],
         }
         detection_classification_records.append(record)
 
