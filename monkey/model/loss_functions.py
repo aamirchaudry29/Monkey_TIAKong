@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from monai.losses import FocalLoss, DiceLoss
+
 
 # Abstract class for loss functions
 # All loss functions need to a subclass of this class
@@ -29,7 +31,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 
     Options:
         {"Jaccard_Loss", "Dice", "BCE", "Weighted_BCE", "BCE_Dice",
-        "Weighted_BCE_Dice","MSE", "Weighted_CrossEntropy"}
+        "Weighted_BCE_Dice","MSE", "Weighted_CrossEntropy", "Dice_Focal_Loss"}
     """
     loss_functions = {
         "Jaccard_Loss": Jaccard_Loss,
@@ -38,8 +40,9 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Weighted_BCE": Weighted_BCE_Loss,
         "BCE_Dice": BCE_Dice_Loss,
         "Weighted_BCE_Dice": Weighted_BCE_Dice_Loss,
-        "MSE": MSE_loss,
-        "Weighted_CrossEntropy": CrossEntropy_loss,
+        "MSE": MSE_Loss,
+        "Weighted_CrossEntropy": CrossEntropy_Loss,
+        "Dice_Focal_Loss": Dice_Focal_Loss
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -52,7 +55,40 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 
 
 # -------------------------------------Classes implementing loss functions---------------------------------
-class CrossEntropy_loss(Loss_Function):
+class Focal_Loss(Loss_Function):
+    def __init__(self, use_weights=False):
+        super().__init__("name", use_weights)
+        self.loss_fn = FocalLoss(
+            include_background=True,
+            gamma=2.0,
+            alpha=0.25
+        )
+    
+    def compute_loss(self, input:Tensor, target:Tensor):
+        return self.loss_fn(input, target)
+
+    def set_multiclass(self):
+        return
+
+
+class Dice_Focal_Loss(Loss_Function):
+    def __init__(self, use_weights=False):
+        super().__init__("name", use_weights)
+        self.focal_loss = Focal_Loss()
+        self.dice_loss = Dice_Loss()
+        self.multiclass = False
+    
+    def compute_loss(self, input:Tensor, target:Tensor):
+        loss_1 =  self.focal_loss.compute_loss(input, target)
+        loss_2 =  self.dice_loss.compute_loss(input, target)
+        return loss_1 * 0.5 + loss_2 * 0.5
+
+    def set_multiclass(self, multiclass:bool):
+        self.multiclass = multiclass
+        self.dice_loss.set_multiclass(multiclass)
+        return
+
+class CrossEntropy_Loss(Loss_Function):
     def __init__(self, use_weights=True):
         super().__init__("name", use_weights)
         self.class_weight = torch.tensor([0.5, 0.5], device="cuda")
@@ -70,7 +106,7 @@ class CrossEntropy_loss(Loss_Function):
 
 
 # MSE loss
-class MSE_loss(Loss_Function):
+class MSE_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("MSE", False)
 
@@ -148,9 +184,11 @@ class Weighted_BCE_Loss(Loss_Function):
         super().__init__("Weighted BCE Loss", True)
 
     def compute_loss(
-        self, input: Tensor, target: Tensor, weight: Tensor
+        self, input: Tensor, target: Tensor
     ):
-        return nn.BCELoss(weight=weight)(input, target.float())
+        class_weight = 2.0
+        weight_map = 1.0 + target * class_weight
+        return nn.BCELoss(weight=weight_map)(input, target.float())
 
 
 # Binary cross entropy + Dice loss
@@ -178,9 +216,12 @@ class Weighted_BCE_Dice_Loss(Loss_Function):
         self.multiclass = multiclass
 
     def compute_loss(
-        self, input: Tensor, target: Tensor, weight: Tensor
+        self, input: Tensor, target: Tensor
     ):
-        return nn.BCELoss(weight=weight)(
+        class_weight = 2.0
+        weight_map = 1.0 + target * class_weight
+
+        return nn.BCELoss(weight=weight_map)(
             input, target.float()
         ) + dice_loss(
             input.float(), target.float(), multiclass=self.multiclass
