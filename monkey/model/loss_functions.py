@@ -1,12 +1,8 @@
 from abc import ABC, abstractmethod
 
-import segmentation_models_pytorch as smp
 import torch
 import torch.nn as nn
-
-# import torch.nn.functional as F
-# from monai.losses import DiceCELoss, DiceLoss
-# from monai.metrics import ConfusionMatrixMetric, DiceMetric
+import torch.nn.functional as F
 from torch import Tensor
 
 
@@ -125,11 +121,12 @@ class Dice_Loss(Loss_Function):
                 input, target, multiclass=self.multiclass
             )
             # Add loss for channel-wise exclusive predictions
-            channel_similarity = non_zero_similarity_score(
-                target[:, 0, :, :],
-                target[:, 1, :, :],
-            )
-            return loss + channel_similarity
+            # channel_similarity = non_zero_similarity_score(
+            #     target[:, 0, :, :],
+            #     target[:, 1, :, :],
+            # )
+            return loss
+            # return loss
         else:
             return dice_loss(
                 input, target, multiclass=self.multiclass
@@ -319,3 +316,48 @@ def non_zero_similarity_score(
         sets_sum = torch.sum(input) + torch.sum(target)
 
     return (2 * non_zero_overlap + epsilon) / (sets_sum + epsilon)
+
+
+# ------------------------ inter and intra class loss ----------------------
+def inter_class_exclusion_loss(dist_pred_pos, dist_pred_neg):
+    """
+    Penalize overlapping peaks between positive and negative maps.
+    dist_pred_pos: Predicted distance map for positive class [batch_size, H, W]
+    dist_pred_neg: Predicted distance map for negative class [batch_size, H, W]
+    """
+
+    # Compute overlap per sample
+    overlap = dist_pred_pos * dist_pred_neg  # [batch_size, H, W]
+    batch_size = dist_pred_pos.size(0)
+    overlap_flat = overlap.view(batch_size, -1)
+    loss_per_sample = overlap_flat.sum(dim=1) / overlap_flat.size(1)
+    loss = loss_per_sample.mean()
+    return loss
+
+
+# def intra_class_repulsion_loss_single(dist_pred):
+#     """
+#     Penalize peaks that are too close to each other within the same map.
+#     dist_pred: Predicted distance map for one class [batch_size, H, W]
+#     """
+#     # Apply ReLU activation
+#     batch_size = dist_pred.size(0)
+#     loss = torch.tensor(0.0, device=dist_pred.device)
+
+#     # Find peaks using max pooling
+#     max_pooled = F.max_pool2d(dist_pred, kernel_size=3, stride=1, padding=1)
+#     peaks = (dist_pred == max_pooled) & (dist_pred > self.threshold)
+
+#     # Convert peaks to coordinates
+#     for i in range(batch_size):
+#         peak_indices = peaks[i].nonzero(as_tuple=False).float()  # [num_peaks, 2]
+#         if peak_indices.size(0) > 1:
+#             # Compute pairwise distances
+#             pdist = torch.cdist(peak_indices, peak_indices, p=2)
+#             # Remove self-distances
+#             pdist = pdist + torch.eye(pdist.size(0), device=pdist.device) * 1e6
+#             # Penalize close peaks
+#             close_peaks = (pdist < self.min_distance).float()
+#             loss += close_peaks.sum() / (peak_indices.size(0) ** 2)
+
+#     return loss / batch_size

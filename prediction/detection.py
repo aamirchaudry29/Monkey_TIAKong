@@ -11,7 +11,7 @@ from tiatoolbox.models.engine.semantic_segmentor import (
 from tiatoolbox.tools.patchextraction import get_patch_extractor
 from tiatoolbox.wsicore.wsireader import VirtualWSIReader, WSIReader
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
@@ -146,8 +146,8 @@ def process_tile_detection_masks(
         r1 = r + y_start
 
         prediction_record = {
-            "x": np.round(c1),
-            "y": np.round(r1),
+            "x": int(np.round(c1)),
+            "y": int(np.round(r1)),
             "type": "inflammatory",
             "prob": float(confidence),
         }
@@ -213,7 +213,7 @@ def wsi_detection_in_mask(
         tqdm(
             tile_extractor,
             leave=False,
-            desc=f"{wsi_without_ext} progress",
+            desc=f"{wsi_without_ext} detection progress",
         )
     ):
         bounding_box = tile_extractor.coordinate_list[

@@ -163,3 +163,4 @@ cython_debug/
 test/
 inference-docker/*.tar.gz
 weights/
+description.txt
