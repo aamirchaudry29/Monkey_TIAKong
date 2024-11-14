@@ -103,6 +103,9 @@ class CrossEntropy_Loss(Loss_Function):
     ):
         loss = nn.CrossEntropyLoss(weight=self.class_weight)
         return loss(input, target)
+    
+    def set_multiclass(self):
+        return
 
 
 # MSE loss
@@ -196,12 +199,24 @@ class BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("BCE + Dice Loss", False)
         self.multiclass = False
+        self.bce_loss_fn = nn.BCELoss()
 
     def set_multiclass(self, multiclass: bool):
         self.multiclass = multiclass
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        return nn.BCELoss()(input, target.float()) + dice_loss(
+        if self.multiclass:
+            bce_loss = 0.0
+            for channel in range(input.shape[1]):
+                bce_loss += self.bce_loss_fn(
+                    input[:, channel, ...],
+                    target[:, channel, ...].float(),
+                )
+            bce_loss = bce_loss / input.shape[1]
+        else:
+            bce_loss = self.bce_loss_fn(input, target.float())
+
+        return bce_loss + dice_loss(
             input.float(), target.float(), multiclass=self.multiclass
         )
 
