@@ -6,6 +6,7 @@ import segmentation_models_pytorch as smp
 import torch
 import wandb
 from torch.optim import lr_scheduler
+from pprint import pprint
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
@@ -20,27 +21,28 @@ from monkey.train.train_cell_detection import train_det_net
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Detection",
-    "model_name": "efficientunetb0_new",
-    "val_fold": 1,  # [1-4]
+    "model_name": "efficientunetb0_seg",
+    "val_fold": 5,  # [1-4]
     "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0003,
     "weight_decay": 0.0001,
-    "epochs": 50,
-    "loss_function": "Dice",
-    "disk_radius": 11,  # Ignored for NuClick masks
-    "regression_map": False,
+    "epochs": 30,
+    "loss_function": "BCE_Dice",
+    "disk_radius": 11,  # Ignored if using NuClick masks
+    "regression_map": False,    # Ignored if using NuClick masks
     "do_augmentation": True,
     "activation_function": "sigmoid",
-    "module": "multiclass_detection",  # 'detection' or 'multiclass_detection'
+    "module": "detection",  # 'detection' or 'multiclass_detection'
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks
 }
+pprint(run_config)
 
 # Specify IO config
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
-    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
+    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{run_config['model_name']}",
 )
 # If use nuclick masks, change mask dir
 if run_config["use_nuclick_masks"]:
@@ -48,7 +50,7 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-model = get_efficientunet_b0_MBConv(out_channels=2)
+model = get_efficientunet_b0_MBConv(out_channels=1)
 # model = smp.UnetPlusPlus(
 #     encoder_name="tu-resnext101_32x16d",
 #     encoder_weights="imagenet",
@@ -97,11 +99,12 @@ scheduler = lr_scheduler.ReduceLROnPlateau(
     optimizer,
     "max",
     factor=0.1,
+    patience=5
 )
 
 # Create WandB session
 run = wandb.init(
-    project=f"{run_config['project_name']}_{run_config['model_name']}_exp",
+    project=f"{run_config['project_name']}_{run_config['model_name']}",
     name=f"fold_{run_config['val_fold']}_{run_config['module']}",
     config=run_config,
 )

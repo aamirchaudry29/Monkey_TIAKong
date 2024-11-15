@@ -176,9 +176,13 @@ class Dice_Loss(Loss_Function):
 class BCE_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("BCE Loss", False)
+        self.multiclass = False
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return nn.BCELoss()(input, target.float())
+    
+    def set_multiclass(self, _):
+        return False
 
 
 # Weighted binary cross entropy loss

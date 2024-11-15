@@ -5,8 +5,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
-#SBATCH --mem=30000             # Memory (mb) to use 
-#SBATCH --time=48:00:00      # Job time limit
+#SBATCH --mem=12000             # Memory (mb) to use 
+#SBATCH --time=12:00:00      # Job time limit
 #
 #SBATCH --output=/home/u1910100/logs/joboutput_%j.out # Standard out from your job
 #SBATCH --error=/home/u1910100/logs/joboutput_%j.err  # Standard error from your job
@@ -21,6 +21,8 @@ echo $PATH
 echo "done"
 
 ## Run Python Program ##
+cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
 echo "starting python program"
-python3.11 /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/train_detection.py
+# python3.11 train_detection.py
+python3.11 train_classification.py
 echo "finished"

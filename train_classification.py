@@ -2,9 +2,9 @@
 
 import os
 
-import segmentation_models_pytorch as smp
 import torch
 import wandb
+from pprint import pprint
 from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
@@ -22,18 +22,18 @@ run_config = {
     "project_name": "Monkey_Classification",
     "model_name": "efficientnetb0",
     "batch_size": 64,
-    "val_fold": 4,  # [1-4]
+    "val_fold": 5,  # [1-4]
     "optimizer": "AdamW",
     "learning_rate": 0.0003,
     "weight_decay": 0.0001,
-    "epochs": 75,
+    "epochs": 50,
     "loss_function": "BCE",
     "do_augmentation": True,
     "activation_function": "sigmoid",
     "module": "classification",
     "stack_mask": False,  # Whether to use 4-channel input
 }
-
+pprint(run_config)
 # Set IOConfig
 
 IOconfig = TrainingIOConfig(
@@ -80,11 +80,12 @@ scheduler = lr_scheduler.ReduceLROnPlateau(
     optimizer,
     "max",
     factor=0.1,
+    patience=5
 )
 
 # Create WandB session
 run = wandb.init(
-    project=f"{run_config['project_name']}_{run_config['model_name']}_bm",
+    project=f"{run_config['project_name']}_{run_config['model_name']}",
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
