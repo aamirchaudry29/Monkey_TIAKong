@@ -1,10 +1,10 @@
 # Training code for overall cell classification
 
 import os
+from pprint import pprint
 
 import torch
 import wandb
-from pprint import pprint
 from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
@@ -77,10 +77,7 @@ optimizer = torch.optim.AdamW(
     weight_decay=run_config["weight_decay"],
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer,
-    "max",
-    factor=0.1,
-    patience=5
+    optimizer, "max", factor=0.1, patience=5
 )
 
 # Create WandB session

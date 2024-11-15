@@ -162,9 +162,9 @@ def get_patch_F1_score_batch(
 
 
 def get_patch_F1_score(
-    pred_patch: np.ndarray,
-    target_patch: np.ndarray,
-    intensity_image: np.ndarray | None,
+    pred_patch: np.ndarray | Tensor,
+    target_patch: np.ndarray | Tensor,
+    intensity_image: np.ndarray | Tensor | None,
 ) -> dict:
     """
     Calculate detection F1 score from binary masks
@@ -176,6 +176,13 @@ def get_patch_F1_score(
     Returns:
         metrics: {"F1", "Precision", "Recall"}
     """
+
+    if torch.is_tensor(pred_patch):
+        pred_patch = pred_patch.numpy(force=True)
+    if torch.is_tensor(target_patch):
+        target_patch = target_patch.numpy(force=True)
+    if torch.is_tensor(intensity_image):
+        intensity_image = intensity_image.numpy(force=True)
 
     pred_stats = get_cell_centers(pred_patch, intensity_image)
     pred_centers = pred_stats["centers"]

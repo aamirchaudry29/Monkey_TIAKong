@@ -1,12 +1,12 @@
 # Training code for overall cell detection
 
 import os
+from pprint import pprint
 
 import segmentation_models_pytorch as smp
 import torch
 import wandb
 from torch.optim import lr_scheduler
-from pprint import pprint
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
@@ -30,7 +30,7 @@ run_config = {
     "epochs": 30,
     "loss_function": "BCE_Dice",
     "disk_radius": 11,  # Ignored if using NuClick masks
-    "regression_map": False,    # Ignored if using NuClick masks
+    "regression_map": False,  # Ignored if using NuClick masks
     "do_augmentation": True,
     "activation_function": "sigmoid",
     "module": "detection",  # 'detection' or 'multiclass_detection'
@@ -96,10 +96,7 @@ optimizer = torch.optim.AdamW(
     # momentum=0.9,
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer,
-    "max",
-    factor=0.1,
-    patience=5
+    optimizer, "max", factor=0.1, patience=5
 )
 
 # Create WandB session
