@@ -20,20 +20,21 @@ from monkey.train.train_cell_detection import train_det_net
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Detection",
-    "model_name": "efficientunetb0_seg",
-    "val_fold": 5,  # [1-4]
+    "project_name": "Monkey_Multiclass_Detection",
+    "model_name": "efficientunetb0_seg_3_channel",
+    "val_fold": 1,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0003,
     "weight_decay": 0.0001,
-    "epochs": 30,
+    "epochs": 10,
     "loss_function": "BCE_Dice",
     "disk_radius": 11,  # Ignored if using NuClick masks
     "regression_map": False,  # Ignored if using NuClick masks
     "do_augmentation": True,
-    "activation_function": "sigmoid",
-    "module": "detection",  # 'detection' or 'multiclass_detection'
+    "activation_function": "softmax",
+    "module": "multiclass_detection",  # 'detection' or 'multiclass_detection'
+    "include_background_channel": True,
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks
 }
 pprint(run_config)
@@ -42,7 +43,7 @@ pprint(run_config)
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
-    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{run_config['model_name']}",
+    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
 # If use nuclick masks, change mask dir
 if run_config["use_nuclick_masks"]:
@@ -50,7 +51,7 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-model = get_efficientunet_b0_MBConv(out_channels=1)
+model = get_efficientunet_b0_MBConv(out_channels=3)
 # model = smp.UnetPlusPlus(
 #     encoder_name="tu-resnext101_32x16d",
 #     encoder_weights="imagenet",
@@ -78,6 +79,7 @@ train_loader, val_loader = get_detection_dataloaders(
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
     module=run_config["module"],
+    include_background_channel=run_config['include_background_channel']
 )
 
 

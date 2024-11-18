@@ -12,6 +12,7 @@ from torch.utils.data import (
 from monkey.config import TrainingIOConfig
 from monkey.data.augmentation import get_augmentation
 from monkey.data.data_utils import (
+    add_background_channel,
     dilate_mask,
     generate_regression_map,
     get_label_from_class_id,
@@ -84,6 +85,7 @@ class DetectionDataset(Dataset):
         regression_map: bool = False,
         module: str = "detection",
         use_nuclick_masks: bool = False,
+        include_background_channel: bool = False,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -93,6 +95,7 @@ class DetectionDataset(Dataset):
         self.module = module
         self.regression_map = regression_map
         self.use_nuclick_masks = use_nuclick_masks
+        self.include_background_channel = include_background_channel
 
         if self.do_augment:
             self.augmentation = get_augmentation(
@@ -161,6 +164,9 @@ class DetectionDataset(Dataset):
         if len(cell_mask.shape) == 2:
             # HxW -> 1xHxW
             cell_mask = cell_mask[np.newaxis, :, :]
+        if self.include_background_channel:
+            cell_mask = add_background_channel(cell_mask)
+
         # HxWx3 -> 3xHxW
         image = image / 255
         image = imagenet_normalise(image)
@@ -354,6 +360,7 @@ def get_detection_dataloaders(
     module: str = "detection",
     do_augmentation: bool = False,
     use_nuclick_masks: bool = False,
+    include_background_channel: bool = False,
 ):
     """Get training and validation dataloaders
     Task 1: Overall Inflammation cell (MNL) detection
@@ -386,6 +393,7 @@ def get_detection_dataloaders(
         regression_map=regression_map,
         module=module,
         use_nuclick_masks=use_nuclick_masks,
+        include_background_channel=include_background_channel,
     )
     val_dataset = DetectionDataset(
         IOConfig=IOConfig,
@@ -396,6 +404,7 @@ def get_detection_dataloaders(
         regression_map=regression_map,
         module=module,
         use_nuclick_masks=use_nuclick_masks,
+        include_background_channel=include_background_channel,
     )
 
     train_loader = DataLoader(
