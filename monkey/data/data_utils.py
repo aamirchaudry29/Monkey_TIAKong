@@ -744,5 +744,32 @@ def erode_mask(mask, size=3):
     kernel = cv2.getStructuringElement(
         cv2.MORPH_ELLIPSE, (size, size)
     )
-    mask = cv2.erode(mask, kernel, iterations=1)
+    if mask.ndim == 4:
+        for i in range(mask.shape[0]):
+            for j in range(mask.shape[1]):
+                mask[i, j, :, :] = cv2.erode(
+                    mask[i, j, :, :], kernel, iterations=1
+                )
+    else:
+        mask = cv2.erode(mask, kernel, iterations=1)
+
+    return mask
+
+
+def morphological_post_processing(mask, size=3):
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (size, size)
+    )
+    if mask.ndim == 4:
+        for i in range(mask.shape[0]):
+            for j in range(mask.shape[1]):
+                mask[i, j, :, :] = cv2.morphologyEx(
+                    mask[i, j, :, :], cv2.MORPH_OPEN, kernel
+                )
+                mask[i, j, :, :] = cv2.morphologyEx(
+                    mask[i, j, :, :], cv2.MORPH_CLOSE, kernel
+                )
+    else:
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     return mask

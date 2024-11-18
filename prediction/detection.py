@@ -19,6 +19,7 @@ from monkey.data.data_utils import (
     erode_mask,
     filter_detection_with_mask,
     imagenet_normalise_torch,
+    morphological_post_processing,
     slide_nms,
 )
 
@@ -95,7 +96,7 @@ def process_tile_detection_masks(
     x_start: int,
     y_start: int,
     threshold: float = 0.5,
-    min_size: int = 7,
+    min_size: int = 3,
 ):
     """
     Process cell detection of tile image
@@ -122,9 +123,11 @@ def process_tile_detection_masks(
     tile_prediction_binary = (tile_prediction > threshold).astype(
         np.uint8
     )
-    # tile_prediction_binary = erode_mask(tile_prediction_binary)
-    tile_prediction_binary = skimage.morphology.remove_small_objects(
-        ar=tile_prediction_binary.astype(bool), min_size=min_size
+    tile_prediction_binary = erode_mask(
+        tile_prediction_binary, min_size
+    )
+    tile_prediction_binary = morphological_post_processing(
+        tile_prediction_binary, min_size
     )
 
     mask_labels = skimage.measure.label(tile_prediction_binary)
