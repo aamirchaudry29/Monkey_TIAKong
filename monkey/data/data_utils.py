@@ -773,3 +773,36 @@ def morphological_post_processing(mask, size=3):
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     return mask
+
+
+def add_background_channel(input_mask: np.ndarray):
+    """
+    Add background mask to channel 0
+
+    Args:
+        input_mask: [CxHxW]
+    Returns
+        output_mask: [(C+1)xHxW]
+    """
+
+    output_mask = np.zeros(
+        shape=(
+            input_mask.shape[0] + 1,
+            input_mask.shape[1],
+            input_mask.shape[2],
+        ),
+        dtype=np.uint8,
+    )
+
+    mask_union = np.zeros(
+        shape=(input_mask.shape[1], input_mask.shape[2]),
+        dtype=np.uint8,
+    )
+    for i in range(input_mask.shape[0]):
+        output_mask[i + 1, :, :] = input_mask[i, :, :]
+
+        mask_union = np.logical_or(mask_union, input_mask[i, :, :])
+
+    output_mask[0, :, :] = np.logical_not(mask_union)
+
+    return output_mask
