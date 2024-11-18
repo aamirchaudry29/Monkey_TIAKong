@@ -11,7 +11,9 @@ from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import imagenet_normalise_torch
 
 
-def classify_patch(patch: np.ndarray, models: list[torch.nn.Module]):
+def classify_patch(
+    patch: np.ndarray, models: list[torch.nn.Module], thresh=0.7
+):
     """
     Classify a single patch image into lymphocyte or monocyte
 
@@ -40,7 +42,7 @@ def classify_patch(patch: np.ndarray, models: list[torch.nn.Module]):
 
     monocyte_prob = monocyte_prob / len(models)
 
-    if monocyte_prob > 0.5:
+    if monocyte_prob > thresh:
         return {"type": "monocyte"}
     else:
         return {"type": "lymphocyte"}
@@ -51,6 +53,7 @@ def detected_cell_classification(
     wsi_name: str,
     IOConfig: PredictionIOConfig,
     models: list[torch.nn.Module],
+    thresh: float = 0.7,
 ):
     """
     Classify inflammatory cells into lymphocytes and monocytes
@@ -84,7 +87,9 @@ def detected_cell_classification(
             (top_left_x, top_left_y), (32, 32)
         )
 
-        classification_result = classify_patch(image_patch, models)
+        classification_result = classify_patch(
+            image_patch, models, thresh
+        )
 
         record = {
             "x": detection_record["x"],

@@ -20,11 +20,12 @@ from prediction.classification import detected_cell_classification
 from prediction.detection import wsi_detection_in_mask
 
 if __name__ == "__main__":
-    for fold in range(1, 5):
+    for fold in range(1, 6):
         # fold = 1
-        detector_model_name = "efficientunetb0_seg_bm"
+        detector_model_name = "efficientunetb0_seg"
 
-        thresh = 0.3
+        det_thresh = 0.5
+        cls_thresh = 0.7
 
         config = PredictionIOConfig(
             wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -34,8 +35,8 @@ if __name__ == "__main__":
             resolution=0,
             units="level",
             stride=224,
-            threshold=thresh,
-            min_size=7,
+            threshold=det_thresh,
+            min_size=3,
         )
 
         split_info = open_json_file(
@@ -48,9 +49,7 @@ if __name__ == "__main__":
 
         # Load models
         detector_weight_paths = [
-            f"/home/u1910100/Documents/Monkey/runs/detection/{detector_model_name}/fold_1/epoch_100.pth",
-            # f"/home/u1910100/Documents/Monkey/runs/detection/{detector_model_name}/fold_2/epoch_100.pth",
-            # f"/home/u1910100/Documents/Monkey/runs/detection/{detector_model_name}/fold_4/epoch_100.pth",
+            f"/home/u1910100/Documents/Monkey/runs/detection/{detector_model_name}/fold_1/epoch_75.pth",
         ]
         detectors = []
         for weight_path in detector_weight_paths:
@@ -63,9 +62,7 @@ if __name__ == "__main__":
 
         classifiers = []
         classifier_weight_paths = [
-            "/home/u1910100/Documents/Monkey/runs/cls/efficientnetb0/fold_1/epoch_4.pth",
-            "/home/u1910100/Documents/Monkey/runs/cls/efficientnetb0/fold_2/epoch_2.pth",
-            "/home/u1910100/Documents/Monkey/runs/cls/efficientnetb0/fold_3/epoch_6.pth",
+            "/home/u1910100/Documents/Monkey/runs/cls/efficientnetb0/fold_1/epoch_50.pth"
         ]
         for weight_path in classifier_weight_paths:
             classifier = EfficientNet_B0(
@@ -97,6 +94,7 @@ if __name__ == "__main__":
                     wsi_name,
                     config,
                     classifiers,
+                    thresh=cls_thresh,
                 )
             )
             # detection_classification_records = detection_records
