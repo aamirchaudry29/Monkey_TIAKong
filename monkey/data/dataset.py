@@ -72,7 +72,7 @@ def class_mask_to_multichannel_mask(
 class DetectionDataset(Dataset):
     """Dataset for overall cell detection
     Detecting Lymphocytes and Monocytes
-    Data: RGB image and binary cell mask
+    Data: RGB image and cell mask
     """
 
     def __init__(
