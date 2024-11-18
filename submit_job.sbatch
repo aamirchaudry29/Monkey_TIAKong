@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 #SBATCH --job-name=monkey # Job name for tracking
-#SBATCH --partition=gpu  # Partition you wish to use (see above for list)
+#SBATCH --partition=dgx2  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
@@ -24,5 +24,5 @@ echo "done"
 cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
 echo "starting python program"
 # python3.11 train_detection.py
-python3.11 train_classification.py
+python3.11 train_detection.py
 echo "finished"
