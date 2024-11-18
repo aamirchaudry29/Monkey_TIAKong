@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from monkey.model.loss_functions import Loss_Function
 from monkey.model.utils import get_multiclass_patch_F1_score_batch
+from monkey.train.utils import compose_log_images
 
 
 def train_one_epoch(
@@ -19,7 +20,7 @@ def train_one_epoch(
     training_loader: DataLoader,
     optimizer: Optimizer,
     loss_fn: Loss_Function,
-    module: str,
+    run_config: dict,
     activation: torch.nn = torch.nn.Sigmoid,
 ):
     epoch_loss = 0.0
@@ -48,11 +49,16 @@ def train_one_epoch(
 def validate_one_epoch(
     model: nn.Module,
     validation_loader: DataLoader,
-    module: str,
+    run_config: dict,
     wandb_run: Optional[wandb.run] = None,
     activation: torch.nn = torch.nn.Sigmoid,
 ):
     running_val_score = 0.0
+    module = run_config["module"]
+    include_background_channel = run_config[
+        "include_background_channel"
+    ]
+
     model.eval()
     for i, data in enumerate(
         tqdm(validation_loader, desc="validation", leave=False)
@@ -63,56 +69,34 @@ def validate_one_epoch(
         )
         with torch.no_grad():
             logits_pred = model(images)
-            mask_pred = activation(logits_pred)
+            pred_probs = activation(logits_pred)
 
-            mask_pred_binary = (mask_pred > 0.5).float()
+            if include_background_channel:
+                mask_pred = torch.argmax(pred_probs, dim=1)
+                # to_one_hot
+                mask_pred_binary = torch.zeros_like(
+                    logits_pred
+                ).scatter_(1, mask_pred.unsqueeze(1), 1.0)
+            else:
+                mask_pred_binary = (pred_probs > 0.5).float()
 
             # Compute detection F1 score
             metrics = get_multiclass_patch_F1_score_batch(
-                mask_pred_binary, true_masks, logits_pred
+                mask_pred_binary, true_masks, pred_probs
             )
 
         running_val_score += metrics["F1"] * images.size(0)
 
     # Log an example prediction to WandB
-    if wandb_run is not None:
-        if module == "detection":
-            log_data = {
-                "images": wandb.Image(images[0, :3, :, :].cpu()),
-                "masks": {
-                    "true": wandb.Image(
-                        true_masks[0].float().cpu(), mode="L"
-                    ),
-                    "pred_probs": wandb.Image(
-                        logits_pred[0, 0, :, :].float().cpu()
-                    ),
-                    "Final_pred": wandb.Image(
-                        mask_pred_binary[0, 0, :, :].float().cpu(),
-                        mode="L",
-                    ),
-                },
-            }
-        elif module == "multiclass_detection":
-            log_data = {
-                "images": wandb.Image(images[0, :3, :, :].cpu()),
-                "masks": {
-                    "true_lymph": wandb.Image(
-                        true_masks[0, 0, :, :].float().cpu(), mode="L"
-                    ),
-                    "true_mono": wandb.Image(
-                        true_masks[0, 1, :, :].float().cpu(), mode="L"
-                    ),
-                    "pred_lymph_probs": wandb.Image(
-                        logits_pred[0, 0, :, :].float().cpu()
-                    ),
-                    "pred_mono_probs": wandb.Image(
-                        logits_pred[0, 1, :, :].float().cpu()
-                    ),
-                },
-            }
-        else:
-            log_data = {}
-        wandb_run.log(log_data)
+    log_data = compose_log_images(
+        images=images,
+        true_masks=true_masks,
+        pred_masks=mask_pred_binary,
+        pred_probs=pred_probs,
+        module=module,
+        has_background_channel=include_background_channel,
+    )
+    wandb_run.log(log_data)
 
     avg_score = running_val_score / len(validation_loader.sampler)
     return avg_score
@@ -126,14 +110,14 @@ def train_det_net(
     loss_fn: Loss_Function,
     activation: torch.nn,
     save_dir: str,
-    epochs: int,
-    module: str,
+    run_config: dict,
     wandb_run: Optional[wandb.run] = None,
     scheduler: Optional[lr_scheduler.LRScheduler] = None,
 ) -> torch.nn.Module:
     pprint("Starting training")
 
     best_val_score = -np.inf
+    epochs = run_config["epochs"]
 
     for epoch in tqdm(
         range(1, epochs + 1), desc="epochs", leave=True
@@ -145,11 +129,15 @@ def train_det_net(
             train_loader,
             optimizer,
             loss_fn,
-            module,
+            run_config,
             activation,
         )
         avg_score = validate_one_epoch(
-            model, validation_loader, module, wandb_run, activation
+            model,
+            validation_loader,
+            run_config,
+            wandb_run,
+            activation,
         )
 
         if scheduler is not None:
