@@ -1,22 +1,23 @@
-import numpy as np
+from pprint import pprint
+
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from tqdm.auto import tqdm
+
+from monkey.config import TrainingIOConfig
+from monkey.data.data_utils import (
+    erode_mask,
+    morphological_post_processing,
+)
+from monkey.data.dataset import get_detection_dataloaders
 from monkey.model.efficientunetb0.architecture import (
     get_efficientunet_b0_MBConv,
 )
-
-import torch
-from monkey.config import TrainingIOConfig
-from monkey.data.dataset import get_detection_dataloaders
-from tqdm.auto import tqdm
 from monkey.model.utils import (
-    get_patch_F1_score_batch,
     get_multiclass_patch_F1_score_batch,
+    get_patch_F1_score_batch,
 )
-from monkey.data.data_utils import (
-    morphological_post_processing,
-    erode_mask,
-)
-from pprint import pprint
 
 
 def evaluate_multiclass_detection(fold_number: int = 1):
