@@ -22,12 +22,12 @@ from monkey.train.train_cell_detection import train_det_net
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
     "model_name": "efficientunetb0_seg_3_channel",
-    "val_fold": 2,  # [1-5]
+    "val_fold": 5,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0003,
     "weight_decay": 0.0001,
-    "epochs": 10,
+    "epochs": 75,
     "loss_function": "Weighted_CE_Dice",
     "disk_radius": 11,  # Ignored if using NuClick masks
     "regression_map": False,  # Ignored if using NuClick masks
