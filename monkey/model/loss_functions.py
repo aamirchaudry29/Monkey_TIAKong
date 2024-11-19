@@ -30,7 +30,8 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 
     Options:
         {"Jaccard_Loss", "Dice", "BCE", "Weighted_BCE", "BCE_Dice",
-        "Weighted_BCE_Dice","MSE", "Weighted_CrossEntropy", "Dice_Focal_Loss"}
+        "Weighted_BCE_Dice","MSE", "Weighted_CrossEntropy", "Dice_Focal_Loss"
+        "Weighted_CE_Dice"}
     """
     loss_functions = {
         "Jaccard_Loss": Jaccard_Loss,
@@ -42,6 +43,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "MSE": MSE_Loss,
         "Weighted_CrossEntropy": CrossEntropy_Loss,
         "Dice_Focal_Loss": Dice_Focal_Loss,
+        "Weighted_CE_Dice": Weighted_CE_Dice_Loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -236,6 +238,32 @@ class Weighted_BCE_Dice_Loss(Loss_Function):
 
         return nn.BCELoss(weight=weight_map)(
             input, target.float()
+        ) + dice_loss(
+            input.float(), target.float(), multiclass=self.multiclass
+        )
+
+
+class Weighted_CE_Dice_Loss(Loss_Function):
+    def __init__(self) -> None:
+        super().__init__("Weighted CE Loss + Dice Loss", True)
+        self.multiclass = True
+        self.weights = torch.tensor([0.4, 0.6], device="cuda")
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
+
+    def set_weight(self, weights: Tensor):
+        self.weights = weights
+        self.weights.to("cuda")
+
+    def compute_loss(self, input: Tensor, target: Tensor):
+
+        # convert target to one-hot
+        # BxCxHxW -> BxHxW
+        target_indices = torch.argmax(target, dim=1)
+
+        return nn.CrossEntropyLoss(weight=self.weights)(
+            input, target_indices
         ) + dice_loss(
             input.float(), target.float(), multiclass=self.multiclass
         )
