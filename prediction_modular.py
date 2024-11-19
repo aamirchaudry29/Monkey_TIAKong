@@ -140,5 +140,6 @@ def cross_validation(fold: int = 1):
 
 
 if __name__ == "__main__":
-    with Pool(5) as p:
-        p.map(cross_validation, [1,2,3,4,5])
+    for i in range(1,6):
+        pprint(f"Fold {i}")
+        cross_validation(i)
