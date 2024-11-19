@@ -3,7 +3,7 @@
 #SBATCH --job-name=monkey # Job name for tracking
 #SBATCH --partition=dgx2  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1      # Number of CPU threads used by your job
+#SBATCH --cpus-per-task=4      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
 #SBATCH --mem=12000             # Memory (mb) to use 
 #SBATCH --time=12:00:00      # Job time limit
@@ -22,7 +22,7 @@ echo "done"
 
 ## Run Python Program ##
 cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
-echo "starting python program"
+echo "starting training script"
 # python3.11 train_detection.py
 python3.11 train_detection.py
 echo "finished"

@@ -23,18 +23,18 @@ from monkey.model.efficientunetb0.architecture import (
 )
 from prediction.classification import detected_cell_classification
 from prediction.detection import wsi_detection_in_mask
-
+from multiprocessing import Pool
 
 def cross_validation(fold: int = 1):
     detector_model_name = "efficientunetb0_seg"
     pprint(f"Detecting using {detector_model_name}")
     det_thresh = 0.5
-    cls_thresh = 0.7
+    cls_thresh = 0.43
 
     config = PredictionIOConfig(
         wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
         mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
-        output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
+        output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}_ensemble/Fold_{fold}",
         patch_size=256,
         resolution=0,
         units="level",
@@ -53,7 +53,9 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{detector_model_name}/fold_{fold}/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{detector_model_name}/fold_1/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{detector_model_name}/fold_2/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{detector_model_name}/fold_3/epoch_75.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
@@ -66,7 +68,9 @@ def cross_validation(fold: int = 1):
 
     classifiers = []
     classifier_weight_paths = [
-        "/home/u1910100/cloud_workspace/data/Monkey/cell_cls/efficientnetb0/fold_1/epoch_50.pth"
+        "/home/u1910100/cloud_workspace/data/Monkey/cell_cls/efficientnetb0/fold_1/epoch_50.pth",
+        "/home/u1910100/cloud_workspace/data/Monkey/cell_cls/efficientnetb0/fold_2/epoch_50.pth",
+        "/home/u1910100/cloud_workspace/data/Monkey/cell_cls/efficientnetb0/fold_4/epoch_50.pth"
     ]
     for weight_path in classifier_weight_paths:
         classifier = EfficientNet_B0(
@@ -136,5 +140,5 @@ def cross_validation(fold: int = 1):
 
 
 if __name__ == "__main__":
-    for fold in range(1, 6):
-        cross_validation(fold)
+    with Pool(5) as p:
+        p.map(cross_validation, [1,2,3,4,5])

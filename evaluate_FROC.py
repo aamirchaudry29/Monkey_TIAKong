@@ -7,15 +7,14 @@ from evaluation.evaluate import (
     get_froc_vals,
 )
 from monkey.data.data_utils import extract_id, open_json_file
-
+from multiprocessing import Pool
 
 def compute_FROC(fold: int = 1):
     GROUND_TRUTH_DIRECTORY = (
         "/mnt/lab-share/Monkey/Dataset/annotations/json"
     )
     FOLD = fold
-    model_name = "efficientunetb0_seg"
-    pprint(f"Model {model_name} fold {fold}")
+    model_name = "efficientunetb0_seg_ensemble"
     PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     SPACING_LEVEL0 = 0.24199951445730394
 
@@ -127,26 +126,42 @@ def compute_FROC(fold: int = 1):
         mono_sum_score += mono_froc["froc_score_slide"]
         mono_sum_f1 += mono_f1["F1"]
 
-    pprint(
-        f"Average Inflamm FROC = {inflamm_sum_score / len(val_wsi_files)}"
-    )
-    pprint(
-        f"Average Inflamm F1 = {inflamm_sum_f1 / len(val_wsi_files)}"
-    )
-    pprint(
-        f"Average Lymphocytes FROC = {lymph_sum_score / len(val_wsi_files)}"
-    )
-    pprint(
-        f"Average Lymphocytes F1 = {lymph_sum_f1 / len(val_wsi_files)}"
-    )
-    pprint(
-        f"Average Monocytes FROC = {mono_sum_score / len(val_wsi_files)}"
-    )
-    pprint(
-        f"Average Monocytes F1 = {mono_sum_f1 / len(val_wsi_files)}"
-    )
+    # pprint(f"Model {model_name} fold {fold}")
+    # pprint(
+    #     f"Average Inflamm FROC = {inflamm_sum_score / len(val_wsi_files)}"
+    # )
+    # pprint(
+    #     f"Average Inflamm F1 = {inflamm_sum_f1 / len(val_wsi_files)}"
+    # )
+    # pprint(
+    #     f"Average Lymphocytes FROC = {lymph_sum_score / len(val_wsi_files)}"
+    # )
+    # pprint(
+    #     f"Average Lymphocytes F1 = {lymph_sum_f1 / len(val_wsi_files)}"
+    # )
+    # pprint(
+    #     f"Average Monocytes FROC = {mono_sum_score / len(val_wsi_files)}"
+    # )
+    # pprint(
+    #     f"Average Monocytes F1 = {mono_sum_f1 / len(val_wsi_files)}"
+    # )
+
+    results = {
+        "model_name": model_name,
+        "fold": fold,
+        "Inflamm FROC": inflamm_sum_score / len(val_wsi_files),
+        "Inflamm F1": inflamm_sum_f1 / len(val_wsi_files),
+        "Lymphocytes FROC": lymph_sum_score / len(val_wsi_files),
+        "Lymphocytes F1": lymph_sum_f1 / len(val_wsi_files),
+        "Monocytes FROC": mono_sum_score / len(val_wsi_files),
+        "Monocytes F1": mono_sum_f1 / len(val_wsi_files)
+    }
+    return results
 
 
 if __name__ == "__main__":
-    for i in range(1, 6):
-        compute_FROC(i)
+    with Pool(5) as p:
+        results = p.map(compute_FROC, [1,2,3,4,5])
+
+    for result in results:
+        pprint(result)
