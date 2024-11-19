@@ -42,6 +42,8 @@ def load_classifiers() -> list[torch.nn.Module]:
     classifiers = []
     classifier_weight_paths = [
         os.path.join(MODEL_DIR, "efficientnetb0_cls_1.pth"),
+        os.path.join(MODEL_DIR, "efficientnetb0_cls_2.pth"),
+        os.path.join(MODEL_DIR, "efficientnetb0_cls_3.pth"),
     ]
     for weight_path in classifier_weight_paths:
         classifier = EfficientNet_B0(
