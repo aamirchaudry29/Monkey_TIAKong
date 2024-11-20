@@ -95,26 +95,9 @@ class Identity(nn.Module):
         return x
 
 
-class EfficientUnet_MBConv(nn.Module):
-    def __init__(self, encoder, out_channels=1):
+class Decoder(nn.Module):
+    def __init__(self, out_channels):
         super().__init__()
-        self.net_name = "efficientunet_mbconv"
-        self.encoder = encoder
-        self.n_classes = 1  # default setting for evaluation in the training process
-        # self.skip_connections = create_feature_extractor(self.encoder,
-        #                                                  return_nodes={"features.1.0.block.2": "layer0", "features.2.1.add": "layer1",
-        #                                                                "features.3.1.add": "layer2", "features.5.1.add": "layer3","features.8":'encoder_output'})
-        self.skip_connections = create_feature_extractor(
-            self.encoder,
-            return_nodes={
-                "1.0.block.2": "layer0",
-                "2.1.add": "layer1",
-                "3.1.add": "layer2",
-                "5.1.add": "layer3",
-                "8": "encoder_output",
-            },
-        )
-
         self.block2_upsample = nn.ConvTranspose2d(
             320, 320, kernel_size=2, stride=2
         )  # implement transpose2DConv, increase the image size twice.from (7,7,320) to (14,14,320)
@@ -165,16 +148,11 @@ class EfficientUnet_MBConv(nn.Module):
             stochastic_depth_prob=0.2,
             norm_layer=nn.BatchNorm2d,
         )
+        self.final_conv = nn.Conv2d(
+            16, out_channels=out_channels, kernel_size=1
+        )
 
-        self.final_conv = nn.Conv2d(16, out_channels, kernel_size=1)
-
-    def forward(self, x):
-        input_ = x  # RGB 3 channels for the optional input concate with the final layer
-
-        # encoder_output = self.encoder.features(input)
-        encoder_output = self.encoder(x)
-        skip_connections_out = self.skip_connections(x)
-
+    def forward(self, x, encoder_output, skip_connections_out):
         # block1
         x = self.MBConv1(
             encoder_output
@@ -228,6 +206,85 @@ class EfficientUnet_MBConv(nn.Module):
             x
         )  # input 32 channels, output is 1 channel BW image
         #
+        return x
+
+
+class EfficientUnet_MBConv_Multihead(nn.Module):
+    def __init__(
+        self, encoder, num_heads=1, decoders_out_channels=[1]
+    ):
+        super().__init__()
+        self.net_name = "efficientunet_mbconv"
+        self.encoder = encoder
+        self.n_classes = 1  # default setting for evaluation in the training process
+        # self.skip_connections = create_feature_extractor(self.encoder,
+        #                                                  return_nodes={"features.1.0.block.2": "layer0", "features.2.1.add": "layer1",
+        #                                                                "features.3.1.add": "layer2", "features.5.1.add": "layer3","features.8":'encoder_output'})
+        self.skip_connections = create_feature_extractor(
+            self.encoder,
+            return_nodes={
+                "1.0.block.2": "layer0",
+                "2.1.add": "layer1",
+                "3.1.add": "layer2",
+                "5.1.add": "layer3",
+                "8": "encoder_output",
+            },
+        )
+        self.num_heads = num_heads
+        if len(decoders_out_channels) != self.num_heads:
+            raise ValueError("Invalid out_channels for num_heads")
+
+        self.decoders = nn.ModuleDict({})
+        for i in range(self.num_heads):
+            head_name = f"head_{i}"
+            self.decoders[head_name] = Decoder(
+                decoders_out_channels[i]
+            )
+
+    def forward(self, x):
+        encoder_output = self.encoder(x)
+        skip_connections_out = self.skip_connections(x)
+
+        output_dict = {}
+        for i in range(self.num_heads):
+            head_name = f"head_{i}"
+            out = self.decoders[head_name](
+                x, encoder_output, skip_connections_out
+            )
+            output_dict[head_name] = out
+        return output_dict
+
+
+class EfficientUnet_MBConv(nn.Module):
+    def __init__(self, encoder, out_channels=1):
+        super().__init__()
+        self.net_name = "efficientunet_mbconv"
+        self.encoder = encoder
+        self.n_classes = 1  # default setting for evaluation in the training process
+        # self.skip_connections = create_feature_extractor(self.encoder,
+        #                                                  return_nodes={"features.1.0.block.2": "layer0", "features.2.1.add": "layer1",
+        #                                                                "features.3.1.add": "layer2", "features.5.1.add": "layer3","features.8":'encoder_output'})
+        self.skip_connections = create_feature_extractor(
+            self.encoder,
+            return_nodes={
+                "1.0.block.2": "layer0",
+                "2.1.add": "layer1",
+                "3.1.add": "layer2",
+                "5.1.add": "layer3",
+                "8": "encoder_output",
+            },
+        )
+
+        self.decoder = Decoder(out_channels)
+
+    def forward(self, x):
+        input_ = x  # RGB 3 channels for the optional input concate with the final layer
+
+        # encoder_output = self.encoder.features(input)
+        encoder_output = self.encoder(x)
+        skip_connections_out = self.skip_connections(x)
+        x = self.decoder(x, encoder_output, skip_connections_out)
+
         return x
 
 

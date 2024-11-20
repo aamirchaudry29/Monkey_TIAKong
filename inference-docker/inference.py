@@ -125,7 +125,7 @@ def detect():
         wsi_name,
         config,
         classifiers,
-        thresh=0.43
+        thresh=0.43,
     )
 
     save_detection_records_monkey(
