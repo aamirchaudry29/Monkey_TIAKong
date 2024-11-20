@@ -14,7 +14,7 @@ def compute_FROC(fold: int = 1):
         "/mnt/lab-share/Monkey/Dataset/annotations/json"
     )
     FOLD = fold
-    model_name = "efficientunetb0_seg_ensemble"
+    model_name = "efficientunetb0_seg_3_channel"
     PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     SPACING_LEVEL0 = 0.24199951445730394
 

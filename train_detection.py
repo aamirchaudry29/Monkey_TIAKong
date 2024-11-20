@@ -21,7 +21,7 @@ from monkey.train.train_cell_detection import train_det_net
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "efficientunetb0_seg_3_channel",
+    "model_name": "efficientunetb0_det",
     "val_fold": 5,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
@@ -32,9 +32,9 @@ run_config = {
     "disk_radius": 11,  # Ignored if using NuClick masks
     "regression_map": False,  # Ignored if using NuClick masks
     "do_augmentation": True,
-    "activation_function": "softmax",
+    "activation_function": "sigmoid",
     "module": "multiclass_detection",  # 'detection' or 'multiclass_detection'
-    "include_background_channel": True,
+    "include_background_channel": False,
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks
 }
 pprint(run_config)
@@ -51,7 +51,7 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-model = get_efficientunet_b0_MBConv(out_channels=3)
+model = get_efficientunet_b0_MBConv(out_channels=2)
 model.to("cuda")
 # -----------------------------------------------------------------------
 
@@ -86,6 +86,10 @@ if run_config["module"] == "multiclass_detection":
     if run_config["include_background_channel"]:
         loss_fn.set_weight(
             torch.tensor([0.2, 0.4, 0.4], device="cuda")
+        )
+    else:
+        loss_fn.set_weight(
+            torch.tensor([0.5, 0.5], device="cuda")
         )
 activation_fn = get_activation_function(
     run_config["activation_function"]

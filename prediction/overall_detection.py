@@ -38,7 +38,7 @@ def detection_in_tile(
         IOConfig: PredictionIOConfig object
     Returns:
         (predictions, coordinates):
-            prediction: a list of raw patch predictions.
+            prediction: a list of patch probs.
             coordinates: a list of bounding boxes corresponding to
                 each patch prediction
     """
@@ -103,7 +103,7 @@ def process_tile_detection_masks(
     x_start and y_start are used to convert detected cells to WSI coordinates
 
     Args:
-        pred_masks: list of raw predictions [1024x1024]
+        pred_masks: list of raw predictions [256x256]
         coordinate_list: list of coordinates from patch extractor
         x_start: starting x coordinate of this tile
         y_start: starting y coordinate of this tile

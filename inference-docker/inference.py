@@ -13,7 +13,7 @@ from monkey.model.efficientunetb0.architecture import (
     get_efficientunet_b0_MBConv,
 )
 from prediction.classification import detected_cell_classification
-from prediction.detection import wsi_detection_in_mask
+from Github.Monkey_TIAKong.prediction.overall_detection import wsi_detection_in_mask
 
 INPUT_PATH = Path("/input")
 OUTPUT_PATH = Path("/output")

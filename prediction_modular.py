@@ -22,8 +22,8 @@ from monkey.model.efficientunetb0.architecture import (
     get_efficientunet_b0_MBConv,
 )
 from prediction.classification import detected_cell_classification
-from prediction.detection import wsi_detection_in_mask
-from multiprocessing import Pool
+from Github.Monkey_TIAKong.prediction.overall_detection import wsi_detection_in_mask
+
 
 def cross_validation(fold: int = 1):
     detector_model_name = "efficientunetb0_seg"
