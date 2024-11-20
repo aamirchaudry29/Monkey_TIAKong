@@ -25,8 +25,8 @@ def load_detectors() -> list[torch.nn.Module]:
     detectors = []
     detector_weight_paths = [
         os.path.join(MODEL_DIR, "efficientunetb0_seg_1.pth"),
-        # os.path.join(MODEL_DIR, "efficientunetb0_seg_2.pth"),
-        # os.path.join(MODEL_DIR, "efficientunetb0_seg_4.pth"),
+        os.path.join(MODEL_DIR, "efficientunetb0_seg_2.pth"),
+        os.path.join(MODEL_DIR, "efficientunetb0_seg_3.pth"),
     ]
     for weight_path in detector_weight_paths:
         detector = get_efficientunet_b0_MBConv(pretrained=False)
@@ -96,8 +96,8 @@ def detect():
         resolution=0,
         units="level",
         stride=224,
-        threshold=0.3,
-        min_size=7,
+        threshold=0.5,
+        min_size=3,
     )
 
     detectors = load_detectors()
@@ -123,6 +123,7 @@ def detect():
         wsi_name,
         config,
         classifiers,
+        thresh=0.43
     )
 
     save_detection_records_monkey(
