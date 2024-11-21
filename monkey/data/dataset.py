@@ -111,9 +111,10 @@ class DetectionDataset(Dataset):
         image = load_image(file_id, self.IOConfig)
 
         if self.use_nuclick_masks:
-            cell_mask = load_nuclick_annotation(
+            nuclick_annotation = load_nuclick_annotation(
                 file_id, self.IOConfig
             )
+            cell_mask = nuclick_annotation['class_mask']
         else:
             cell_mask = load_mask(file_id, self.IOConfig)
 

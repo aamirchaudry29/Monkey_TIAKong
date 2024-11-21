@@ -44,16 +44,30 @@ def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
 def load_nuclick_annotation(file_id: str, IOConfig: TrainingIOConfig):
     """
     Load a single NuClick annotation mask
-    Nuclick file format: 5 channel .np file
+    Nuclick file format: 6 channel .np file
     channel 1-3: RGB image
-    channel 4: instance map
-    channel 5: class map (1:lymphocytes,2:monocytes)
+    channel 4: binary segmentation mask
+    channel 5: class mask (1:lymphocytes,2:monocytes)
+    channel 6: binary contour mask
+
+    Returns:
+        annotation: {'binary_mask', 'class_mask', 'contour_mask'}
     """
-    mask_name = f"{file_id}.npy"
-    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
-    mask = np.load(mask_path)
-    mask = mask.astype(np.uint8)
-    return mask[:, :, 4]
+    file_name = f"{file_id}.npy"
+    file_path = os.path.join(IOConfig.mask_dir, file_name)
+    data = np.load(file_path)
+    data = data.astype(np.uint8)
+    binary_mask = data[:, :, 3]
+    class_mask = data[:, :, 4]
+    contour = data[:, :, 5]
+
+    annotation = {
+        'binary_mask': binary_mask,
+        'class_mask': class_mask,
+        'contour_mask': contour
+    }
+
+    return annotation
 
 
 def get_label_from_class_id(file_id: str):

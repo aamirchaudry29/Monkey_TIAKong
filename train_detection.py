@@ -47,7 +47,7 @@ IOconfig = TrainingIOConfig(
 )
 # If use nuclick masks, change mask dir
 if run_config["use_nuclick_masks"]:
-    IOconfig.set_mask_dir("/mnt/lab-share/Monkey/nuclick_hovernext")
+    IOconfig.set_mask_dir("/mnt/lab-share/Monkey/nuclick_masks_processed")
 
 
 # Create model
