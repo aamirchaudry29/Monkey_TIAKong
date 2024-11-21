@@ -12,16 +12,16 @@ def get_augmentation(
                 alb.OneOf(
                     [
                         alb.HueSaturationValue(
-                            hue_shift_limit=10,
-                            sat_shift_limit=(-40, 40),
-                            val_shift_limit=5,
+                            hue_shift_limit=30,
+                            sat_shift_limit=(-30, 30),
+                            val_shift_limit=10,
                             always_apply=False,
                             p=0.5,
                         ),  # .8
                         alb.RGBShift(
-                            r_shift_limit=30,
-                            g_shift_limit=30,
-                            b_shift_limit=30,
+                            r_shift_limit=20,
+                            g_shift_limit=20,
+                            b_shift_limit=20,
                             p=0.5,
                         ),  # .7
                     ],
@@ -42,19 +42,19 @@ def get_augmentation(
                     p=0.5,
                 ),
                 alb.RandomBrightnessContrast(
-                    brightness_limit=0.1, contrast_limit=0.3, p=0.5
+                    brightness_limit=0.05, contrast_limit=0.3, p=0.5
                 ),
                 alb.ShiftScaleRotate(
                     shift_limit=0.01,
-                    scale_limit=0.01,
+                    scale_limit=0,
                     rotate_limit=180,
-                    border_mode=cv2.BORDER_CONSTANT,
+                    # border_mode=cv2.BORDER_CONSTANT,
                     value=0,
                     p=0.8,
                 ),
-                alb.Flip(p=0.5),
+                alb.Flip(p=0.8),
             ],
-            p=0.7,
+            p=0.85,
         )
     elif module == "classification":
         aug = alb.Compose(

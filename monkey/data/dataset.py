@@ -435,17 +435,26 @@ def get_detection_sampler(file_ids, IOConfig):
         patch_stats = json.load(file)
 
     class_instances = []
-    class_counts = [0, 0]  # [negatives, positives]
+    class_counts = [0, 0, 0, 0]  # [negatives, lymph only, mono only, both type]
 
     for id in file_ids:
         stats = patch_stats[id]
-        total_cells = stats["lymph_count"] + stats["mono_count"]
+        lymph_count = stats["lymph_count"]
+        mono_count = stats["mono_count"]
+        total_cells = lymph_count + mono_count
         if total_cells == 0:
             class_instances.append(0)
             class_counts[0] += 1
         else:
-            class_instances.append(1)
-            class_counts[1] += 1
+            if lymph_count > 0 and mono_count == 0:
+                class_instances.append(1)
+                class_counts[1] += 1
+            elif lymph_count == 0 and mono_count > 0:
+                class_instances.append(2)
+                class_counts[2] += 1
+            else:
+                class_instances.append(3)
+                class_counts[3] += 1
 
     print(class_counts)
 
