@@ -44,6 +44,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Weighted_CrossEntropy": CrossEntropy_Loss,
         "Dice_Focal_Loss": Dice_Focal_Loss,
         "Weighted_CE_Dice": Weighted_CE_Dice_Loss,
+        "MapDe_Loss": MapDe_Loss
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -56,6 +57,38 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 
 
 # -------------------------------------Classes implementing loss functions---------------------------------
+class MapDe_Loss(Loss_Function):
+    def __init__(self, name, use_weights):
+        super().__init__("name", use_weights)
+        self.multiclass = False
+        self.pos_weight = 1000.0
+
+    def set_multiclass(self, multiclass):
+        self.multiclass = multiclass
+
+    def set_weight(self, pos_weight):
+        self.pos_weight = pos_weight
+
+    def binary_loss(self, input: Tensor, target: Tensor):
+        epsilon = 1e-7
+        log_weight = 1 + (self.pos_weight - 1) * target
+        clipped_logits = torch.clamp(input, min=epsilon, max=1.0 - epsilon)
+        clipped_logits = torch.sigmoid(clipped_logits)
+        loss = target * -clipped_logits.log() * log_weight + (1 - target) * -(1.0 - clipped_logits).log()
+        return loss
+    
+    def compute_loss(self, input: Tensor, target: Tensor):
+        if self.multiclass:
+            bce_loss = 0.0
+            for channel in range(input.shape[1]):
+                bce_loss += self.binary_loss(
+                    input[:, channel, ...],
+                    target[:, channel, ...].float(),
+                )
+        else:
+            bce_loss = self.binary_loss(input, target.float())
+
+
 class Focal_Loss(Loss_Function):
     def __init__(self, use_weights=False):
         super().__init__("name", use_weights)
@@ -217,7 +250,6 @@ class BCE_Dice_Loss(Loss_Function):
                     input[:, channel, ...],
                     target[:, channel, ...].float(),
                 )
-            bce_loss = bce_loss / input.shape[1]
         else:
             bce_loss = self.bce_loss_fn(input, target.float())
 

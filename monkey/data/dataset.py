@@ -149,7 +149,7 @@ class DetectionDataset(Dataset):
             if len(cell_mask.shape) == 2:
                 cell_mask = generate_regression_map(
                     binary_mask=cell_mask,
-                    d_thresh=7,
+                    d_thresh=3,
                     alpha=5,
                     scale=1,
                 )
