@@ -3,6 +3,9 @@ from glob import glob
 from pathlib import Path
 
 import torch
+from Github.Monkey_TIAKong.prediction.overall_detection import (
+    wsi_detection_in_mask,
+)
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import save_detection_records_monkey
@@ -13,7 +16,6 @@ from monkey.model.efficientunetb0.architecture import (
     get_efficientunet_b0_MBConv,
 )
 from prediction.classification import detected_cell_classification
-from Github.Monkey_TIAKong.prediction.overall_detection import wsi_detection_in_mask
 
 INPUT_PATH = Path("/input")
 OUTPUT_PATH = Path("/output")

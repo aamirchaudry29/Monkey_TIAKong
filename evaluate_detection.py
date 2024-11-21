@@ -20,7 +20,9 @@ from monkey.model.utils import (
 )
 
 
-def evaluate_multiclass_detection(fold_number: int = 1, include_background=False):
+def evaluate_multiclass_detection(
+    fold_number: int = 1, include_background=False
+):
     model = get_efficientunet_b0_MBConv(
         pretrained=False, out_channels=2
     )
@@ -68,7 +70,6 @@ def evaluate_multiclass_detection(fold_number: int = 1, include_background=False
         images = data["image"].cuda().float()
         gt_masks = data["mask"].cuda().float()
 
-
         with torch.no_grad():
             out = model(images)
             if include_background:
@@ -78,9 +79,9 @@ def evaluate_multiclass_detection(fold_number: int = 1, include_background=False
                 mask_pred_binary = torch.zeros_like(out).scatter_(
                     1, mask_pred.unsqueeze(1), 1.0
                 )
-                mask_pred_binary = mask_pred_binary.numpy(force=True).astype(
-                    np.uint8
-                )
+                mask_pred_binary = mask_pred_binary.numpy(
+                    force=True
+                ).astype(np.uint8)
                 mask_pred_binary = morphological_post_processing(
                     mask_pred_binary
                 )
@@ -88,20 +89,19 @@ def evaluate_multiclass_detection(fold_number: int = 1, include_background=False
                 monocyte_pred = mask_pred_binary[:, 2, :, :]
             else:
                 out = torch.sigmoid(out)
-                lymph_probs = out[:,0,:,:]
-                mono_probs = out[:,1,:,:]
+                lymph_probs = out[:, 0, :, :]
+                mono_probs = out[:, 1, :, :]
                 lymphocyte_pred = (lymph_probs > thresh).float()
                 monocyte_pred = (mono_probs > thresh).float()
-        
+
         if include_background:
             lymph_gt_mask = gt_masks[:, 1, :, :]
-            mono_gt_mask = gt_masks[:,2,:,:]
-            lymph_probs = out[:,1,:,:]
-            mono_probs = out[:,2,:,:]
+            mono_gt_mask = gt_masks[:, 2, :, :]
+            lymph_probs = out[:, 1, :, :]
+            mono_probs = out[:, 2, :, :]
         else:
             lymph_gt_mask = gt_masks[:, 0, :, :]
-            mono_gt_mask = gt_masks[:,1,:,:]
-
+            mono_gt_mask = gt_masks[:, 1, :, :]
 
         lymph_metrics = get_patch_F1_score_batch(
             lymphocyte_pred, lymph_gt_mask, lymph_probs

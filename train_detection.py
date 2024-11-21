@@ -88,9 +88,7 @@ if run_config["module"] == "multiclass_detection":
             torch.tensor([0.2, 0.4, 0.4], device="cuda")
         )
     else:
-        loss_fn.set_weight(
-            torch.tensor([0.5, 0.5], device="cuda")
-        )
+        loss_fn.set_weight(torch.tensor([0.5, 0.5], device="cuda"))
 activation_fn = get_activation_function(
     run_config["activation_function"]
 )

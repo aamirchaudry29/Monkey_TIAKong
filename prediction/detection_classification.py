@@ -27,7 +27,7 @@ from monkey.data.data_utils import (
 def detection_in_tile(
     image_tile: np.ndarray,
     models: list[torch.nn.Module],
-    IOConfig: PredictionIOConfig,
+    config: PredictionIOConfig,
 ) -> Tuple[list[np.ndarray], list[np.ndarray]]:
     """
     Detection in tile image [1024x1024]
@@ -35,15 +35,15 @@ def detection_in_tile(
     Args:
         image_tile: input tile image
         model: model to be used
-        IOConfig: PredictionIOConfig object
+        config: PredictionIOConfig object
     Returns:
         (predictions, coordinates):
             prediction: a list of patch probs.
             coordinates: a list of bounding boxes corresponding to
                 each patch prediction
     """
-    patch_size = IOConfig.patch_size
-    stride = IOConfig.stride
+    patch_size = config.patch_size
+    stride = config.stride
 
     # Create patch extractor
     tile_reader = VirtualWSIReader.open(image_tile)
@@ -72,31 +72,48 @@ def detection_in_tile(
         imgs = imagenet_normalise_torch(imgs)
         imgs = imgs.to("cuda").float()
 
-        with torch.no_grad():
-            final_out = torch.zeros(
-                size=(imgs.shape[0], 3, patch_size, patch_size),
-                dtype=float,
-                device='cuda'
-            )
-            for model in models:
-                model.eval()
-                out = model(imgs)
-                out = torch.softmax(out, dim=1)
-                final_out += out
+        if config.include_background:
+            with torch.no_grad():
+                final_out = torch.zeros(
+                    size=(imgs.shape[0], 3, patch_size, patch_size),
+                    dtype=float,
+                    device="cuda",
+                )
+                for model in models:
+                    model.eval()
+                    out = model(imgs)
+                    out = torch.softmax(out, dim=1)
+                    final_out += out
 
-            final_out = final_out / len(models)
-            final_out = torch.permute(final_out, (0,2,3,1) )
-            final_out = final_out.cpu().detach().numpy()
+                final_out = final_out / len(models)
+                final_out = torch.permute(final_out, (0, 2, 3, 1))
+                final_out = final_out.cpu().detach().numpy()
+        else:
+            with torch.no_grad():
+                final_out = torch.zeros(
+                    size=(imgs.shape[0], 2, patch_size, patch_size),
+                    dtype=float,
+                    device="cuda",
+                )
+                for model in models:
+                    model.eval()
+                    out = model(imgs)
+                    out = torch.sigmoid(out)
+                    final_out += out
+
+                final_out = final_out / len(models)
+                final_out = torch.permute(final_out, (0, 2, 3, 1))
+                final_out = final_out.cpu().detach().numpy()
 
         predictions.extend(list(final_out))
 
     return predictions, patch_extractor.coordinate_list
 
 
-
 def process_tile_detection_masks(
     pred_probs: list[np.ndarray],
     coordinate_list: list,
+    config: PredictionIOConfig,
     x_start: int,
     y_start: int,
     min_size: int = 3,
@@ -108,6 +125,7 @@ def process_tile_detection_masks(
     Args:
         pred_masks: list of predicted probs[256x256x3]
         coordinate_list: list of coordinates from patch extractor
+        config: PredictionIOConfig
         x_start: starting x coordinate of this tile
         y_start: starting y coordinate of this tile
         threshold: threshold for raw prediction
@@ -121,27 +139,29 @@ def process_tile_detection_masks(
     lymph_probs = None
     mono_probs = None
     if len(pred_probs) != 0:
-
-        probs_map = SemanticSegmentor.merge_prediction(
-            (1024,1024), pred_probs, coordinate_list
-        ) #1024x1024x3
-
-        lymph_probs = probs_map[:,:,1] #1024x1024
-        mono_probs = probs_map[:,:,2] #1024x1024
-
-        pred_mask = np.argmax(probs_map, axis=2)
-
-        lymph_prediction[pred_mask==1] = 1
-        mono_prediction[pred_mask==2] = 1
-
-    
-    lymph_prediction = morphological_post_processing(
-        lymph_prediction, min_size
-    )
-    mono_prediction = morphological_post_processing(
-        mono_prediction, min_size
-    )
-
+        if config.include_background:
+            probs_map = SemanticSegmentor.merge_prediction(
+                (1024, 1024), pred_probs, coordinate_list
+            )  # 1024x1024x3
+            lymph_probs = probs_map[:, :, 1]  # 1024x1024
+            mono_probs = probs_map[:, :, 2]  # 1024x1024
+            pred_mask = np.argmax(probs_map, axis=2)
+            lymph_prediction[pred_mask == 1] = 1
+            mono_prediction[pred_mask == 2] = 1
+            lymph_prediction = morphological_post_processing(
+                lymph_prediction, min_size
+            )
+            mono_prediction = morphological_post_processing(
+                mono_prediction, min_size
+            )
+        else:
+            probs_map = SemanticSegmentor.merge_prediction(
+                (1024, 1024), pred_probs, coordinate_list
+            )
+            lymph_probs = probs_map[:, :, 0]
+            mono_probs = probs_map[:, :, 1]
+            lymph_prediction[lymph_probs > 0.5] = 1
+            mono_prediction[mono_probs > 0.5] = 1
 
     lymph_labels = skimage.measure.label(lymph_prediction)
     lymph_stats = skimage.measure.regionprops(
@@ -199,13 +219,10 @@ def process_tile_detection_masks(
     return points
 
 
-
-
-
 def wsi_detection_in_mask(
     wsi_name: str,
     mask_name: str,
-    IOConfig: PredictionIOConfig,
+    config: PredictionIOConfig,
     models: list[torch.nn.Module],
 ) -> list[dict]:
     """
@@ -214,13 +231,13 @@ def wsi_detection_in_mask(
     Args:
         wsi_name: name of the wsi with file extension
         mask_name: name of the mask with file extension (multi-res)
-        IOConfig: PredictionIOConfig object
+        config: PredictionIOConfig object
     Returns:
         detected_points: list[dict]
             A list of detection records: [{'x', 'y', 'type', 'prob'}]
     """
-    wsi_dir = IOConfig.wsi_dir
-    mask_dir = IOConfig.mask_dir
+    wsi_dir = config.wsi_dir
+    mask_dir = config.mask_dir
 
     wsi_without_ext = os.path.splitext(wsi_name)[0]
 
@@ -241,8 +258,8 @@ def wsi_detection_in_mask(
     )
     binary_mask = mask_thumbnail[:, :, 0]
     # Create tile extractor
-    resolution = IOConfig.resolution
-    units = IOConfig.units
+    resolution = config.resolution
+    units = config.units
     tile_extractor = get_patch_extractor(
         input_img=wsi_reader,
         input_mask=binary_mask,
@@ -265,14 +282,15 @@ def wsi_detection_in_mask(
             i
         ]  # (x_start, y_start, x_end, y_end)
         predictions, coordinates = detection_in_tile(
-            tile, models, IOConfig
+            tile, models, config
         )
         output_points_tile = process_tile_detection_masks(
             predictions,
             coordinates,
+            config,
             bounding_box[0],
             bounding_box[1],
-            min_size=IOConfig.min_size,
+            min_size=config.min_size,
         )
         detected_points.extend(output_points_tile)
 
