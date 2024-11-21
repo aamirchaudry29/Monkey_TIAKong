@@ -206,6 +206,9 @@ class BCE_Dice_Loss(Loss_Function):
     def set_multiclass(self, multiclass: bool):
         self.multiclass = multiclass
 
+    def set_weight(self, weight):
+        return
+
     def compute_loss(self, input: Tensor, target: Tensor):
         if self.multiclass:
             bce_loss = 0.0

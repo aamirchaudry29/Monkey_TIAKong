@@ -160,7 +160,6 @@ def train_det_net(
                 "epoch": epoch,
                 "model": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
-                "scheduler": scheduler.state_dict(),
             }
             model_name = f"epoch_{epoch}.pth"
             model_path = os.path.join(save_dir, model_name)

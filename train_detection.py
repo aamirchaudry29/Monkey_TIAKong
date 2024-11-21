@@ -21,21 +21,21 @@ from monkey.train.train_cell_detection import train_det_net
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "efficientunetb0_det",
-    "val_fold": 5,  # [1-5]
+    "model_name": "efficientunetb0_det_2_channel_exp",
+    "val_fold": 1,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
-    "learning_rate": 0.0003,
-    "weight_decay": 0.0001,
+    "learning_rate": 0.0004,
+    "weight_decay": 0.01,
     "epochs": 75,
-    "loss_function": "Weighted_CE_Dice",
-    "disk_radius": 11,  # Ignored if using NuClick masks
+    "loss_function": "BCE_Dice",
+    "disk_radius": 7,  # Ignored if using NuClick masks
     "regression_map": False,  # Ignored if using NuClick masks
     "do_augmentation": True,
     "activation_function": "sigmoid",
     "module": "multiclass_detection",  # 'detection' or 'multiclass_detection'
     "include_background_channel": False,
-    "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks
+    "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks
 }
 pprint(run_config)
 
@@ -100,9 +100,10 @@ optimizer = torch.optim.AdamW(
     weight_decay=run_config["weight_decay"],
     # momentum=0.9,
 )
-scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, "max", factor=0.1, patience=5
-)
+# scheduler = lr_scheduler.ReduceLROnPlateau(
+#     optimizer, "max", factor=0.1, patience=10
+# )
+scheduler = None
 
 # Create WandB session
 run = wandb.init(
@@ -131,7 +132,6 @@ final_checkpoint = {
     "epoch": run_config["epochs"],
     "model": model.state_dict(),
     "optimizer": optimizer.state_dict(),
-    "scheduler": scheduler.state_dict(),
 }
 checkpoint_name = f"epoch_{run_config['epochs']}.pth"
 model_path = os.path.join(
