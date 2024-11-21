@@ -69,7 +69,7 @@ class MapDe_Loss(Loss_Function):
     def set_weight(self, pos_weight):
         self.pos_weight = pos_weight
 
-    def binary_loss(self, input: Tensor, target: Tensor):
+    def ce_loss(self, input: Tensor, target: Tensor):
         epsilon = 1e-7
         log_weight = 1 + (self.pos_weight - 1) * target
         clipped_logits = torch.clamp(
@@ -86,12 +86,12 @@ class MapDe_Loss(Loss_Function):
         if self.multiclass:
             bce_loss = 0.0
             for channel in range(input.shape[1]):
-                bce_loss += self.binary_loss(
+                bce_loss += self.ce_loss(
                     input[:, channel, ...],
                     target[:, channel, ...].float(),
                 )
         else:
-            bce_loss = self.binary_loss(input, target.float())
+            bce_loss = self.ce_loss(input, target.float())
 
 
 class Focal_Loss(Loss_Function):
@@ -344,7 +344,7 @@ def multiclass_dice_coeff(
     reduce_batch_first: bool = False,
     epsilon=1e-6,
 ):
-    # Average of Dice coefficient for all classes
+
     assert input.size() == target.size()
     dice = 0
     for channel in range(input.shape[1]):
@@ -355,7 +355,8 @@ def multiclass_dice_coeff(
             epsilon,
         )
 
-    return dice / input.shape[1]
+    # return dice / input.shape[1]
+    return dice
 
 
 def dice_loss(
