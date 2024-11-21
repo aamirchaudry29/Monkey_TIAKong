@@ -44,7 +44,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Weighted_CrossEntropy": CrossEntropy_Loss,
         "Dice_Focal_Loss": Dice_Focal_Loss,
         "Weighted_CE_Dice": Weighted_CE_Dice_Loss,
-        "MapDe_Loss": MapDe_Loss
+        "MapDe_Loss": MapDe_Loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -72,11 +72,16 @@ class MapDe_Loss(Loss_Function):
     def binary_loss(self, input: Tensor, target: Tensor):
         epsilon = 1e-7
         log_weight = 1 + (self.pos_weight - 1) * target
-        clipped_logits = torch.clamp(input, min=epsilon, max=1.0 - epsilon)
+        clipped_logits = torch.clamp(
+            input, min=epsilon, max=1.0 - epsilon
+        )
         clipped_logits = torch.sigmoid(clipped_logits)
-        loss = target * -clipped_logits.log() * log_weight + (1 - target) * -(1.0 - clipped_logits).log()
+        loss = (
+            target * -clipped_logits.log() * log_weight
+            + (1 - target) * -(1.0 - clipped_logits).log()
+        )
         return loss
-    
+
     def compute_loss(self, input: Tensor, target: Tensor):
         if self.multiclass:
             bce_loss = 0.0

@@ -114,7 +114,7 @@ class DetectionDataset(Dataset):
             nuclick_annotation = load_nuclick_annotation(
                 file_id, self.IOConfig
             )
-            cell_mask = nuclick_annotation['class_mask']
+            cell_mask = nuclick_annotation["class_mask"]
         else:
             cell_mask = load_mask(file_id, self.IOConfig)
 
@@ -435,7 +435,12 @@ def get_detection_sampler(file_ids, IOConfig):
         patch_stats = json.load(file)
 
     class_instances = []
-    class_counts = [0, 0, 0, 0]  # [negatives, lymph only, mono only, both type]
+    class_counts = [
+        0,
+        0,
+        0,
+        0,
+    ]  # [negatives, lymph only, mono only, both type]
 
     for id in file_ids:
         stats = patch_stats[id]

@@ -62,9 +62,9 @@ def load_nuclick_annotation(file_id: str, IOConfig: TrainingIOConfig):
     contour = data[:, :, 5]
 
     annotation = {
-        'binary_mask': binary_mask,
-        'class_mask': class_mask,
-        'contour_mask': contour
+        "binary_mask": binary_mask,
+        "class_mask": class_mask,
+        "contour_mask": contour,
     }
 
     return annotation
