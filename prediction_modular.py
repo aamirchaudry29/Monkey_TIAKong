@@ -3,6 +3,7 @@
 # Then classify them into lymphocytes and monocytes
 
 import os
+from multiprocessing import Pool
 from pprint import pprint
 
 import torch
@@ -22,7 +23,7 @@ from monkey.model.efficientunetb0.architecture import (
     get_efficientunet_b0_MBConv,
 )
 from prediction.classification import detected_cell_classification
-from Github.Monkey_TIAKong.prediction.overall_detection import wsi_detection_in_mask
+from prediction.detection import wsi_detection_in_mask
 
 
 def cross_validation(fold: int = 1):
@@ -70,7 +71,7 @@ def cross_validation(fold: int = 1):
     classifier_weight_paths = [
         "/home/u1910100/cloud_workspace/data/Monkey/cell_cls/efficientnetb0/fold_1/epoch_50.pth",
         "/home/u1910100/cloud_workspace/data/Monkey/cell_cls/efficientnetb0/fold_2/epoch_50.pth",
-        "/home/u1910100/cloud_workspace/data/Monkey/cell_cls/efficientnetb0/fold_4/epoch_50.pth"
+        "/home/u1910100/cloud_workspace/data/Monkey/cell_cls/efficientnetb0/fold_4/epoch_50.pth",
     ]
     for weight_path in classifier_weight_paths:
         classifier = EfficientNet_B0(
@@ -140,6 +141,6 @@ def cross_validation(fold: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(1,6):
+    for i in range(1, 6):
         pprint(f"Fold {i}")
         cross_validation(i)

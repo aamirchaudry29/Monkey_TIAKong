@@ -740,7 +740,7 @@ def slide_nms(
     return center_nms_points
 
 
-def erode_mask(mask, size=3):
+def erode_mask(mask, size=3, iterations=1):
     kernel = cv2.getStructuringElement(
         cv2.MORPH_ELLIPSE, (size, size)
     )
@@ -748,10 +748,10 @@ def erode_mask(mask, size=3):
         for i in range(mask.shape[0]):
             for j in range(mask.shape[1]):
                 mask[i, j, :, :] = cv2.erode(
-                    mask[i, j, :, :], kernel, iterations=1
+                    mask[i, j, :, :], kernel, iterations=iterations
                 )
     else:
-        mask = cv2.erode(mask, kernel, iterations=1)
+        mask = cv2.erode(mask, kernel, iterations=iterations)
 
     return mask
 

@@ -1,4 +1,5 @@
 import os
+from multiprocessing import Pool
 from pprint import pprint
 
 from evaluation.evaluate import (
@@ -7,7 +8,7 @@ from evaluation.evaluate import (
     get_froc_vals,
 )
 from monkey.data.data_utils import extract_id, open_json_file
-from multiprocessing import Pool
+
 
 def compute_FROC(fold: int = 1):
     GROUND_TRUTH_DIRECTORY = (
@@ -154,14 +155,14 @@ def compute_FROC(fold: int = 1):
         "Lymphocytes FROC": lymph_sum_score / len(val_wsi_files),
         "Lymphocytes F1": lymph_sum_f1 / len(val_wsi_files),
         "Monocytes FROC": mono_sum_score / len(val_wsi_files),
-        "Monocytes F1": mono_sum_f1 / len(val_wsi_files)
+        "Monocytes F1": mono_sum_f1 / len(val_wsi_files),
     }
     return results
 
 
 if __name__ == "__main__":
     with Pool(5) as p:
-        results = p.map(compute_FROC, [1,2,3,4,5])
+        results = p.map(compute_FROC, [1, 2, 3, 4, 5])
 
     for result in results:
         pprint(result)
