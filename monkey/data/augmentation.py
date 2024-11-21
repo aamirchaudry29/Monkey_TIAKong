@@ -55,6 +55,10 @@ def get_augmentation(
                 alb.Flip(p=0.8),
             ],
             p=0.85,
+            additional_targets={
+                "class_mask": "mask",
+                "contour_mask": "mask",
+            },
         )
     elif module == "classification":
         aug = alb.Compose(

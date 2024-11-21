@@ -182,6 +182,83 @@ class DetectionDataset(Dataset):
         return data
 
 
+class Multitask_Dataset(Dataset):
+    """
+    Dataset for multihead unet
+    """
+
+    def __init__(
+        self,
+        IOConfig: TrainingIOConfig,
+        file_ids: list,
+        phase: str = "train",
+        do_augment: bool = True,
+        use_nuclick_masks: bool = True,
+    ):
+        self.IOConfig = IOConfig
+        self.file_ids = file_ids
+        self.phase = phase
+        self.do_augment = do_augment
+        self.use_nuclick_masks = use_nuclick_masks
+
+        if self.do_augment:
+            self.augmentation = get_augmentation(
+                module=self.module, gt_type="mask", aug_prob=0.7
+            )
+
+    def __len__(self) -> int:
+        return len(self.file_ids)
+
+    def __getitem__(self, idx: int) -> dict:
+        # Load image and mask
+        file_id = self.file_ids[idx]
+        image = load_image(file_id, self.IOConfig)
+
+        nuclick_annotation = load_nuclick_annotation(
+            file_id, self.IOConfig
+        )
+
+        binary_mask = nuclick_annotation["binary_mask"]
+        class_mask = nuclick_annotation["class_mask"]
+        contour_mask = nuclick_annotation["contour_mask"]
+
+        # augmentation
+        if self.do_augment:
+            augmented_data = self.augmentation(
+                image=image,
+                mask=binary_mask,
+                class_mask=class_mask,
+                contour_mask=contour_mask,
+            )
+            image, binary_mask = (
+                augmented_data["image"],
+                augmented_data["mask"],
+                augmented_data["class_mask"],
+                augmented_data["contour_mask"],
+            )
+
+        class_mask = class_mask_to_multichannel_mask(class_mask)
+
+        # HxW -> 1xHxW
+        binary_mask = binary_mask[np.newaxis, :, :]
+        contour_mask = contour_mask[np.newaxis, :, :]
+
+        # HxWx3 -> 3xHxW
+        image = image / 255
+        image = imagenet_normalise(image)
+        image = np.moveaxis(image, -1, 0)
+
+        data = {
+            "id": file_id,
+            "image": image,
+            "binary_mask": binary_mask,
+            "class_mask": class_mask,
+            "contour_mask": contour_mask,
+        }
+
+        return data
+
+
 class ClassificationDataset(Dataset):
     """Dataset for cell classification
     Lymphocytes vs Monocytes
@@ -354,7 +431,7 @@ def get_classification_sampler(file_ids):
 def get_detection_dataloaders(
     IOConfig: TrainingIOConfig,
     val_fold=1,
-    task=1,
+    dataset_name="detection",
     batch_size=4,
     disk_radius=11,
     regression_map: bool = False,
@@ -363,13 +440,12 @@ def get_detection_dataloaders(
     use_nuclick_masks: bool = False,
     include_background_channel: bool = False,
 ):
-    """Get training and validation dataloaders
-    Task 1: Overall Inflammation cell (MNL) detection
-    Task 2: Detect and distinguish monocytes and lymphocytes
+    """
+    Get training and validation dataloaders
     """
 
-    if task not in [1, 2]:
-        raise ValueError(f"Task {task} is in invalid")
+    if dataset_name not in ["detection", "multitask"]:
+        raise ValueError(f"Dataset Name {dataset_name} is in invalid")
 
     if module not in ["detection", "multiclass_detection"]:
         raise ValueError(f"Module {module} is in invalid")
@@ -385,28 +461,44 @@ def get_detection_dataloaders(
     print(f"train patches: {len(train_file_ids)}")
     print(f"test patches: {len(test_file_ids)}")
 
-    train_dataset = DetectionDataset(
-        IOConfig=IOConfig,
-        file_ids=train_file_ids,
-        phase="Train",
-        do_augment=do_augmentation,
-        disk_radius=disk_radius,
-        regression_map=regression_map,
-        module=module,
-        use_nuclick_masks=use_nuclick_masks,
-        include_background_channel=include_background_channel,
-    )
-    val_dataset = DetectionDataset(
-        IOConfig=IOConfig,
-        file_ids=test_file_ids,
-        phase="Test",
-        do_augment=False,
-        disk_radius=disk_radius,
-        regression_map=regression_map,
-        module=module,
-        use_nuclick_masks=use_nuclick_masks,
-        include_background_channel=include_background_channel,
-    )
+    if dataset_name == "detection":
+        train_dataset = DetectionDataset(
+            IOConfig=IOConfig,
+            file_ids=train_file_ids,
+            phase="Train",
+            do_augment=do_augmentation,
+            disk_radius=disk_radius,
+            regression_map=regression_map,
+            module=module,
+            use_nuclick_masks=use_nuclick_masks,
+            include_background_channel=include_background_channel,
+        )
+        val_dataset = DetectionDataset(
+            IOConfig=IOConfig,
+            file_ids=test_file_ids,
+            phase="Test",
+            do_augment=False,
+            disk_radius=disk_radius,
+            regression_map=regression_map,
+            module=module,
+            use_nuclick_masks=use_nuclick_masks,
+            include_background_channel=include_background_channel,
+        )
+    elif dataset_name == "multitask":
+        train_dataset = Multitask_Dataset(
+            IOConfig=IOConfig,
+            file_ids=train_file_ids,
+            phase="Train",
+            do_augment=do_augmentation,
+        )
+        val_dataset = Multitask_Dataset(
+            IOConfig=IOConfig,
+            file_ids=test_file_ids,
+            phase="Test",
+            do_augment=False,
+        )
+    else:
+        raise ValueError("Invalid dataset name")
 
     train_loader = DataLoader(
         train_dataset,

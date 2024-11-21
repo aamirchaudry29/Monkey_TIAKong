@@ -405,3 +405,21 @@ def get_efficientunet_b0_MBConv(
     model = EfficientUnet_MBConv(encoder, out_channels=out_channels)
     #
     return model
+
+
+def get_multihead_efficientunet(out_channels=[1, 1], pretrained=True):
+    if pretrained:
+        encoder = efficientnet_b0(
+            weights="EfficientNet_B0_Weights.DEFAULT"
+        )
+    else:
+        encoder = efficientnet_b0()
+
+    encoder = encoder.features
+    model = EfficientUnet_MBConv_Multihead(
+        encoder,
+        num_heads=len(out_channels),
+        decoders_out_channels=out_channels,
+    )
+    #
+    return model

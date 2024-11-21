@@ -1,12 +1,13 @@
 import numpy as np
 import wandb
+from torch import Tensor
 
 
 def compose_log_images(
-    images: np.ndarray,
-    true_masks: np.ndarray,
-    pred_probs: np.ndarray,
-    pred_masks: np.ndarray,
+    images: Tensor,
+    true_masks: Tensor,
+    pred_probs: Tensor,
+    pred_masks: Tensor,
     module: str,
     has_background_channel: bool,
 ) -> dict:
@@ -83,5 +84,49 @@ def compose_log_images(
 
     else:
         log_data = {}
+
+    return log_data
+
+
+def compose_multitask_log_images(
+    images: Tensor,
+    overall_true_masks: Tensor,
+    lymph_true_masks: Tensor,
+    mono_true_masks: Tensor,
+    contour_true_masks: Tensor,
+    overall_pred_probs: Tensor,
+    lymph_pred_probs: Tensor,
+    mono_pred_probs: Tensor,
+    contour_pred_probs: Tensor,
+) -> dict:
+
+    log_data = {}
+    log_data["images"] = wandb.Image(images[0, :3, :, :].cpu())
+    log_data["masks"] = {
+        "true_overall": wandb.Image(
+            overall_true_masks[0, 0, :, :].float().cpu(), mode="L"
+        ),
+        "true_contour": wandb.Image(
+            contour_true_masks[0, 0, :, :].float().cpu(), mode="L"
+        ),
+        "true_lymph": wandb.Image(
+            lymph_true_masks[0, 0, :, :].float().cpu(), mode="L"
+        ),
+        "true_mono": wandb.Image(
+            mono_true_masks[0, 0, :, :].float().cpu(), mode="L"
+        ),
+        "pred_lymph_probs": wandb.Image(
+            lymph_pred_probs[0, 0, :, :].float().cpu()
+        ),
+        "pred_mono_probs": wandb.Image(
+            mono_pred_probs[0, 0, :, :].float().cpu()
+        ),
+        "pred_overall_probs": wandb.Image(
+            overall_pred_probs[0, 0, :, :].float().cpu()
+        ),
+        "pred_contour_probs": wandb.Image(
+            contour_pred_probs[0, 0, :, :].float().cpu()
+        ),
+    }
 
     return log_data
