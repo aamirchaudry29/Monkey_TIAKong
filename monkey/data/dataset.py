@@ -200,6 +200,7 @@ class Multitask_Dataset(Dataset):
         self.phase = phase
         self.do_augment = do_augment
         self.use_nuclick_masks = use_nuclick_masks
+        self.module = "multiclass_detection"
 
         if self.do_augment:
             self.augmentation = get_augmentation(
@@ -230,7 +231,7 @@ class Multitask_Dataset(Dataset):
                 class_mask=class_mask,
                 contour_mask=contour_mask,
             )
-            image, binary_mask = (
+            image, binary_mask, class_mask, contour_mask = (
                 augmented_data["image"],
                 augmented_data["mask"],
                 augmented_data["class_mask"],

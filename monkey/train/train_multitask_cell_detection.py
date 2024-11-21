@@ -28,17 +28,15 @@ def train_one_epoch(
     for i, data in enumerate(
         tqdm(training_loader, desc="train", leave=False)
     ):
-        images, true_labels = (
-            data["image"].cuda().float(),
-            data["mask"].cuda().float(),
-        )
-        binary_true_masks = true_labels["binary_mask"]
-        contour_masks = true_labels["contour_mask"]
+        images = data["image"].cuda().float()
+
+        binary_true_masks = data["binary_mask"].cuda().float()
+        contour_masks = data["contour_mask"].cuda().float()
         head_1_true_masks = torch.concatenate(
             (binary_true_masks, contour_masks), dim=1
         )
-        lymph_true_masks = true_labels["class_mask"][:, 0:1, :, :]
-        mono_true_masks = true_labels["class_mask"][:, 1:2, :, :]
+        lymph_true_masks = data["class_mask"][:, 0:1, :, :].cuda().float()
+        mono_true_masks = data["class_mask"][:, 1:2, :, :].cuda().float()
 
         optimizer.zero_grad()
 
@@ -86,14 +84,12 @@ def validate_one_epoch(
     for i, data in enumerate(
         tqdm(validation_loader, desc="validation", leave=False)
     ):
-        images, true_masks = (
-            data["image"].cuda().float(),
-            data["mask"].cuda().float(),
-        )
-        binary_true_masks = true_masks["binary_mask"]
-        contour_masks = true_masks["contour_mask"]
-        lymph_true_masks = true_masks["class_mask"][:, 0:1, :, :]
-        mono_true_masks = true_masks["class_mask"][:, 1:2, :, :]
+        images = data["image"].cuda().float()
+        binary_true_masks = data["binary_mask"].cuda().float()
+        contour_masks = data["contour_mask"].cuda().float()
+        lymph_true_masks = data["class_mask"][:, 0:1, :, :].cuda().float()
+        mono_true_masks = data["class_mask"][:, 1:2, :, :].cuda().float()
+
         with torch.no_grad():
             logits_pred = model(images)
             head_1_logits = logits_pred["head_1"]
@@ -125,7 +121,7 @@ def validate_one_epoch(
             overall_metrics["F1"]
         ) * images.size(0)
         running_lymph_score += (lymph_metrics["F1"]) * images.size(0)
-        running_mono_score += (mono_metrics["F1"]) * images.size()
+        running_mono_score += (mono_metrics["F1"]) * images.size(0)
 
     # Log an example prediction to WandB
     log_data = compose_multitask_log_images(
@@ -153,7 +149,7 @@ def validate_one_epoch(
     }
 
 
-def train_multitask_det_net(
+def multitask_train_loop(
     model: nn.Module,
     num_tasks: int,
     train_loader: DataLoader,

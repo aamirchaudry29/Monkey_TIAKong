@@ -15,7 +15,7 @@ from monkey.model.efficientunetb0.architecture import (
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
 from monkey.train.train_multitask_cell_detection import (
-    train_multitask_det_net,
+    multitask_train_loop,
 )
 
 # -----------------------------------------------------------------------
@@ -25,7 +25,7 @@ run_config = {
     "model_name": "multihead_unet",
     "out_channels": [2, 1, 1],
     "val_fold": 1,  # [1-5]
-    "batch_size": 32,
+    "batch_size": 16,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
@@ -121,19 +121,19 @@ scheduler = lr_scheduler.ReduceLROnPlateau(
 # Create WandB session
 run = wandb.init(
     project=f"{run_config['project_name']}_{run_config['model_name']}",
-    name=f"fold_{run_config['val_fold']}_{run_config['module']}",
+    name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
 # run = None
 
 # Start training
-model = train_multitask_det_net(
+model = multitask_train_loop(
     model=model,
     num_tasks=len(run_config["out_channels"]),
     train_loader=train_loader,
     validation_loader=val_loader,
     loss_fn_dict=loss_fn_dict,
-    activation_fn_dict=activation_fn_dict,
+    activation_dict=activation_fn_dict,
     optimizer=optimizer,
     scheduler=scheduler,
     save_dir=IOconfig.checkpoint_save_dir,

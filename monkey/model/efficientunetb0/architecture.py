@@ -236,7 +236,7 @@ class EfficientUnet_MBConv_Multihead(nn.Module):
 
         self.decoders = nn.ModuleDict({})
         for i in range(self.num_heads):
-            head_name = f"head_{i}"
+            head_name = f"head_{i+1}"
             self.decoders[head_name] = Decoder(
                 decoders_out_channels[i]
             )
@@ -247,7 +247,7 @@ class EfficientUnet_MBConv_Multihead(nn.Module):
 
         output_dict = {}
         for i in range(self.num_heads):
-            head_name = f"head_{i}"
+            head_name = f"head_{i+1}"
             out = self.decoders[head_name](
                 x, encoder_output, skip_connections_out
             )
