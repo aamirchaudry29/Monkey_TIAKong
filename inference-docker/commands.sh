@@ -6,5 +6,5 @@ echo model folder:
 ls /opt/ml/model
 
 echo running inference.py
-python -u inference.py
+python -u inference_multiheadunet.py
 echo inference.py finished

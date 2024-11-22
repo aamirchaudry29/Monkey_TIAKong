@@ -15,13 +15,13 @@ from monkey.data.data_utils import (
     save_detection_records_monkey,
 )
 from monkey.model.efficientunetb0.architecture import (
-    get_efficientunet_b0_MBConv,
+    get_multihead_efficientunet,
 )
-from prediction.detection_classification import wsi_detection_in_mask
+from prediction.multihead_unet_prediction import wsi_detection_in_mask
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "efficientunetb0_det_2_channel"
+    detector_model_name = "multihead_unet"
     fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
 
@@ -42,9 +42,7 @@ def cross_validation(fold_number: int = 1):
         patch_size=256,
         resolution=0,
         units="level",
-        stride=224,
-        min_size=3,
-        include_background=False,
+        stride=216,
     )
 
     # split_info = open_json_file(
@@ -60,18 +58,20 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_75.pth",
+        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_1/epoch_75.pth",
+        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_2/epoch_75.pth",
+        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_4/epoch_75.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
-        detector = get_efficientunet_b0_MBConv(
-            pretrained=False, out_channels=2
+        model = get_multihead_efficientunet(
+            pretrained=False, out_channels=[2, 1, 1]
         )
         checkpoint = torch.load(weight_path)
-        detector.load_state_dict(checkpoint["model"])
-        detector.eval()
-        detector.to("cuda")
-        detectors.append(detector)
+        model.load_state_dict(checkpoint["model"])
+        model.eval()
+        model.to("cuda")
+        detectors.append(model)
 
     for wsi_name in tqdm(val_wsi_files):
         wsi_name_without_ext = os.path.splitext(wsi_name)[0]
@@ -82,41 +82,37 @@ def cross_validation(fold_number: int = 1):
             wsi_name, mask_name, config, detectors
         )
 
-        print(f"{len(detection_records)} final detected cells")
+        inflamm_records = detection_records["inflamm_records"]
+        lymph_records = detection_records["lymph_records"]
+        mono_records = detection_records["mono_records"]
+        print(f"{len(inflamm_records)} final detected inflamm")
+        print(f"{len(lymph_records)} final detected lymph")
+        print(f"{len(mono_records)} final detected mono")
 
         # Save to AnnotationStore for visualization
         # If model if not running at baseline res:
         # scale_factor = model_res / 0.24199951445730394
-        annoation_store = detection_to_annotation_store(
-            detection_records, scale_factor=1.0
-        )
-        store_save_path = os.path.join(
-            config.output_dir, f"{wsi_name_without_ext}.db"
-        )
-        annoation_store.dump(store_save_path)
+        # annoation_store = detection_to_annotation_store(
+        #     detection_records, scale_factor=1.0
+        # )
+        # store_save_path = os.path.join(
+        #     config.output_dir, f"{wsi_name_without_ext}.db"
+        # )
+        # annoation_store.dump(store_save_path)
 
         # Save result in Monkey Challenge format
-        # Must save results separately
-
-        # L1 overall inflamm detection
-        save_detection_records_monkey(
-            detection_records,
-            config,
-            wsi_id=wsi_id,
-            task="overall_detection",
-        )
-
         # L2 lymphocyte vs monocyte detection
         save_detection_records_monkey(
-            detection_records,
             config,
+            inflamm_records,
+            lymph_records,
+            mono_records,
             wsi_id=wsi_id,
-            task="detection_classification",
         )
         print("finished")
 
 
 if __name__ == "__main__":
-    for i in range(1, 6):
+    for i in range(2, 6):
         pprint(f"Fold {i}")
         cross_validation(i)

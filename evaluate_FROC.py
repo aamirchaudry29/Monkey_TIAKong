@@ -19,7 +19,7 @@ def compute_FROC(fold: int = 1):
     )
 
     FOLD = fold
-    model_name = "efficientunetb0_det_2_channel"
+    model_name = "efficientunetb0_seg"
     # PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     PREDICT_DIR = f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{FOLD}"
     SPACING_LEVEL0 = 0.24199951445730394
@@ -105,25 +105,25 @@ def compute_FROC(fold: int = 1):
         lymph_froc = get_froc_vals(
             gt_lymphocytes,
             result_detected_lymphocytes,
-            radius=int(7.5 / SPACING_LEVEL0),
+            radius=int(4 / SPACING_LEVEL0),
         )
 
         lymph_f1 = get_F1_scores(
             gt_lymphocytes,
             result_detected_lymphocytes,
-            radius=int(7.5 / SPACING_LEVEL0),
+            radius=int(4 / SPACING_LEVEL0),
         )
 
         mono_froc = get_froc_vals(
             gt_monocytes,
             result_detected_monocytes,
-            radius=int(7.5 / SPACING_LEVEL0),
+            radius=int(10 / SPACING_LEVEL0),
         )
 
         mono_f1 = get_F1_scores(
             gt_monocytes,
             result_detected_monocytes,
-            radius=int(7.5 / SPACING_LEVEL0),
+            radius=int(10 / SPACING_LEVEL0),
         )
 
         inflamm_sum_score += inflamm_froc["froc_score_slide"]
@@ -149,8 +149,10 @@ def compute_FROC(fold: int = 1):
 
 
 if __name__ == "__main__":
+    folds = [1, 2, 3, 4, 5]
+    # folds = [1]
     with Pool(5) as p:
-        results = p.map(compute_FROC, [1, 2, 3, 4, 5])
+        results = p.map(compute_FROC, folds)
 
     for result in results:
         pprint(result)

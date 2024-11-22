@@ -1,5 +1,6 @@
 """ Full assembly of the parts to form the complete network """
 
+import numpy as np
 import torch
 from torchvision.models.efficientnet import (
     EfficientNet,
@@ -253,6 +254,61 @@ class EfficientUnet_MBConv_Multihead(nn.Module):
             )
             output_dict[head_name] = out
         return output_dict
+
+    @staticmethod
+    def multihead_unet_post_process(
+        logits_pred: torch.Tensor,
+        activation_dict: dict[str, torch.nn.Module],
+        thresholds: list = [0.5, 0.5, 0.5, 0.5],
+    ) -> dict[str, np.ndarray]:
+        """
+        Args:
+            Thresholds: [overall, lymph, mono, contour]
+        """
+        head_1_logits = logits_pred["head_1"]
+        head_2_logits = logits_pred["head_2"]
+        head_3_logits = logits_pred["head_3"]
+        pred_probs_1 = activation_dict["head_1"](head_1_logits)
+        pred_probs_2 = activation_dict["head_2"](head_2_logits)
+        pred_probs_3 = activation_dict["head_3"](head_3_logits)
+
+        contour_pred_binary = (
+            (pred_probs_1[:, 1:2, :, :] > thresholds[3])
+            .float()
+            .numpy(force=True)
+        )
+
+        overall_pred_binary = (
+            (pred_probs_1[:, 0:1, :, :] > thresholds[0])
+            .float()
+            .numpy(force=True)
+        )
+        lymph_pred_binary = (
+            (pred_probs_2 > thresholds[1]).float().numpy(force=True)
+        )
+        mono_pred_binary = (
+            (pred_probs_3 > thresholds[2]).float().numpy(force=True)
+        )
+
+        overall_pred_binary[contour_pred_binary == 1] = 0
+        lymph_pred_binary[contour_pred_binary == 1] = 0
+        mono_pred_binary[contour_pred_binary == 1] = 0
+
+        processed_masks = {
+            "inflamm_mask": overall_pred_binary[:, 0, :, :],
+            "contour_mask": contour_pred_binary[:, 0, :, :],
+            "lymph_mask": lymph_pred_binary[:, 0, :, :],
+            "mono_mask": mono_pred_binary[:, 0, :, :],
+            "inflamm_prob": pred_probs_1[:, 0, :, :].numpy(
+                force=True
+            ),
+            "contour_prob": pred_probs_1[:, 1, :, :].numpy(
+                force=True
+            ),
+            "lymph_prob": pred_probs_2[:, 0, :, :].numpy(force=True),
+            "mono_prob": pred_probs_3[:, 0, :, :].numpy(force=True),
+        }
+        return processed_masks
 
 
 class EfficientUnet_MBConv(nn.Module):

@@ -3,3 +3,6 @@ torchinfo
 monai
 timm
 einops
+segmentation-models-pytorch
+pretrainedmodels
+efficientnet-pytorch

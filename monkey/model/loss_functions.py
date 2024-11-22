@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -317,6 +318,7 @@ def dice_coeff(
     epsilon=1e-6,
 ):
     # Average of Dice coefficient for all batches, or for a single mask
+
     assert input.size() == target.size()
     if input.dim() == 2 and reduce_batch_first:
         raise ValueError(

@@ -30,6 +30,6 @@ output_filename="${SCRIPT_DIR}/${container_tag}_${formatted_build_info}.tar.gz"
 printenv
 
 # Save the Docker container and gzip it
-docker save "$container_tag" | gzip -c > "$output_filename"
+docker save "$container_tag" | pigz -c > "$output_filename"
 
 echo "Container saved as ${output_filename}"

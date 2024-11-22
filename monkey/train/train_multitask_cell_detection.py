@@ -35,8 +35,12 @@ def train_one_epoch(
         head_1_true_masks = torch.concatenate(
             (binary_true_masks, contour_masks), dim=1
         )
-        lymph_true_masks = data["class_mask"][:, 0:1, :, :].cuda().float()
-        mono_true_masks = data["class_mask"][:, 1:2, :, :].cuda().float()
+        lymph_true_masks = (
+            data["class_mask"][:, 0:1, :, :].cuda().float()
+        )
+        mono_true_masks = (
+            data["class_mask"][:, 1:2, :, :].cuda().float()
+        )
 
         optimizer.zero_grad()
 
@@ -87,8 +91,12 @@ def validate_one_epoch(
         images = data["image"].cuda().float()
         binary_true_masks = data["binary_mask"].cuda().float()
         contour_masks = data["contour_mask"].cuda().float()
-        lymph_true_masks = data["class_mask"][:, 0:1, :, :].cuda().float()
-        mono_true_masks = data["class_mask"][:, 1:2, :, :].cuda().float()
+        lymph_true_masks = (
+            data["class_mask"][:, 0:1, :, :].cuda().float()
+        )
+        mono_true_masks = (
+            data["class_mask"][:, 1:2, :, :].cuda().float()
+        )
 
         with torch.no_grad():
             logits_pred = model(images)
