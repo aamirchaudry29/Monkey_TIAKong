@@ -27,15 +27,15 @@ run_config = {
     "val_fold": 1,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.0004,
+    "learning_rate": 0.001,
     "weight_decay": 0.01,
-    "epochs": 75,
+    "epochs": 50,
     "loss_function": {
         "head_1": "Weighted_BCE_Dice",
         "head_2": "Weighted_BCE_Dice",
         "head_3": "Weighted_BCE_Dice",
     },
-    "loss_pos_weight": 10.0,
+    "loss_pos_weight": 2.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
@@ -95,6 +95,9 @@ loss_fn_dict = {
     ),
 }
 loss_fn_dict["head_1"].set_multiclass(True)
+loss_fn_dict["head_1"].set_weight(run_config['loss_pos_weight'])
+loss_fn_dict["head_2"].set_weight(run_config['loss_pos_weight'])
+loss_fn_dict["head_3"].set_weight(run_config['loss_pos_weight'])
 
 activation_fn_dict = {
     "head_1": get_activation_function(

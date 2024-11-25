@@ -288,7 +288,7 @@ class Weighted_BCE_Dice_Loss(Loss_Function):
             target * -clipped_logits.log() * log_weight
             + (1 - target) * -(1.0 - clipped_logits).log()
         )
-        return loss
+        return torch.mean(torch.flatten(loss))
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return self.ce_loss(

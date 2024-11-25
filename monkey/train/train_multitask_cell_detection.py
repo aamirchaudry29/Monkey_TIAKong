@@ -63,7 +63,6 @@ def train_one_epoch(
         loss_3 = loss_fn_dict["head_3"].compute_loss(
             pred_3, mono_true_masks
         )
-
         sum_loss = loss_1 + loss_2 + loss_3
         sum_loss.backward()
         optimizer.step()
