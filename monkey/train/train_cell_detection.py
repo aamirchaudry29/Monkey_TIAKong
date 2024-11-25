@@ -10,9 +10,91 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from monkey.model.loss_functions import Loss_Function
+from monkey.model.loss_functions import Loss_Function, MapDe_Loss
+from monkey.model.mapde import model
 from monkey.model.utils import get_multiclass_patch_F1_score_batch
 from monkey.train.utils import compose_log_images
+
+
+def train_one_epoch_mapde(
+    model: model.MapDe,
+    training_loader: DataLoader,
+    optimizer: Optimizer,
+    loss_fn: MapDe_Loss,
+    run_config: dict,
+):
+    epoch_loss = 0.0
+    model.train()
+    for i, data in enumerate(
+        tqdm(training_loader, desc="train", leave=False)
+    ):
+        images, true_labels = (
+            data["image"].cuda().float(),
+            data["mask"].cuda().float(),
+        )
+        images = model.reshape_transform(images)
+        true_labels = model.reshape_transform(true_labels)
+        true_labels = model.blur_cell_points(true_labels)
+
+        optimizer.zero_grad()
+
+        logits_pred = model(images)
+
+        loss = loss_fn.compute_loss(logits_pred, true_labels)
+        loss.backward()
+        optimizer.step()
+
+        epoch_loss += loss.item() * images.size(0)
+
+    return epoch_loss / len(training_loader.sampler)
+
+
+def validate_one_epoch_mapde(
+    model: model.MapDe,
+    validation_loader: DataLoader,
+    run_config: dict,
+    wandb_run: Optional[wandb.run] = None,
+):
+    running_val_score = 0.0
+    module = run_config["module"]
+
+    model.eval()
+    for i, data in enumerate(
+        tqdm(validation_loader, desc="validation", leave=False)
+    ):
+        images, true_masks = (
+            data["image"].cuda().float(),
+            data["mask"].cuda().float(),
+        )
+        images = model.reshape_transform(images)
+        true_labels = model.reshape_transform(true_labels)
+        true_labels = model.blur_cell_points(true_labels)
+        with torch.no_grad():
+            logits_pred = model(images)
+            pred_probs = torch.sigmoid(logits_pred)
+            pred_cell_masks = model.postproc(logits_pred)
+            pred_cell_masks = pred_cell_masks[:, np.newaxis, :, :]
+
+            # Compute detection F1 score
+            metrics = get_multiclass_patch_F1_score_batch(
+                pred_cell_masks, true_masks, pred_probs
+            )
+
+        running_val_score += metrics["F1"] * images.size(0)
+
+    # Log an example prediction to WandB
+    log_data = compose_log_images(
+        images=images,
+        true_masks=true_masks,
+        pred_masks=pred_cell_masks,
+        pred_probs=pred_probs,
+        module=module,
+        has_background_channel=False,
+    )
+    wandb_run.log(log_data)
+
+    avg_score = running_val_score / len(validation_loader.sampler)
+    return avg_score
 
 
 def train_one_epoch(
@@ -124,20 +206,33 @@ def train_det_net(
     ):
         pprint(f"EPOCH {epoch}")
 
-        avg_train_loss = train_one_epoch(
+        # avg_train_loss = train_one_epoch(
+        #     model,
+        #     train_loader,
+        #     optimizer,
+        #     loss_fn,
+        #     run_config,
+        #     activation,
+        # )
+        # avg_score = validate_one_epoch(
+        #     model,
+        #     validation_loader,
+        #     run_config,
+        #     wandb_run,
+        #     activation,
+        # )
+        avg_train_loss = train_one_epoch_mapde(
             model,
             train_loader,
             optimizer,
             loss_fn,
             run_config,
-            activation,
         )
-        avg_score = validate_one_epoch(
+        avg_score = validate_one_epoch_mapde(
             model,
             validation_loader,
             run_config,
             wandb_run,
-            activation,
         )
 
         if scheduler is not None:

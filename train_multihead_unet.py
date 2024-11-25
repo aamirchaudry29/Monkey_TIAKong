@@ -52,9 +52,11 @@ IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
-if run_config['use_nuclick_masks']:
+if run_config["use_nuclick_masks"]:
     # Use NuClick masks
-    IOconfig.set_mask_dir("/mnt/lab-share/Monkey/nuclick_masks_processed")
+    IOconfig.set_mask_dir(
+        "/mnt/lab-share/Monkey/nuclick_masks_processed"
+    )
 
 
 # Create model
@@ -95,9 +97,9 @@ loss_fn_dict = {
     ),
 }
 loss_fn_dict["head_1"].set_multiclass(True)
-loss_fn_dict["head_1"].set_weight(run_config['loss_pos_weight'])
-loss_fn_dict["head_2"].set_weight(run_config['loss_pos_weight'])
-loss_fn_dict["head_3"].set_weight(run_config['loss_pos_weight'])
+loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
 
 activation_fn_dict = {
     "head_1": get_activation_function(

@@ -3,9 +3,11 @@ import torch
 import torch.nn.functional as F
 from skimage.feature import peak_local_max
 from tiatoolbox.models.architecture.micronet import MicroNet
+from torchvision.transforms import v2
 
 
-def gauss_2d_filter(shape=(11, 11), sigma=1):
+def gauss_2d_filter(shape=(11, 11)):
+    sigma = int((shape[0] - 1) / 6)
     m, n = [(ss - 1.0) / 2.0 for ss in shape]
     y, x = np.ogrid[-m : m + 1, -n : n + 1]
     h = np.exp(-(x * x + y * y) / (2.0 * sigma * sigma))
@@ -25,6 +27,7 @@ class MapDe(MicroNet):
         min_distance: int = 4,
         threshold_abs: float = 250,
         num_classes: int = 1,
+        filter_size: int = 30,
     ) -> None:
         """Initialize :class:`MapDe`."""
         super().__init__(
@@ -33,13 +36,20 @@ class MapDe(MicroNet):
             out_activation="relu",
         )
 
-        dist_filter = gauss_2d_filter()
-
+        dist_filter = gauss_2d_filter(
+            shape=(filter_size, filter_size)
+        )
         dist_filter = np.expand_dims(dist_filter, axis=(0, 1))  # NCHW
+
+        self.register_buffer(
+            "dist_filter_2d",
+            torch.from_numpy(dist_filter.astype(np.float32)),
+        )
+        self.dist_filter_2d.requires_grad = False
+
         dist_filter = np.repeat(
             dist_filter, repeats=num_classes * 2, axis=1
         )
-
         self.min_distance = min_distance
         self.threshold_abs = threshold_abs
         self.register_buffer(
@@ -47,6 +57,23 @@ class MapDe(MicroNet):
             torch.from_numpy(dist_filter.astype(np.float32)),
         )
         self.dist_filter.requires_grad = False
+
+        self.preprocess_reshape = v2.Compose([v2.Resize((252, 252))])
+
+    def reshape_transform(self, input_tensor: torch.Tensor):
+        out = self.preprocess_reshape(input_tensor)
+        return out
+
+    def blur_cell_points(
+        self, input_tensor: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Blur input cell masks (points) using dist_filter
+        """
+        out = F.conv2d(
+            input_tensor.float(), self.dist_filter_2d, padding="same"
+        )
+        return out
 
     def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
         """Logic for using layers defined in init.
@@ -64,19 +91,19 @@ class MapDe(MicroNet):
 
         """
         logits, _, _, _ = super().forward(input_tensor)
-        print(logits.size())
-        print(self.dist_filter.size())
+        print(f"logit size {logits.size()}")
+        print(f"dist size {self.dist_filter.size()}")
         out = F.conv2d(logits, self.dist_filter, padding="same")
         return F.relu(out)
 
-    def postproc(self, prediction_map: np.ndarray) -> np.ndarray:
+    def postproc(self, prediction_map: torch.Tensor) -> np.ndarray:
         """Post-processing script for MicroNet.
 
         Performs peak detection and extracts coordinates in x, y format.
 
         Args:
-            prediction_map (ndarray):
-                Input image of type numpy array.
+            prediction_map (Tensor):
+                Logits after forward pass (Bx1x252x252).
 
         Returns:
             :class:`numpy.ndarray`:
@@ -84,10 +111,22 @@ class MapDe(MicroNet):
                 prediction.
 
         """
-        coordinates = peak_local_max(
-            np.squeeze(prediction_map[0], axis=2),
-            min_distance=self.min_distance,
-            threshold_abs=self.threshold_abs,
-            exclude_border=False,
+        prediction_map_numpy = prediction_map.numpy(force=True)
+        prediction_map_numpy = np.squeeze(
+            prediction_map_numpy, axis=1
         )
-        return np.fliplr(coordinates)
+        print(prediction_map_numpy.shape)
+        batches = prediction_map_numpy.shape[0]
+        output_mask = np.zeros(shape=(batches, 252, 252))
+
+        for i in range(0, batches):
+            coordinates = peak_local_max(
+                prediction_map_numpy[i],
+                min_distance=self.min_distance,
+                threshold_abs=self.threshold_abs,
+                exclude_border=False,
+            )
+            print(coordinates)
+            output_mask[i][coordinates[:, 0], coordinates[:, 1]] = 1
+
+        return output_mask
