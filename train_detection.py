@@ -13,8 +13,8 @@ from monkey.data.dataset import get_detection_dataloaders
 from monkey.model.efficientunetb0.architecture import (
     get_efficientunet_b0_MBConv,
 )
-from monkey.model.mapde.model import MapDe
 from monkey.model.loss_functions import get_loss_function
+from monkey.model.mapde.model import MapDe
 from monkey.model.utils import get_activation_function
 from monkey.train.train_cell_detection import train_det_net
 
@@ -69,7 +69,7 @@ os.environ["WANDB_DIR"] = IOconfig.save_dir
 train_loader, val_loader = get_detection_dataloaders(
     IOconfig,
     val_fold=run_config["val_fold"],
-    dataset_name='detection',
+    dataset_name="detection",
     batch_size=run_config["batch_size"],
     disk_radius=run_config["disk_radius"],
     regression_map=run_config["regression_map"],

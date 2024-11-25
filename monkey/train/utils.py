@@ -1,7 +1,8 @@
 import numpy as np
+import torch
 import wandb
 from torch import Tensor
-import torch
+
 
 def compose_log_images(
     images: Tensor | np.ndarray,
@@ -11,7 +12,7 @@ def compose_log_images(
     module: str,
     has_background_channel: bool,
 ) -> dict:
-    
+
     if torch.is_tensor(images):
         images = images.numpy(force=True)
         images = np.moveaxis(images, 1, 3)
@@ -28,12 +29,8 @@ def compose_log_images(
 
         if has_background_channel:
             log_data["masks"] = {
-                "true": wandb.Image(
-                    true_masks[1], mode="L"
-                ),
-                "pred_probs": wandb.Image(
-                    pred_probs[0, 1, :, :]
-                ),
+                "true": wandb.Image(true_masks[1], mode="L"),
+                "pred_probs": wandb.Image(pred_probs[0, 1, :, :]),
                 "Final_pred": wandb.Image(
                     pred_masks[0, 1, :, :],
                     mode="L",
@@ -41,12 +38,8 @@ def compose_log_images(
             }
         else:
             log_data["masks"] = {
-                "true": wandb.Image(
-                    true_masks[0], mode="L"
-                ),
-                "pred_probs": wandb.Image(
-                    pred_probs[0, 0, :, :]
-                ),
+                "true": wandb.Image(true_masks[0], mode="L"),
+                "pred_probs": wandb.Image(pred_probs[0, 0, :, :]),
                 "Final_pred": wandb.Image(
                     pred_masks[0, 0, :, :],
                     mode="L",

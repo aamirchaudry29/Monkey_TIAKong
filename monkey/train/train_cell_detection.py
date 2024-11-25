@@ -38,8 +38,9 @@ def train_one_epoch_mapde(
         optimizer.zero_grad()
 
         logits_pred = model(images)
+        probs_pred = model.logits_to_probs(logits_pred)
 
-        loss = loss_fn.compute_loss(logits_pred, true_labels)
+        loss = loss_fn.compute_loss(probs_pred, true_labels)
         loss.backward()
         optimizer.step()
 
@@ -52,6 +53,7 @@ def validate_one_epoch_mapde(
     model: model.MapDe,
     validation_loader: DataLoader,
     run_config: dict,
+    loss_fn: MapDe_Loss,
     wandb_run: Optional[wandb.run] = None,
 ):
     running_val_score = 0.0
@@ -70,23 +72,24 @@ def validate_one_epoch_mapde(
         true_masks = model.blur_cell_points(true_masks)
         with torch.no_grad():
             logits_pred = model(images)
-            pred_probs = torch.sigmoid(logits_pred)
+            probs_pred = model.logits_to_probs(logits_pred)
             pred_cell_masks = model.postproc(logits_pred)
             pred_cell_masks = pred_cell_masks[:, np.newaxis, :, :]
+            pred_cell_masks = model.blur_cell_points(pred_cell_masks)
 
-            # Compute detection F1 score
-            metrics = get_multiclass_patch_F1_score_batch(
-                pred_cell_masks, true_masks, pred_probs
-            )
+            # Compute val loss
+            val_loss = loss_fn.compute_loss(
+                probs_pred, true_masks
+            ).item()
 
-        running_val_score += metrics["F1"] * images.size(0)
+        running_val_score += val_loss * images.size(0)
 
     # Log an example prediction to WandB
     log_data = compose_log_images(
         images=images,
         true_masks=true_masks,
         pred_masks=pred_cell_masks,
-        pred_probs=pred_probs,
+        pred_probs=probs_pred,
         module=module,
         has_background_channel=False,
     )

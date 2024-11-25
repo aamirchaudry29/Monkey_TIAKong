@@ -21,7 +21,7 @@ from prediction.multihead_unet_prediction import wsi_detection_in_mask
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "multihead_unet"
+    detector_model_name = "multihead_unet_experiment"
     fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
 
@@ -58,9 +58,9 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_1/epoch_75.pth",
-        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_2/epoch_75.pth",
-        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_4/epoch_75.pth",
+        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_1/epoch_50.pth",
+        # f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_2/epoch_75.pth",
+        # f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_4/epoch_75.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:

@@ -175,7 +175,7 @@ def process_tile_detection_masks(
             pred_results["inflamm_prob"],
             coordinate_list,
         )[:, :, 0]
-        inflamm_prediction[inflamm_probs_map > 0.3] = 1
+        inflamm_prediction[inflamm_probs_map > 0.5] = 1
 
     if len(pred_results["lymph_prob"]) != 0:
         lymph_probs_map = SemanticSegmentor.merge_prediction(
@@ -183,7 +183,7 @@ def process_tile_detection_masks(
             pred_results["lymph_prob"],
             coordinate_list,
         )[:, :, 0]
-        lymph_prediction[lymph_probs_map > 0.3] = 1
+        lymph_prediction[lymph_probs_map > 0.5] = 1
 
     if len(pred_results["mono_prob"]) != 0:
         mono_probs_map = SemanticSegmentor.merge_prediction(
@@ -191,7 +191,7 @@ def process_tile_detection_masks(
             pred_results["mono_prob"],
             coordinate_list,
         )[:, :, 0]
-        mono_prediction[mono_probs_map > 0.3] = 1
+        mono_prediction[mono_probs_map > 0.5] = 1
 
     if len(pred_results["contour_prob"]) != 0:
         contour_probs_map = SemanticSegmentor.merge_prediction(
