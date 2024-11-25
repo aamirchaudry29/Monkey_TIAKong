@@ -13,6 +13,7 @@ from monkey.data.dataset import get_detection_dataloaders
 from monkey.model.efficientunetb0.architecture import (
     get_efficientunet_b0_MBConv,
 )
+from monkey.model.mapde.model import MapDe
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
 from monkey.train.train_cell_detection import train_det_net
@@ -20,20 +21,20 @@ from monkey.train.train_cell_detection import train_det_net
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "efficientunetb0_det_2_channel_exp",
+    "project_name": "Monkey_Detection",
+    "model_name": "mapde_inflamm",
     "val_fold": 1,  # [1-5]
-    "batch_size": 32,
+    "batch_size": 64,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
-    "epochs": 75,
-    "loss_function": "BCE_Dice",
-    "disk_radius": 7,  # Ignored if using NuClick masks
+    "epochs": 50,
+    "loss_function": "MapDe_Loss",
+    "disk_radius": 1,  # Ignored if using NuClick masks
     "regression_map": False,  # Ignored if using NuClick masks
     "do_augmentation": True,
     "activation_function": "sigmoid",
-    "module": "multiclass_detection",  # 'detection' or 'multiclass_detection'
+    "module": "detection",  # 'detection' or 'multiclass_detection'
     "include_background_channel": False,
     "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks
 }
@@ -43,7 +44,7 @@ pprint(run_config)
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
-    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
+    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_det/{run_config['model_name']}",
 )
 # If use nuclick masks, change mask dir
 if run_config["use_nuclick_masks"]:
@@ -53,7 +54,8 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-model = get_efficientunet_b0_MBConv(out_channels=2)
+# model = get_efficientunet_b0_MBConv(out_channels=2)
+model = MapDe(3, 30, threshold_abs=0.5, num_classes=1, filter_size=31)
 model.to("cuda")
 # -----------------------------------------------------------------------
 
@@ -67,7 +69,7 @@ os.environ["WANDB_DIR"] = IOconfig.save_dir
 train_loader, val_loader = get_detection_dataloaders(
     IOconfig,
     val_fold=run_config["val_fold"],
-    task=1,
+    dataset_name='detection',
     batch_size=run_config["batch_size"],
     disk_radius=run_config["disk_radius"],
     regression_map=run_config["regression_map"],

@@ -1,84 +1,95 @@
 import numpy as np
 import wandb
 from torch import Tensor
-
+import torch
 
 def compose_log_images(
-    images: Tensor,
-    true_masks: Tensor,
-    pred_probs: Tensor,
-    pred_masks: Tensor,
+    images: Tensor | np.ndarray,
+    true_masks: Tensor | np.ndarray,
+    pred_probs: Tensor | np.ndarray,
+    pred_masks: Tensor | np.ndarray,
     module: str,
     has_background_channel: bool,
 ) -> dict:
+    
+    if torch.is_tensor(images):
+        images = images.numpy(force=True)
+        images = np.moveaxis(images, 1, 3)
+    if torch.is_tensor(true_masks):
+        true_masks = true_masks.numpy(force=True)
+    if torch.is_tensor(pred_probs):
+        pred_probs = pred_probs.numpy(force=True)
+    if torch.is_tensor(pred_masks):
+        pred_masks = pred_masks.numpy(force=True)
+
     if module == "detection":
         log_data = {}
-        log_data["images"] = wandb.Image(images[0, :3, :, :].cpu())
+        log_data["images"] = wandb.Image(images[0, :, :, 0:3])
 
         if has_background_channel:
             log_data["masks"] = {
                 "true": wandb.Image(
-                    true_masks[1].float().cpu(), mode="L"
+                    true_masks[1], mode="L"
                 ),
                 "pred_probs": wandb.Image(
-                    pred_probs[0, 1, :, :].float().cpu()
+                    pred_probs[0, 1, :, :]
                 ),
                 "Final_pred": wandb.Image(
-                    pred_masks[0, 1, :, :].float().cpu(),
+                    pred_masks[0, 1, :, :],
                     mode="L",
                 ),
             }
         else:
             log_data["masks"] = {
                 "true": wandb.Image(
-                    true_masks[0].float().cpu(), mode="L"
+                    true_masks[0], mode="L"
                 ),
                 "pred_probs": wandb.Image(
-                    pred_probs[0, 0, :, :].float().cpu()
+                    pred_probs[0, 0, :, :]
                 ),
                 "Final_pred": wandb.Image(
-                    pred_masks[0, 0, :, :].float().cpu(),
+                    pred_masks[0, 0, :, :],
                     mode="L",
                 ),
             }
     elif module == "multiclass_detection":
         log_data = {}
-        log_data["images"] = wandb.Image(images[0, :3, :, :].cpu())
+        log_data["images"] = wandb.Image(images[0, :, :, 0:3])
 
         if has_background_channel:
             log_data["masks"] = {
                 "other": wandb.Image(
-                    true_masks[0, 0, :, :].float().cpu(), mode="L"
+                    true_masks[0, 0, :, :], mode="L"
                 ),
                 "true_lymph": wandb.Image(
-                    true_masks[0, 1, :, :].float().cpu(), mode="L"
+                    true_masks[0, 1, :, :], mode="L"
                 ),
                 "true_mono": wandb.Image(
-                    true_masks[0, 2, :, :].float().cpu(), mode="L"
+                    true_masks[0, 2, :, :], mode="L"
                 ),
                 "pred_lymph_probs": wandb.Image(
-                    pred_probs[0, 1, :, :].float().cpu()
+                    pred_probs[0, 1, :, :]
                 ),
                 "pred_mono_probs": wandb.Image(
-                    pred_probs[0, 2, :, :].float().cpu()
+                    pred_probs[0, 2, :, :]
                 ),
                 "pred_other_probs": wandb.Image(
-                    true_masks[0, 0, :, :].float().cpu()
+                    true_masks[0, 0, :, :]
                 ),
             }
         else:
             log_data["masks"] = {
                 "true_lymph": wandb.Image(
-                    true_masks[0, 0, :, :].float().cpu(), mode="L"
+                    true_masks[0, 0, :, :], mode="L"
                 ),
                 "true_mono": wandb.Image(
-                    true_masks[0, 1, :, :].float().cpu(), mode="L"
+                    true_masks[0, 1, :, :], mode="L"
                 ),
                 "pred_lymph_probs": wandb.Image(
-                    pred_probs[0, 0, :, :].float().cpu()
+                    pred_probs[0, 0, :, :]
                 ),
                 "pred_mono_probs": wandb.Image(
-                    pred_probs[0, 1, :, :].float().cpu()
+                    pred_probs[0, 1, :, :]
                 ),
             }
 

@@ -35,7 +35,6 @@ def train_one_epoch_mapde(
         images = model.reshape_transform(images)
         true_labels = model.reshape_transform(true_labels)
         true_labels = model.blur_cell_points(true_labels)
-
         optimizer.zero_grad()
 
         logits_pred = model(images)
@@ -67,8 +66,8 @@ def validate_one_epoch_mapde(
             data["mask"].cuda().float(),
         )
         images = model.reshape_transform(images)
-        true_labels = model.reshape_transform(true_labels)
-        true_labels = model.blur_cell_points(true_labels)
+        true_masks = model.reshape_transform(true_masks)
+        true_masks = model.blur_cell_points(true_masks)
         with torch.no_grad():
             logits_pred = model(images)
             pred_probs = torch.sigmoid(logits_pred)

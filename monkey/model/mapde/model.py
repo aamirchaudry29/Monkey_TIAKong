@@ -27,7 +27,7 @@ class MapDe(MicroNet):
         min_distance: int = 4,
         threshold_abs: float = 250,
         num_classes: int = 1,
-        filter_size: int = 30,
+        filter_size: int = 31,
     ) -> None:
         """Initialize :class:`MapDe`."""
         super().__init__(
@@ -91,8 +91,6 @@ class MapDe(MicroNet):
 
         """
         logits, _, _, _ = super().forward(input_tensor)
-        print(f"logit size {logits.size()}")
-        print(f"dist size {self.dist_filter.size()}")
         out = F.conv2d(logits, self.dist_filter, padding="same")
         return F.relu(out)
 
@@ -115,18 +113,17 @@ class MapDe(MicroNet):
         prediction_map_numpy = np.squeeze(
             prediction_map_numpy, axis=1
         )
-        print(prediction_map_numpy.shape)
         batches = prediction_map_numpy.shape[0]
         output_mask = np.zeros(shape=(batches, 252, 252))
 
         for i in range(0, batches):
+            prediction_map_numpy = prediction_map_numpy / np.max(prediction_map_numpy)
             coordinates = peak_local_max(
                 prediction_map_numpy[i],
                 min_distance=self.min_distance,
                 threshold_abs=self.threshold_abs,
                 exclude_border=False,
             )
-            print(coordinates)
             output_mask[i][coordinates[:, 0], coordinates[:, 1]] = 1
 
         return output_mask

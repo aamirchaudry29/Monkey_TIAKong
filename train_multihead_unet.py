@@ -35,7 +35,7 @@ run_config = {
         "head_2": "Weighted_BCE_Dice",
         "head_3": "Weighted_BCE_Dice",
     },
-    "loss_pos_weight": 2.0,
+    "loss_pos_weight": 5.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",

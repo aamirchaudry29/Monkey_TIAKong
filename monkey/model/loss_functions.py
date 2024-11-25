@@ -59,8 +59,8 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 
 # -------------------------------------Classes implementing loss functions---------------------------------
 class MapDe_Loss(Loss_Function):
-    def __init__(self, name, use_weights):
-        super().__init__("name", use_weights)
+    def __init__(self, use_weights=True):
+        super().__init__("MapDe_Loss", use_weights)
         self.multiclass = False
         self.pos_weight = 1000.0
 
@@ -93,6 +93,7 @@ class MapDe_Loss(Loss_Function):
                 )
         else:
             bce_loss = self.ce_loss(input, target.float())
+        return bce_loss
 
 
 class Focal_Loss(Loss_Function):
@@ -283,7 +284,6 @@ class Weighted_BCE_Dice_Loss(Loss_Function):
         clipped_logits = torch.clamp(
             input, min=epsilon, max=1.0 - epsilon
         )
-        clipped_logits = torch.sigmoid(clipped_logits)
         loss = (
             target * -clipped_logits.log() * log_weight
             + (1 - target) * -(1.0 - clipped_logits).log()
