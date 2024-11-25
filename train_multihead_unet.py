@@ -22,19 +22,20 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "multihead_unet",
+    "model_name": "multihead_unet_experiment",
     "out_channels": [2, 1, 1],
     "val_fold": 1,  # [1-5]
-    "batch_size": 16,
+    "batch_size": 64,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
-    "epochs": 50,
+    "epochs": 75,
     "loss_function": {
-        "head_1": "BCE_Dice",
-        "head_2": "BCE_Dice",
-        "head_3": "BCE_Dice",
+        "head_1": "Weighted_BCE_Dice",
+        "head_2": "Weighted_BCE_Dice",
+        "head_3": "Weighted_BCE_Dice",
     },
+    "loss_pos_weight": 10.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
@@ -51,8 +52,9 @@ IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
-
-IOconfig.set_mask_dir("/mnt/lab-share/Monkey/nuclick_masks_processed")
+if run_config['use_nuclick_masks']:
+    # Use NuClick masks
+    IOconfig.set_mask_dir("/mnt/lab-share/Monkey/nuclick_masks_processed")
 
 
 # Create model
@@ -92,7 +94,6 @@ loss_fn_dict = {
         run_config["loss_function"]["head_3"]
     ),
 }
-
 loss_fn_dict["head_1"].set_multiclass(True)
 
 activation_fn_dict = {
@@ -114,7 +115,7 @@ optimizer = torch.optim.AdamW(
     weight_decay=run_config["weight_decay"],
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, "max", factor=0.1, patience=10
+    optimizer, "max", factor=0.5, patience=10
 )
 
 
