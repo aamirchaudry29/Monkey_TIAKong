@@ -217,13 +217,18 @@ class Multitask_Dataset(Dataset):
         file_id = self.file_ids[idx]
         image = load_image(file_id, self.IOConfig)
 
-        nuclick_annotation = load_nuclick_annotation(
-            file_id, self.IOConfig
-        )
-
-        binary_mask = nuclick_annotation["binary_mask"]
-        class_mask = nuclick_annotation["class_mask"]
-        contour_mask = nuclick_annotation["contour_mask"]
+        if self.use_nuclick_masks:
+            nuclick_annotation = load_nuclick_annotation(
+                file_id, self.IOConfig
+            )
+            binary_mask = nuclick_annotation["binary_mask"]
+            class_mask = nuclick_annotation["class_mask"]
+            contour_mask = nuclick_annotation["contour_mask"]
+        else:
+            class_mask = load_mask(file_id, self.IOConfig)
+            binary_mask = class_mask_to_binary(class_mask)
+            binary_mask = dilate_mask(binary_mask, 11)
+            contour_mask = np.zeros_like(binary_mask)
 
         # augmentation
         if self.do_augment:
@@ -241,6 +246,8 @@ class Multitask_Dataset(Dataset):
             )
 
         class_mask = class_mask_to_multichannel_mask(class_mask)
+        class_mask[0] = dilate_mask(class_mask[0], 9)
+        class_mask[1] = dilate_mask(class_mask[1], 13)
         if self.include_background_channel:
             class_mask = add_background_channel(class_mask)
 
@@ -503,6 +510,7 @@ def get_detection_dataloaders(
             file_ids=train_file_ids,
             phase="Train",
             do_augment=do_augmentation,
+            use_nuclick_masks=use_nuclick_masks,
             include_background_channel=include_background_channel,
         )
         val_dataset = Multitask_Dataset(
@@ -510,6 +518,7 @@ def get_detection_dataloaders(
             file_ids=test_file_ids,
             phase="Test",
             do_augment=False,
+            use_nuclick_masks=use_nuclick_masks,
             include_background_channel=include_background_channel,
         )
     else:

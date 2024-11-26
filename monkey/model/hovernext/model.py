@@ -258,7 +258,6 @@ def get_custom_hovernext(
     return model
 
 
-
 class Conv2dReLU(nn.Sequential):
     def __init__(
         self,

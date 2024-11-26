@@ -38,7 +38,7 @@ run_config = {
         "head_2": "softmax",
     },
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
-    "include_background_channel": True
+    "include_background_channel": True,
 }
 pprint(run_config)
 
@@ -65,7 +65,9 @@ model.to("cuda")
 # -----------------------------------------------------------------------
 
 
-IOconfig.set_checkpoint_save_dir(run_name=f"fold_{run_config['val_fold']}")
+IOconfig.set_checkpoint_save_dir(
+    run_name=f"fold_{run_config['val_fold']}"
+)
 os.environ["WANDB_DIR"] = IOconfig.save_dir
 
 # Get dataloaders for task
@@ -76,7 +78,9 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
-    include_background_channel=run_config["include_background_channel"]
+    include_background_channel=run_config[
+        "include_background_channel"
+    ],
 )
 
 

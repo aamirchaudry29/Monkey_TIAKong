@@ -21,8 +21,6 @@ def load_detectors() -> list[torch.nn.Module]:
     detectors = []
     detector_weight_paths = [
         os.path.join(MODEL_DIR, "1.pth"),
-        os.path.join(MODEL_DIR, "2.pth"),
-        os.path.join(MODEL_DIR, "3.pth"),
     ]
     for weight_path in detector_weight_paths:
         detector = get_multihead_efficientunet(
