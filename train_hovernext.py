@@ -24,9 +24,9 @@ run_config = {
     "val_fold": 1,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.001,
+    "learning_rate": 0.0004,
     "weight_decay": 0.01,
-    "epochs": 100,
+    "epochs": 75,
     "loss_function": {
         "head_1": "Weighted_BCE_Dice",
         "head_2": "Weighted_CE_Dice",
@@ -38,6 +38,7 @@ run_config = {
         "head_2": "softmax",
     },
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
+    "include_background_channel": True
 }
 pprint(run_config)
 
@@ -64,7 +65,7 @@ model.to("cuda")
 # -----------------------------------------------------------------------
 
 
-IOconfig.set_checkpoint_save_dir(run_name=f"final")
+IOconfig.set_checkpoint_save_dir(run_name=f"fold_{run_config['val_fold']}")
 os.environ["WANDB_DIR"] = IOconfig.save_dir
 
 # Get dataloaders for task
@@ -75,6 +76,7 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
+    include_background_channel=run_config["include_background_channel"]
 )
 
 
@@ -116,12 +118,12 @@ scheduler = lr_scheduler.ReduceLROnPlateau(
 
 
 # Create WandB session
+# run = None
 run = wandb.init(
     project=f"{run_config['project_name']}_{run_config['model_name']}",
-    name=f"final",
+    name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
-# run = None
 
 # Start training
 model = multitask_train_loop(

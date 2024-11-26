@@ -152,17 +152,24 @@ class CrossEntropy_Loss(Loss_Function):
 class MSE_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("MSE", False)
+        self.multiclass = False
+        self.pos_weight = 1000.0
+    
+    def set_multiclass(self, multiclass):
+        self.multiclass = multiclass
+
+    def set_weight(self, pos_weight):
+        self.pos_weight = pos_weight
 
     def compute_loss(
         self,
         input: Tensor,
         target: Tensor,
-        pos_Weight: float = 1000.0,
     ):
         assert (
             input.size() == target.size()
         )  # "Input size {} must be the same as target size {}".format(input.size(), target.size())
-        target = target * pos_Weight
+        target = target * self.pos_weight
         return nn.MSELoss()(input, target)
 
         ####
@@ -315,7 +322,7 @@ class Weighted_CE_Dice_Loss(Loss_Function):
         # BxCxHxW -> BxHxW
         target_indices = torch.argmax(target, dim=1)
 
-        return nn.CrossEntropyLoss(weight=self.weights)(
+        return nn.CrossEntropyLoss(weight=self.weights, reduction='sum')(
             input, target_indices
         ) + dice_loss(
             input.float(), target.float(), multiclass=self.multiclass

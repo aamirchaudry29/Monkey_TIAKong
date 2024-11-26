@@ -36,15 +36,6 @@ def hovernext_train_one_epoch(
             (binary_true_masks, contour_masks), dim=1
         )
         head_2_true_masks = data["class_mask"].cuda().float()
-        # background_true_masks = (
-        #     data["class_mask"][:, 0:1, :, :].cuda().float()
-        # )
-        # lymph_true_masks = (
-        #     data["class_mask"][:, 1:2, :, :].cuda().float()
-        # )
-        # mono_true_masks = (
-        #     data["class_mask"][:, 2:3, :, :].cuda().float()
-        # )
 
         optimizer.zero_grad()
 
@@ -286,7 +277,8 @@ def validate_one_epoch(
         mono_pred_probs=pred_3,
         contour_pred_probs=pred_1[:, 1:2, :, :],
     )
-    wandb_run.log(log_data)
+    if wandb_run is not None:
+        wandb_run.log(log_data)
 
     # avg_score = running_val_score / len(validation_loader.sampler)
 

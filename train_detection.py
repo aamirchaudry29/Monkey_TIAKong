@@ -29,7 +29,7 @@ run_config = {
     "learning_rate": 0.001,
     "weight_decay": 0.01,
     "epochs": 50,
-    "loss_function": "MapDe_Loss",
+    "loss_function": "MSE",
     "loss_pos_weight": 1000.0,
     "disk_radius": 1,  # Ignored if using NuClick masks
     "regression_map": False,  # Ignored if using NuClick masks

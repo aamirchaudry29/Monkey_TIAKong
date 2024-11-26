@@ -202,6 +202,7 @@ class Multitask_Dataset(Dataset):
         self.do_augment = do_augment
         self.use_nuclick_masks = use_nuclick_masks
         self.module = "multiclass_detection"
+        self.include_background_channel = include_background_channel
 
         if self.do_augment:
             self.augmentation = get_augmentation(
@@ -502,12 +503,14 @@ def get_detection_dataloaders(
             file_ids=train_file_ids,
             phase="Train",
             do_augment=do_augmentation,
+            include_background_channel=include_background_channel,
         )
         val_dataset = Multitask_Dataset(
             IOConfig=IOConfig,
             file_ids=test_file_ids,
             phase="Test",
             do_augment=False,
+            include_background_channel=include_background_channel,
         )
     else:
         raise ValueError("Invalid dataset name")
