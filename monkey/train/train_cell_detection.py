@@ -70,9 +70,9 @@ def validate_one_epoch_mapde(
         true_masks = model.reshape_transform(true_masks)
         true_masks = model.blur_cell_points(true_masks)
         with torch.no_grad():
-            probs_pred = model(images)
-            # probs_pred = model.logits_to_probs(logits_pred)
-            pred_cell_masks = model.postproc(probs_pred)
+            logits_pred = model(images)
+            probs_pred = model.logits_to_probs(logits_pred)
+            pred_cell_masks = model.postproc(logits_pred)
             pred_cell_masks = pred_cell_masks[:, np.newaxis, :, :]
             pred_cell_masks = torch.tensor(
                 pred_cell_masks, device="cuda", dtype=float
@@ -81,7 +81,7 @@ def validate_one_epoch_mapde(
 
             # Compute val loss
             val_loss = loss_fn.compute_loss(
-                probs_pred, true_masks
+                logits_pred, true_masks
             ).item()
 
         running_val_score += val_loss * images.size(0)

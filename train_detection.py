@@ -29,8 +29,8 @@ run_config = {
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
     "epochs": 50,
-    "loss_function": "Weighted_BCE_Dice",
-    "loss_pos_weight": 5.0,
+    "loss_function": "MapDe_Loss",
+    "loss_pos_weight": 1000.0,
     "disk_radius": 1,  # Ignored if using NuClick masks
     "regression_map": False,  # Ignored if using NuClick masks
     "do_augmentation": True,
@@ -59,7 +59,7 @@ if run_config["use_nuclick_masks"]:
 model = MapDe(
     3,
     min_distance=15,
-    threshold_abs=0.5,
+    threshold_abs=50,
     num_classes=1,
     filter_size=31,
 )
