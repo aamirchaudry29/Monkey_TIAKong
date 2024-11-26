@@ -15,6 +15,150 @@ from monkey.model.utils import get_multiclass_patch_F1_score_batch
 from monkey.train.utils import compose_multitask_log_images
 
 
+def hovernext_train_one_epoch(
+    model: nn.Module,
+    training_loader: DataLoader,
+    optimizer: Optimizer,
+    loss_fn_dict: dict[str, Loss_Function],
+    run_config: dict,
+    activation_dict: dict[str, torch.nn.Module],
+):
+    epoch_loss = 0.0
+    model.train()
+    for i, data in enumerate(
+        tqdm(training_loader, desc="train", leave=False)
+    ):
+        images = data["image"].cuda().float()
+
+        binary_true_masks = data["binary_mask"].cuda().float()
+        contour_masks = data["contour_mask"].cuda().float()
+        head_1_true_masks = torch.concatenate(
+            (binary_true_masks, contour_masks), dim=1
+        )
+        head_2_true_masks = data["class_mask"].cuda().float()
+        # background_true_masks = (
+        #     data["class_mask"][:, 0:1, :, :].cuda().float()
+        # )
+        # lymph_true_masks = (
+        #     data["class_mask"][:, 1:2, :, :].cuda().float()
+        # )
+        # mono_true_masks = (
+        #     data["class_mask"][:, 2:3, :, :].cuda().float()
+        # )
+
+        optimizer.zero_grad()
+
+        logits_pred = model(images)
+
+        head_1_logits = logits_pred[:, :2, :, :]
+        head_2_logits = logits_pred[:, 2:, :, :]
+
+        pred_1 = activation_dict["head_1"](head_1_logits)
+        pred_2 = activation_dict["head_2"](head_2_logits)
+
+        loss_1 = loss_fn_dict["head_1"].compute_loss(
+            pred_1, head_1_true_masks
+        )
+        loss_2 = loss_fn_dict["head_2"].compute_loss(
+            pred_2, head_2_true_masks
+        )
+
+        sum_loss = loss_1 + loss_2
+        sum_loss.backward()
+        optimizer.step()
+
+        epoch_loss += sum_loss.item() * images.size(0)
+
+    return epoch_loss / len(training_loader.sampler)
+
+
+def hovernext_validate_one_epoch(
+    model: nn.Module,
+    validation_loader: DataLoader,
+    run_config: dict,
+    activation_dict: dict[str, torch.nn.Module],
+    wandb_run: Optional[wandb.run] = None,
+):
+    running_overall_score = 0.0
+    running_lymph_score = 0.0
+    running_mono_score = 0.0
+
+    model.eval()
+    for i, data in enumerate(
+        tqdm(validation_loader, desc="validation", leave=False)
+    ):
+        images = data["image"].cuda().float()
+
+        binary_true_masks = data["binary_mask"].cuda().float()
+        contour_masks = data["contour_mask"].cuda().float()
+        lymph_true_masks = (
+            data["class_mask"][:, 1:2, :, :].cuda().float()
+        )
+        mono_true_masks = (
+            data["class_mask"][:, 2:3, :, :].cuda().float()
+        )
+
+        with torch.no_grad():
+            logits_pred = model(images)
+            head_1_logits = logits_pred[:, :2, :, :]
+            head_2_logits = logits_pred[:, 2:, :, :]
+
+            pred_1 = activation_dict["head_1"](head_1_logits)
+
+            pred_2 = activation_dict["head_2"](head_2_logits)
+            lymph_probs = pred_2[:, 1:2, :, :]
+            mono_probs = pred_2[:, 2:3, :, :]
+            class_pred = torch.argmax(pred_2, dim=1, keepdim=True)
+
+            overall_pred_binary = (pred_1 > 0.5).float()
+            lymph_pred_binary = torch.where(class_pred == 1, 1.0, 0.0)
+            mono_pred_binary = torch.where(class_pred == 2, 1.0, 0.0)
+
+            # Compute detection F1 score
+            overall_metrics = get_multiclass_patch_F1_score_batch(
+                overall_pred_binary[:, 0:1, :, :],
+                binary_true_masks,
+                pred_1[:, 0:1, :, :],
+            )
+            lymph_metrics = get_multiclass_patch_F1_score_batch(
+                lymph_pred_binary, lymph_true_masks, lymph_probs
+            )
+            mono_metrics = get_multiclass_patch_F1_score_batch(
+                mono_pred_binary, mono_true_masks, mono_probs
+            )
+
+        running_overall_score += (
+            overall_metrics["F1"]
+        ) * images.size(0)
+        running_lymph_score += (lymph_metrics["F1"]) * images.size(0)
+        running_mono_score += (mono_metrics["F1"]) * images.size(0)
+
+    # Log an example prediction to WandB
+    log_data = compose_multitask_log_images(
+        images,
+        binary_true_masks,
+        lymph_true_masks,
+        mono_true_masks,
+        contour_masks,
+        overall_pred_probs=pred_1[:, 0:1, :, :],
+        lymph_pred_probs=lymph_probs,
+        mono_pred_probs=mono_probs,
+        contour_pred_probs=pred_1[:, 1:2, :, :],
+    )
+    wandb_run.log(log_data)
+
+    # avg_score = running_val_score / len(validation_loader.sampler)
+
+    return {
+        "overall_F1": running_overall_score
+        / len(validation_loader.sampler),
+        "lymph_F1": running_lymph_score
+        / len(validation_loader.sampler),
+        "mono_F1": running_mono_score
+        / len(validation_loader.sampler),
+    }
+
+
 def train_one_epoch(
     model: nn.Module,
     training_loader: DataLoader,
@@ -179,7 +323,15 @@ def multitask_train_loop(
     ):
         pprint(f"EPOCH {epoch}")
 
-        avg_train_loss = train_one_epoch(
+        # avg_train_loss = train_one_epoch(
+        #     model,
+        #     train_loader,
+        #     optimizer,
+        #     loss_fn_dict,
+        #     run_config,
+        #     activation_dict,
+        # )
+        avg_train_loss = hovernext_train_one_epoch(
             model,
             train_loader,
             optimizer,
@@ -187,13 +339,20 @@ def multitask_train_loop(
             run_config,
             activation_dict,
         )
-        avg_scores = validate_one_epoch(
+        avg_scores = hovernext_validate_one_epoch(
             model,
             validation_loader,
             run_config,
             activation_dict,
             wandb_run,
         )
+        # avg_scores = validate_one_epoch(
+        #     model,
+        #     validation_loader,
+        #     run_config,
+        #     activation_dict,
+        #     wandb_run,
+        # )
 
         sum_val_score = (
             avg_scores["overall_F1"]

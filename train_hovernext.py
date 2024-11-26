@@ -1,5 +1,4 @@
-# Training code for multihead efficientunet
-
+# Training code for customized hovernext
 import os
 from pprint import pprint
 
@@ -9,9 +8,7 @@ from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
-from monkey.model.efficientunetb0.architecture import (
-    get_multihead_efficientunet,
-)
+from monkey.model.hovernext.model import get_model
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
 from monkey.train.train_multitask_cell_detection import (
@@ -22,9 +19,9 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "multihead_unet_experiment",
-    "out_channels": [2, 1, 1],
-    "val_fold": 5,  # [1-5]
+    "model_name": "hovernext",
+    "out_channels": [2, 3],  # inst=2, cls=3
+    "val_fold": 1,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
     "learning_rate": 0.001,
@@ -32,18 +29,15 @@ run_config = {
     "epochs": 100,
     "loss_function": {
         "head_1": "Weighted_BCE_Dice",
-        "head_2": "Weighted_BCE_Dice",
-        "head_3": "Weighted_BCE_Dice",
+        "head_2": "Weighted_CE_Dice",
     },
     "loss_pos_weight": 5.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
-        "head_2": "sigmoid",
-        "head_3": "sigmoid",
+        "head_2": "softmax",
     },
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
-    "train_full_dataset": True,  # Train using entire dataset for final model
 }
 pprint(run_config)
 
@@ -61,8 +55,10 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-model = get_multihead_efficientunet(
-    out_channels=run_config["out_channels"], pretrained=True
+model = get_model(
+    out_channels_cls=run_config["out_channels"][1],
+    out_channels_inst=run_config["out_channels"][0],
+    pretrained=True,
 )
 model.to("cuda")
 # -----------------------------------------------------------------------
@@ -79,7 +75,6 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
-    train_full_dataset=run_config["train_full_dataset"],
 )
 
 
@@ -92,14 +87,13 @@ loss_fn_dict = {
     "head_2": get_loss_function(
         run_config["loss_function"]["head_2"]
     ),
-    "head_3": get_loss_function(
-        run_config["loss_function"]["head_3"]
-    ),
 }
 loss_fn_dict["head_1"].set_multiclass(True)
 loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
-loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
-loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_2"].set_weight(
+    torch.tensor([1.0, 5.0, 5.0], device="cuda")
+)
+
 
 activation_fn_dict = {
     "head_1": get_activation_function(
@@ -107,9 +101,6 @@ activation_fn_dict = {
     ),
     "head_2": get_activation_function(
         run_config["activation_function"]["head_2"]
-    ),
-    "head_3": get_activation_function(
-        run_config["activation_function"]["head_3"]
     ),
 }
 
@@ -120,7 +111,7 @@ optimizer = torch.optim.AdamW(
     weight_decay=run_config["weight_decay"],
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, "min", factor=0.5, patience=10
+    optimizer, "max", factor=0.5, patience=10
 )
 
 

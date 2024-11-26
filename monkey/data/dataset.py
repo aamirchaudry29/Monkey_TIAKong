@@ -194,6 +194,7 @@ class Multitask_Dataset(Dataset):
         phase: str = "train",
         do_augment: bool = True,
         use_nuclick_masks: bool = True,
+        include_background_channel: bool = False,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -239,6 +240,8 @@ class Multitask_Dataset(Dataset):
             )
 
         class_mask = class_mask_to_multichannel_mask(class_mask)
+        if self.include_background_channel:
+            class_mask = add_background_channel(class_mask)
 
         # HxW -> 1xHxW
         binary_mask = binary_mask[np.newaxis, :, :]
