@@ -29,7 +29,8 @@ run_config = {
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
     "epochs": 50,
-    "loss_function": "MapDe_Loss",
+    "loss_function": "Weighted_BCE_Dice",
+    "loss_pos_weight": 5.0,
     "disk_radius": 1,  # Ignored if using NuClick masks
     "regression_map": False,  # Ignored if using NuClick masks
     "do_augmentation": True,
@@ -55,7 +56,7 @@ if run_config["use_nuclick_masks"]:
 
 # Create model
 # model = get_efficientunet_b0_MBConv(out_channels=2)
-model = MapDe(3, 30, threshold_abs=0.5, num_classes=1, filter_size=31)
+model = MapDe(3, min_distance=15, threshold_abs=0.5, num_classes=1, filter_size=31)
 model.to("cuda")
 # -----------------------------------------------------------------------
 
@@ -84,15 +85,11 @@ train_loader, val_loader = get_detection_dataloaders(
 
 # Create loss function, optimizer and scheduler
 loss_fn = get_loss_function(run_config["loss_function"])
+
 if run_config["module"] == "multiclass_detection":
     loss_fn.set_multiclass(True)
     print("using multiclass loss")
-    if run_config["include_background_channel"]:
-        loss_fn.set_weight(
-            torch.tensor([0.2, 0.4, 0.4], device="cuda")
-        )
-    else:
-        loss_fn.set_weight(torch.tensor([0.5, 0.5], device="cuda"))
+loss_fn.set_weight(run_config["loss_pos_weight"])
 activation_fn = get_activation_function(
     run_config["activation_function"]
 )
@@ -102,10 +99,9 @@ optimizer = torch.optim.AdamW(
     weight_decay=run_config["weight_decay"],
     # momentum=0.9,
 )
-# scheduler = lr_scheduler.ReduceLROnPlateau(
-#     optimizer, "max", factor=0.1, patience=10
-# )
-scheduler = None
+scheduler = lr_scheduler.ReduceLROnPlateau(
+    optimizer, "min", factor=0.5, patience=5
+)
 
 # Create WandB session
 run = wandb.init(

@@ -24,12 +24,12 @@ run_config = {
     "project_name": "Monkey_Multiclass_Detection",
     "model_name": "multihead_unet_experiment",
     "out_channels": [2, 1, 1],
-    "val_fold": 1,  # [1-5]
+    "val_fold": 5,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
     "learning_rate": 0.001,
     "weight_decay": 0.01,
-    "epochs": 50,
+    "epochs": 100,
     "loss_function": {
         "head_1": "Weighted_BCE_Dice",
         "head_2": "Weighted_BCE_Dice",
@@ -42,7 +42,8 @@ run_config = {
         "head_2": "sigmoid",
         "head_3": "sigmoid",
     },
-    "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks
+    "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
+    "train_full_dataset": True # Train using entire dataset for final model
 }
 pprint(run_config)
 
@@ -68,7 +69,7 @@ model.to("cuda")
 
 
 IOconfig.set_checkpoint_save_dir(
-    run_name=f"fold_{run_config['val_fold']}"
+    run_name=f"final"
 )
 os.environ["WANDB_DIR"] = IOconfig.save_dir
 
@@ -80,6 +81,7 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
+    train_full_dataset=run_config['train_full_dataset']
 )
 
 
@@ -120,14 +122,14 @@ optimizer = torch.optim.AdamW(
     weight_decay=run_config["weight_decay"],
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, "max", factor=0.5, patience=10
+    optimizer, "min", factor=0.5, patience=10
 )
 
 
 # Create WandB session
 run = wandb.init(
     project=f"{run_config['project_name']}_{run_config['model_name']}",
-    name=f"fold_{run_config['val_fold']}",
+    name=f"final",
     config=run_config,
 )
 # run = None

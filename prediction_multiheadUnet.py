@@ -25,42 +25,42 @@ def cross_validation(fold_number: int = 1):
     fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
 
-    # config = PredictionIOConfig(
-    #     wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
-    #     mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
-    #     output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
-    #     patch_size=256,
-    #     resolution=0,
-    #     units="level",
-    #     stride=224,
-    #     min_size=3,
-    # )
     config = PredictionIOConfig(
-        wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
-        mask_dir="/home/u1910100/Downloads/Monkey/images/tissue-masks",
-        output_dir=f"/home/u1910100/Documents/Monkey/local_output/{detector_model_name}/Fold_{fold}",
+        wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
+        mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
+        output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
         patch_size=256,
         resolution=0,
         units="level",
-        stride=216,
+        stride=224,
     )
-
-    # split_info = open_json_file(
-    #     "/mnt/lab-share/Monkey/patches_256/wsi_level_split.json"
+    # config = PredictionIOConfig(
+    #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
+    #     mask_dir="/home/u1910100/Downloads/Monkey/images/tissue-masks",
+    #     output_dir=f"/home/u1910100/Documents/Monkey/local_output/{detector_model_name}/Fold_{fold}",
+    #     patch_size=256,
+    #     resolution=0,
+    #     units="level",
+    #     stride=216,
     # )
+
     split_info = open_json_file(
-        "/home/u1910100/Documents/Monkey/patches_256/wsi_level_split.json"
+        "/mnt/lab-share/Monkey/patches_256/wsi_level_split.json"
     )
+    # split_info = open_json_file(
+    #     "/home/u1910100/Documents/Monkey/patches_256/wsi_level_split.json"
+    # )
 
     val_wsi_files = split_info[f"Fold_{fold}"]["test_files"]
 
     print(val_wsi_files)
 
     # Load models
+    # detector_weight_paths = [
+    #     f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_100.pth",
+    # ]
     detector_weight_paths = [
-        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_1/epoch_50.pth",
-        # f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_2/epoch_75.pth",
-        # f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_4/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_100.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
@@ -113,6 +113,6 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(1, 2):
+    for i in range(1, 6):
         pprint(f"Fold {i}")
         cross_validation(i)

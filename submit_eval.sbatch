@@ -3,8 +3,8 @@
 #SBATCH --job-name=monkey # Job name for tracking
 #SBATCH --partition=cpu  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=5      # Number of CPU threads used by your job
-#SBATCH --mem=20000             # Memory (mb) to use 
+#SBATCH --cpus-per-task=10      # Number of CPU threads used by your job
+#SBATCH --mem=32000             # Memory (mb) to use 
 #SBATCH --time=1:00:00      # Job time limit
 #
 #SBATCH --output=/home/u1910100/logs/joboutput_%j.out # Standard out from your job

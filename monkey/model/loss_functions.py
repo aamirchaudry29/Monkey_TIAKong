@@ -71,15 +71,15 @@ class MapDe_Loss(Loss_Function):
         self.pos_weight = pos_weight
 
     def ce_loss(self, input: Tensor, target: Tensor):
-        epsilon = 1e-7
+        # epsilon = 1e-7
         log_weight = 1 + (self.pos_weight - 1) * target
-        clipped_logits = torch.clamp(
-            input, min=epsilon, max=1.0 - epsilon
-        )
-        clipped_logits = torch.sigmoid(clipped_logits)
+        # clipped_logits = torch.clamp(
+        #     input, min=epsilon, max=1.0 - epsilon
+        # )
+        # clipped_logits = torch.sigmoid(clipped_logits)
         loss = (
-            target * -clipped_logits.log() * log_weight
-            + (1 - target) * -(1.0 - clipped_logits).log()
+            target * -input.log() * log_weight
+            + (1 - target) * -(1.0 - input).log()
         )
         return torch.mean(torch.flatten(loss))
 

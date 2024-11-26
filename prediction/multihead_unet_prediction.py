@@ -232,8 +232,8 @@ def process_tile_detection_masks(
             centroid[0],
             region["mean_intensity"],
         )
-        if confidence < 0.3:
-            continue
+        # if confidence < 0.3:
+        #     continue
         c1 = c + x_start
         r1 = r + y_start
 
@@ -254,8 +254,8 @@ def process_tile_detection_masks(
             centroid[0],
             region["mean_intensity"],
         )
-        if confidence < 0.3:
-            continue
+        # if confidence < 0.3:
+        #     continue
         c1 = c + x_start
         r1 = r + y_start
 
@@ -276,8 +276,8 @@ def process_tile_detection_masks(
             centroid[0],
             region["mean_intensity"],
         )
-        if confidence < 0.3:
-            continue
+        # if confidence < 0.3:
+        #     continue
         c1 = c + x_start
         r1 = r + y_start
 

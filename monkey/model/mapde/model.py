@@ -600,7 +600,7 @@ class MapDe(MicroNet):
         """
         logits, _, _, _ = super().forward(input_tensor)
         out = F.conv2d(logits, self.dist_filter, padding="same")
-        return F.relu(out)
+        return F.sigmoid(out)
 
     def postproc(self, prediction_map: torch.Tensor) -> np.ndarray:
         """Post-processing script for MicroNet.

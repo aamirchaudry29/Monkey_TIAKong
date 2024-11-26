@@ -99,7 +99,7 @@ class DetectionDataset(Dataset):
 
         if self.do_augment:
             self.augmentation = get_augmentation(
-                module=self.module, gt_type="mask", aug_prob=0.7
+                module=self.module, gt_type="mask", aug_prob=0.9
             )
 
     def __len__(self) -> int:
@@ -440,6 +440,7 @@ def get_detection_dataloaders(
     do_augmentation: bool = False,
     use_nuclick_masks: bool = False,
     include_background_channel: bool = False,
+    train_full_dataset: bool = False
 ):
     """
     Get training and validation dataloaders
@@ -450,10 +451,17 @@ def get_detection_dataloaders(
 
     if module not in ["detection", "multiclass_detection"]:
         raise ValueError(f"Module {module} is in invalid")
+    
+    if val_fold not in [1,2,3,4,5]:
+        raise ValueError(f"val_fold {val_fold} is in invalid")
 
     split = get_split_from_json(IOConfig, val_fold)
     train_file_ids = split["train_file_ids"]
     test_file_ids = split["test_file_ids"]
+
+    if train_full_dataset:
+        # Train using entire dataset
+        train_file_ids.extend(test_file_ids)
 
     train_sampler = get_detection_sampler(
         file_ids=train_file_ids, IOConfig=IOConfig

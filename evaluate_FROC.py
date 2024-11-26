@@ -11,25 +11,25 @@ from monkey.data.data_utils import extract_id, open_json_file
 
 
 def compute_FROC(fold: int = 1):
-    # GROUND_TRUTH_DIRECTORY = (
-    #     "/mnt/lab-share/Monkey/Dataset/annotations/json"
-    # )
     GROUND_TRUTH_DIRECTORY = (
-        "/home/u1910100/Downloads/Monkey/annotations/json"
+        "/mnt/lab-share/Monkey/Dataset/annotations/json"
     )
+    # GROUND_TRUTH_DIRECTORY = (
+    #     "/home/u1910100/Downloads/Monkey/annotations/json"
+    # )
 
     FOLD = fold
     model_name = "multihead_unet_experiment"
-    # PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
-    PREDICT_DIR = f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{FOLD}"
+    PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
+    # PREDICT_DIR = f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{FOLD}"
     SPACING_LEVEL0 = 0.24199951445730394
 
-    # split_info = open_json_file(
-    #     "/mnt/lab-share/Monkey/patches_256/wsi_level_split.json"
-    # )
     split_info = open_json_file(
-        "/home/u1910100/Documents/Monkey/patches_256/wsi_level_split.json"
+        "/mnt/lab-share/Monkey/patches_256/wsi_level_split.json"
     )
+    # split_info = open_json_file(
+    #     "/home/u1910100/Documents/Monkey/patches_256/wsi_level_split.json"
+    # )
 
     val_wsi_files = split_info[f"Fold_{FOLD}"]["test_files"]
 
@@ -149,8 +149,8 @@ def compute_FROC(fold: int = 1):
 
 
 if __name__ == "__main__":
-    # folds = [1, 2, 3, 4, 5]
-    folds = [1]
+    folds = [1, 2, 3, 4, 5]
+    # folds = [1]
     with Pool(5) as p:
         results = p.map(compute_FROC, folds)
 

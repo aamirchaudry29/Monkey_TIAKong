@@ -20,7 +20,7 @@ def train_one_epoch_mapde(
     model: model.MapDe,
     training_loader: DataLoader,
     optimizer: Optimizer,
-    loss_fn: MapDe_Loss,
+    loss_fn: Loss_Function,
     run_config: dict,
 ):
     epoch_loss = 0.0
@@ -37,8 +37,8 @@ def train_one_epoch_mapde(
         true_labels = model.blur_cell_points(true_labels)
         optimizer.zero_grad()
 
-        logits_pred = model(images)
-        probs_pred = model.logits_to_probs(logits_pred)
+        probs_pred = model(images)
+
 
         loss = loss_fn.compute_loss(probs_pred, true_labels)
         loss.backward()
@@ -53,7 +53,7 @@ def validate_one_epoch_mapde(
     model: model.MapDe,
     validation_loader: DataLoader,
     run_config: dict,
-    loss_fn: MapDe_Loss,
+    loss_fn: Loss_Function,
     wandb_run: Optional[wandb.run] = None,
 ):
     running_val_score = 0.0
@@ -71,10 +71,11 @@ def validate_one_epoch_mapde(
         true_masks = model.reshape_transform(true_masks)
         true_masks = model.blur_cell_points(true_masks)
         with torch.no_grad():
-            logits_pred = model(images)
-            probs_pred = model.logits_to_probs(logits_pred)
-            pred_cell_masks = model.postproc(logits_pred)
+            probs_pred = model(images)
+            # probs_pred = model.logits_to_probs(logits_pred)
+            pred_cell_masks = model.postproc(probs_pred)
             pred_cell_masks = pred_cell_masks[:, np.newaxis, :, :]
+            pred_cell_masks = torch.tensor(pred_cell_masks, device='cuda', dtype=float)
             pred_cell_masks = model.blur_cell_points(pred_cell_masks)
 
             # Compute val loss
@@ -234,6 +235,7 @@ def train_det_net(
             model,
             validation_loader,
             run_config,
+            loss_fn,
             wandb_run,
         )
 

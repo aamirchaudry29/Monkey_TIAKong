@@ -202,7 +202,8 @@ def multitask_train_loop(
         )
 
         if scheduler is not None:
-            scheduler.step(sum_val_score)
+            # scheduler.step(sum_val_score)
+            scheduler.step(avg_train_loss)
 
         log_data = {
             "Epoch": epoch,

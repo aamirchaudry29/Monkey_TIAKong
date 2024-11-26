@@ -4,7 +4,7 @@ import numpy as np
 
 
 def get_augmentation(
-    module: str, gt_type=None, augment=True, aug_prob=0.7
+    module: str, gt_type=None, augment=True, aug_prob=0.9
 ):
     if module == "detection" or module == "multiclass_detection":
         aug = alb.Compose(
@@ -54,7 +54,7 @@ def get_augmentation(
                 ),
                 alb.Flip(p=0.8),
             ],
-            p=0.85,
+            p=aug_prob,
             additional_targets={
                 "class_mask": "mask",
                 "contour_mask": "mask",
