@@ -97,11 +97,11 @@ def compose_multitask_log_images(
     overall_true_masks: Tensor,
     lymph_true_masks: Tensor,
     mono_true_masks: Tensor,
-    contour_true_masks: Tensor,
+    contour_true_masks: Tensor | None,
     overall_pred_probs: Tensor,
     lymph_pred_probs: Tensor,
     mono_pred_probs: Tensor,
-    contour_pred_probs: Tensor,
+    contour_pred_probs: Tensor | None,
 ) -> dict:
 
     log_data = {}
@@ -109,9 +109,6 @@ def compose_multitask_log_images(
     log_data["masks"] = {
         "true_overall": wandb.Image(
             overall_true_masks[0, 0, :, :].float().cpu(), mode="L"
-        ),
-        "true_contour": wandb.Image(
-            contour_true_masks[0, 0, :, :].float().cpu(), mode="L"
         ),
         "true_lymph": wandb.Image(
             lymph_true_masks[0, 0, :, :].float().cpu(), mode="L"
@@ -128,9 +125,14 @@ def compose_multitask_log_images(
         "pred_overall_probs": wandb.Image(
             overall_pred_probs[0, 0, :, :].float().cpu()
         ),
-        "pred_contour_probs": wandb.Image(
-            contour_pred_probs[0, 0, :, :].float().cpu()
-        ),
     }
+    if contour_true_masks is not None:
+        log_data['masks']['true_contour'] = wandb.Image(
+            contour_true_masks[0, 0, :, :].float().cpu(), mode="L"
+        )
+    if contour_pred_probs is not None:
+        log_data['masks']['pred_contour_probs'] = wandb.Image(
+            contour_pred_probs[0, 0, :, :].float().cpu(), mode="L"
+        )
 
     return log_data

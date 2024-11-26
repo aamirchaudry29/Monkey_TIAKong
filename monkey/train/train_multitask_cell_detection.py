@@ -31,30 +31,41 @@ def hovernext_train_one_epoch(
         images = data["image"].cuda().float()
 
         binary_true_masks = data["binary_mask"].cuda().float()
-        contour_masks = data["contour_mask"].cuda().float()
-        head_1_true_masks = torch.concatenate(
-            (binary_true_masks, contour_masks), dim=1
+        # contour_masks = data["contour_mask"].cuda().float()
+        # head_1_true_masks = torch.concatenate(
+        #     (binary_true_masks, contour_masks), dim=1
+        # )
+        # head_2_true_masks = data["class_mask"].cuda().float()
+        lymph_true_masks = (
+            data["class_mask"][:, 0:1, :, :].cuda().float()
         )
-        head_2_true_masks = data["class_mask"].cuda().float()
+        mono_true_masks = (
+            data["class_mask"][:, 1:2, :, :].cuda().float()
+        )
 
         optimizer.zero_grad()
 
         logits_pred = model(images)
 
-        head_1_logits = logits_pred[:, :2, :, :]
-        head_2_logits = logits_pred[:, 2:, :, :]
+        head_1_logits = logits_pred[:, 0:1, :, :]
+        head_2_logits = logits_pred[:, 1:2, :, :]
+        head_3_logits = logits_pred[:, 2:3, :, :]
 
         pred_1 = activation_dict["head_1"](head_1_logits)
         pred_2 = activation_dict["head_2"](head_2_logits)
+        pred_3 = activation_dict["head_3"](head_3_logits)
 
         loss_1 = loss_fn_dict["head_1"].compute_loss(
-            pred_1, head_1_true_masks
+            pred_1, binary_true_masks
         )
         loss_2 = loss_fn_dict["head_2"].compute_loss(
-            pred_2, head_2_true_masks
+            pred_2, lymph_true_masks
+        )
+        loss_3 = loss_fn_dict["head_3"].compute_loss(
+            pred_3, mono_true_masks
         )
 
-        sum_loss = loss_1 + loss_2
+        sum_loss = loss_1 + loss_2 + loss_3
         sum_loss.backward()
         optimizer.step()
 
@@ -81,41 +92,40 @@ def hovernext_validate_one_epoch(
         images = data["image"].cuda().float()
 
         binary_true_masks = data["binary_mask"].cuda().float()
-        contour_masks = data["contour_mask"].cuda().float()
+        # contour_masks = data["contour_mask"].cuda().float()
         lymph_true_masks = (
-            data["class_mask"][:, 1:2, :, :].cuda().float()
+            data["class_mask"][:, 0:1, :, :].cuda().float()
         )
         mono_true_masks = (
-            data["class_mask"][:, 2:3, :, :].cuda().float()
+            data["class_mask"][:, 1:2, :, :].cuda().float()
         )
 
         with torch.no_grad():
             logits_pred = model(images)
-            head_1_logits = logits_pred[:, :2, :, :]
-            head_2_logits = logits_pred[:, 2:, :, :]
+            head_1_logits = logits_pred[:, 0:1, :, :]
+            head_2_logits = logits_pred[:, 1:2, :, :]
+            head_3_logits = logits_pred[:, 2:3, :, :]
 
             pred_1 = activation_dict["head_1"](head_1_logits)
-
             pred_2 = activation_dict["head_2"](head_2_logits)
-            lymph_probs = pred_2[:, 1:2, :, :]
-            mono_probs = pred_2[:, 2:3, :, :]
-            class_pred = torch.argmax(pred_2, dim=1, keepdim=True)
+            pred_3 = activation_dict["head_3"](head_3_logits)
+
 
             overall_pred_binary = (pred_1 > 0.5).float()
-            lymph_pred_binary = torch.where(class_pred == 1, 1.0, 0.0)
-            mono_pred_binary = torch.where(class_pred == 2, 1.0, 0.0)
+            lymph_pred_binary = (pred_2 > 0.5).float()
+            mono_pred_binary = (pred_3 > 0.5).float()
 
             # Compute detection F1 score
             overall_metrics = get_multiclass_patch_F1_score_batch(
-                overall_pred_binary[:, 0:1, :, :],
+                overall_pred_binary,
                 binary_true_masks,
-                pred_1[:, 0:1, :, :],
+                pred_1,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
-                lymph_pred_binary, lymph_true_masks, lymph_probs
+                lymph_pred_binary, lymph_true_masks, pred_2
             )
             mono_metrics = get_multiclass_patch_F1_score_batch(
-                mono_pred_binary, mono_true_masks, mono_probs
+                mono_pred_binary, mono_true_masks, pred_3
             )
 
         running_overall_score += (
@@ -130,11 +140,11 @@ def hovernext_validate_one_epoch(
         binary_true_masks,
         lymph_true_masks,
         mono_true_masks,
-        contour_masks,
-        overall_pred_probs=pred_1[:, 0:1, :, :],
-        lymph_pred_probs=lymph_probs,
-        mono_pred_probs=mono_probs,
-        contour_pred_probs=pred_1[:, 1:2, :, :],
+        None,
+        overall_pred_probs=pred_1,
+        lymph_pred_probs=pred_2,
+        mono_pred_probs=pred_3,
+        contour_pred_probs=None,
     )
     wandb_run.log(log_data)
 
@@ -294,7 +304,6 @@ def validate_one_epoch(
 
 def multitask_train_loop(
     model: nn.Module,
-    num_tasks: int,
     train_loader: DataLoader,
     validation_loader: DataLoader,
     optimizer: Optimizer,

@@ -8,7 +8,7 @@ from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
-from monkey.model.hovernext.model import get_model
+from monkey.model.hovernext.model import get_custom_hovernext
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
 from monkey.train.train_multitask_cell_detection import (
@@ -19,8 +19,7 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "hovernext",
-    "out_channels": [2, 3],  # inst=2, cls=3
+    "model_name": "hovernext_det",
     "val_fold": 1,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
@@ -29,16 +28,18 @@ run_config = {
     "epochs": 75,
     "loss_function": {
         "head_1": "Weighted_BCE_Dice",
-        "head_2": "Weighted_CE_Dice",
+        "head_2": "Weighted_BCE_Dice",
+        "head_3": "Weighted_BCE_Dice",
     },
     "loss_pos_weight": 5.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
-        "head_2": "softmax",
+        "head_2": "sigmoid",
+        "head_3": "sigmoid",
     },
-    "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
-    "include_background_channel": True,
+    "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
+    "include_background_channel": False
 }
 pprint(run_config)
 
@@ -56,9 +57,7 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-model = get_model(
-    out_channels_cls=run_config["out_channels"][1],
-    out_channels_inst=run_config["out_channels"][0],
+model = get_custom_hovernext(
     pretrained=True,
 )
 model.to("cuda")
@@ -93,13 +92,13 @@ loss_fn_dict = {
     "head_2": get_loss_function(
         run_config["loss_function"]["head_2"]
     ),
+    "head_3": get_loss_function(
+        run_config["loss_function"]["head_3"]
+    ),
 }
-loss_fn_dict["head_1"].set_multiclass(True)
 loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
-loss_fn_dict["head_2"].set_weight(
-    torch.tensor([1.0, 5.0, 5.0], device="cuda")
-)
-
+loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
 
 activation_fn_dict = {
     "head_1": get_activation_function(
@@ -107,6 +106,9 @@ activation_fn_dict = {
     ),
     "head_2": get_activation_function(
         run_config["activation_function"]["head_2"]
+    ),
+    "head_3": get_activation_function(
+        run_config["activation_function"]["head_3"]
     ),
 }
 
@@ -132,7 +134,6 @@ run = wandb.init(
 # Start training
 model = multitask_train_loop(
     model=model,
-    num_tasks=len(run_config["out_channels"]),
     train_loader=train_loader,
     validation_loader=val_loader,
     loss_fn_dict=loss_fn_dict,
