@@ -26,7 +26,7 @@ run_config = {
     "val_fold": 1,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.0004,
+    "learning_rate": 0.001,
     "weight_decay": 0.01,
     "epochs": 50,
     "loss_function": "MapDe_Loss",
@@ -106,7 +106,7 @@ optimizer = torch.optim.AdamW(
     # momentum=0.9,
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, "min", factor=0.5, patience=5
+    optimizer, "min", factor=0.5, patience=10
 )
 
 # Create WandB session

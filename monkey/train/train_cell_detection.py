@@ -241,7 +241,7 @@ def train_det_net(
         )
 
         if scheduler is not None:
-            scheduler.step(avg_score)
+            scheduler.step(avg_train_loss)
 
         log_data = {
             "Epoch": epoch,
