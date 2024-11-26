@@ -43,7 +43,7 @@ run_config = {
         "head_3": "sigmoid",
     },
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
-    "train_full_dataset": True # Train using entire dataset for final model
+    "train_full_dataset": True,  # Train using entire dataset for final model
 }
 pprint(run_config)
 
@@ -68,9 +68,7 @@ model.to("cuda")
 # -----------------------------------------------------------------------
 
 
-IOconfig.set_checkpoint_save_dir(
-    run_name=f"final"
-)
+IOconfig.set_checkpoint_save_dir(run_name=f"final")
 os.environ["WANDB_DIR"] = IOconfig.save_dir
 
 # Get dataloaders for task
@@ -81,7 +79,7 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
-    train_full_dataset=run_config['train_full_dataset']
+    train_full_dataset=run_config["train_full_dataset"],
 )
 
 

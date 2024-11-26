@@ -56,7 +56,13 @@ if run_config["use_nuclick_masks"]:
 
 # Create model
 # model = get_efficientunet_b0_MBConv(out_channels=2)
-model = MapDe(3, min_distance=15, threshold_abs=0.5, num_classes=1, filter_size=31)
+model = MapDe(
+    3,
+    min_distance=15,
+    threshold_abs=0.5,
+    num_classes=1,
+    filter_size=31,
+)
 model.to("cuda")
 # -----------------------------------------------------------------------
 

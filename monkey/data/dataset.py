@@ -440,7 +440,7 @@ def get_detection_dataloaders(
     do_augmentation: bool = False,
     use_nuclick_masks: bool = False,
     include_background_channel: bool = False,
-    train_full_dataset: bool = False
+    train_full_dataset: bool = False,
 ):
     """
     Get training and validation dataloaders
@@ -451,8 +451,8 @@ def get_detection_dataloaders(
 
     if module not in ["detection", "multiclass_detection"]:
         raise ValueError(f"Module {module} is in invalid")
-    
-    if val_fold not in [1,2,3,4,5]:
+
+    if val_fold not in [1, 2, 3, 4, 5]:
         raise ValueError(f"val_fold {val_fold} is in invalid")
 
     split = get_split_from_json(IOConfig, val_fold)
