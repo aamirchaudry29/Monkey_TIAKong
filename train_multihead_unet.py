@@ -22,28 +22,27 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "multihead_unet_experiment",
-    "out_channels": [2, 1, 1],
+    "model_name": "multihead_unet_det",
+    "out_channels": [1, 1, 1],
     "val_fold": 5,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
     "learning_rate": 0.001,
     "weight_decay": 0.01,
-    "epochs": 100,
+    "epochs": 50,
     "loss_function": {
         "head_1": "Weighted_BCE_Dice",
         "head_2": "Weighted_BCE_Dice",
         "head_3": "Weighted_BCE_Dice",
     },
-    "loss_pos_weight": 5.0,
+    "loss_pos_weight": 10.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
         "head_2": "sigmoid",
         "head_3": "sigmoid",
     },
-    "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
-    "train_full_dataset": True,  # Train using entire dataset for final model
+    "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
 }
 pprint(run_config)
 
@@ -68,7 +67,7 @@ model.to("cuda")
 # -----------------------------------------------------------------------
 
 
-IOconfig.set_checkpoint_save_dir(run_name=f"final")
+IOconfig.set_checkpoint_save_dir(run_name=f"fold_{run_config['val_fold']}")
 os.environ["WANDB_DIR"] = IOconfig.save_dir
 
 # Get dataloaders for task
@@ -79,7 +78,6 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
-    train_full_dataset=run_config["train_full_dataset"],
 )
 
 
@@ -96,7 +94,7 @@ loss_fn_dict = {
         run_config["loss_function"]["head_3"]
     ),
 }
-loss_fn_dict["head_1"].set_multiclass(True)
+# loss_fn_dict["head_1"].set_multiclass(True)
 loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
 loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
 loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
@@ -119,15 +117,15 @@ optimizer = torch.optim.AdamW(
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
 )
-scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, "min", factor=0.5, patience=10
+scheduler = lr_scheduler.MultiStepLR(
+    optimizer, milestones=[10, 40], gamma=0.1
 )
 
 
 # Create WandB session
 run = wandb.init(
     project=f"{run_config['project_name']}_{run_config['model_name']}",
-    name=f"final",
+    name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
 # run = None
@@ -135,7 +133,6 @@ run = wandb.init(
 # Start training
 model = multitask_train_loop(
     model=model,
-    num_tasks=len(run_config["out_channels"]),
     train_loader=train_loader,
     validation_loader=val_loader,
     loss_fn_dict=loss_fn_dict,

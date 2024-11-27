@@ -191,10 +191,10 @@ def train_one_epoch(
         images = data["image"].cuda().float()
 
         binary_true_masks = data["binary_mask"].cuda().float()
-        contour_masks = data["contour_mask"].cuda().float()
-        head_1_true_masks = torch.concatenate(
-            (binary_true_masks, contour_masks), dim=1
-        )
+        # contour_masks = data["contour_mask"].cuda().float()
+        # head_1_true_masks = torch.concatenate(
+        #     (binary_true_masks, contour_masks), dim=1
+        # )
         lymph_true_masks = (
             data["class_mask"][:, 0:1, :, :].cuda().float()
         )
@@ -214,8 +214,11 @@ def train_one_epoch(
         pred_2 = activation_dict["head_2"](head_2_logits)
         pred_3 = activation_dict["head_3"](head_3_logits)
 
+        # loss_1 = loss_fn_dict["head_1"].compute_loss(
+        #     pred_1, head_1_true_masks
+        # )
         loss_1 = loss_fn_dict["head_1"].compute_loss(
-            pred_1, head_1_true_masks
+            pred_1, binary_true_masks
         )
         loss_2 = loss_fn_dict["head_2"].compute_loss(
             pred_2, lymph_true_masks
@@ -235,6 +238,7 @@ def train_one_epoch(
 def validate_one_epoch(
     model: nn.Module,
     validation_loader: DataLoader,
+    loss_fn_dict: dict,
     run_config: dict,
     activation_dict: dict[str, torch.nn.Module],
     wandb_run: Optional[wandb.run] = None,
@@ -242,6 +246,7 @@ def validate_one_epoch(
     running_overall_score = 0.0
     running_lymph_score = 0.0
     running_mono_score = 0.0
+    running_loss = 0.0
 
     model.eval()
     for i, data in enumerate(
@@ -249,7 +254,7 @@ def validate_one_epoch(
     ):
         images = data["image"].cuda().float()
         binary_true_masks = data["binary_mask"].cuda().float()
-        contour_masks = data["contour_mask"].cuda().float()
+        # contour_masks = data["contour_mask"].cuda().float()
         lymph_true_masks = (
             data["class_mask"][:, 0:1, :, :].cuda().float()
         )
@@ -267,15 +272,27 @@ def validate_one_epoch(
             pred_2 = activation_dict["head_2"](head_2_logits)
             pred_3 = activation_dict["head_3"](head_3_logits)
 
+            loss_1 = loss_fn_dict["head_1"].compute_loss(
+                pred_1, binary_true_masks
+            )
+            loss_2 = loss_fn_dict["head_2"].compute_loss(
+                pred_2, lymph_true_masks
+            )
+            loss_3 = loss_fn_dict["head_3"].compute_loss(
+                pred_3, mono_true_masks
+            )
+            sum_loss = loss_1.item() + loss_2.item() + loss_3.item()
+            running_loss += sum_loss * images.size(0)
+
             overall_pred_binary = (pred_1 > 0.5).float()
             lymph_pred_binary = (pred_2 > 0.5).float()
             mono_pred_binary = (pred_3 > 0.5).float()
 
             # Compute detection F1 score
             overall_metrics = get_multiclass_patch_F1_score_batch(
-                overall_pred_binary[:, 0:1, :, :],
+                overall_pred_binary,
                 binary_true_masks,
-                pred_1[:, 0:1, :, :],
+                pred_1,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
                 lymph_pred_binary, lymph_true_masks, pred_2
@@ -296,11 +313,11 @@ def validate_one_epoch(
         binary_true_masks,
         lymph_true_masks,
         mono_true_masks,
-        contour_masks,
-        overall_pred_probs=pred_1[:, 0:1, :, :],
+        None,
+        overall_pred_probs=pred_1,
         lymph_pred_probs=pred_2,
         mono_pred_probs=pred_3,
-        contour_pred_probs=pred_1[:, 1:2, :, :],
+        contour_pred_probs=None,
     )
     if wandb_run is not None:
         wandb_run.log(log_data)
@@ -314,6 +331,8 @@ def validate_one_epoch(
         / len(validation_loader.sampler),
         "mono_F1": running_mono_score
         / len(validation_loader.sampler),
+        "val_loss": running_loss
+        / len(validation_loader.sampler)
     }
 
 
@@ -339,15 +358,7 @@ def multitask_train_loop(
     ):
         pprint(f"EPOCH {epoch}")
 
-        # avg_train_loss = train_one_epoch(
-        #     model,
-        #     train_loader,
-        #     optimizer,
-        #     loss_fn_dict,
-        #     run_config,
-        #     activation_dict,
-        # )
-        avg_train_loss = hovernext_train_one_epoch(
+        avg_train_loss = train_one_epoch(
             model=model,
             training_loader=train_loader,
             optimizer=optimizer,
@@ -355,7 +366,7 @@ def multitask_train_loop(
             run_config=run_config,
             activation_dict=activation_dict,
         )
-        avg_scores = hovernext_validate_one_epoch(
+        avg_scores = validate_one_epoch(
             model=model,
             validation_loader=validation_loader,
             loss_fn_dict=loss_fn_dict,
@@ -363,12 +374,21 @@ def multitask_train_loop(
             activation_dict=activation_dict,
             wandb_run=wandb_run,
         )
-        # avg_scores = validate_one_epoch(
-        #     model,
-        #     validation_loader,
-        #     run_config,
-        #     activation_dict,
-        #     wandb_run,
+        # avg_train_loss = hovernext_train_one_epoch(
+        #     model=model,
+        #     training_loader=train_loader,
+        #     optimizer=optimizer,
+        #     loss_fn_dict=loss_fn_dict,
+        #     run_config=run_config,
+        #     activation_dict=activation_dict,
+        # )
+        # avg_scores = hovernext_validate_one_epoch(
+        #     model=model,
+        #     validation_loader=validation_loader,
+        #     loss_fn_dict=loss_fn_dict,
+        #     run_config=run_config,
+        #     activation_dict=activation_dict,
+        #     wandb_run=wandb_run,
         # )
 
         sum_val_score = (
