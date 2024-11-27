@@ -113,6 +113,6 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(1, 6):
+    for i in range(1, 3):
         pprint(f"Fold {i}")
         cross_validation(i)

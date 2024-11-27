@@ -20,18 +20,18 @@ from monkey.train.train_multitask_cell_detection import (
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
     "model_name": "hovernext_det",
-    "val_fold": 1,  # [1-5]
+    "val_fold": 5,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
-    "epochs": 75,
+    "epochs": 50,
     "loss_function": {
         "head_1": "Weighted_BCE_Dice",
         "head_2": "Weighted_BCE_Dice",
         "head_3": "Weighted_BCE_Dice",
     },
-    "loss_pos_weight": 5.0,
+    "loss_pos_weight": 10.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
@@ -118,10 +118,12 @@ optimizer = torch.optim.AdamW(
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
 )
-scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, "max", factor=0.5, patience=10
+# scheduler = lr_scheduler.ReduceLROnPlateau(
+#     optimizer, "max", factor=0.5, patience=10
+# )
+scheduler = lr_scheduler.MultiStepLR(
+    optimizer, milestones=[20, 40], gamma=0.5
 )
-
 
 # Create WandB session
 # run = None

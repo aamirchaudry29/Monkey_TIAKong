@@ -206,7 +206,7 @@ class Multitask_Dataset(Dataset):
 
         if self.do_augment:
             self.augmentation = get_augmentation(
-                module=self.module, gt_type="mask", aug_prob=0.7
+                module=self.module, gt_type="mask", aug_prob=0.9
             )
 
     def __len__(self) -> int:
@@ -246,8 +246,9 @@ class Multitask_Dataset(Dataset):
             )
 
         class_mask = class_mask_to_multichannel_mask(class_mask)
-        class_mask[0] = dilate_mask(class_mask[0], 9)
-        class_mask[1] = dilate_mask(class_mask[1], 13)
+        if not self.use_nuclick_masks:
+            class_mask[0] = dilate_mask(class_mask[0], 9)
+            class_mask[1] = dilate_mask(class_mask[1], 13)
         if self.include_background_channel:
             class_mask = add_background_channel(class_mask)
 

@@ -169,21 +169,13 @@ def process_tile_detection_masks(
     lymph_probs_map = None
     mono_probs_map = None
 
-    if len(pred_results["inflamm_prob"]) != 0:
-        inflamm_probs_map = SemanticSegmentor.merge_prediction(
-            (tile_size, tile_size),
-            pred_results["inflamm_prob"],
-            coordinate_list,
-        )[:, :, 0]
-        inflamm_prediction[inflamm_probs_map > 0.7] = 1
-
     if len(pred_results["lymph_prob"]) != 0:
         lymph_probs_map = SemanticSegmentor.merge_prediction(
             (tile_size, tile_size),
             pred_results["lymph_prob"],
             coordinate_list,
         )[:, :, 0]
-        lymph_prediction[lymph_probs_map > 0.7] = 1
+        lymph_prediction[lymph_probs_map > 0.5] = 1
 
     if len(pred_results["mono_prob"]) != 0:
         mono_probs_map = SemanticSegmentor.merge_prediction(
@@ -191,7 +183,15 @@ def process_tile_detection_masks(
             pred_results["mono_prob"],
             coordinate_list,
         )[:, :, 0]
-        mono_prediction[mono_probs_map > 0.7] = 1
+        mono_prediction[mono_probs_map > 0.5] = 1
+
+    if len(pred_results["inflamm_prob"]) != 0:
+        inflamm_probs_map = SemanticSegmentor.merge_prediction(
+            (tile_size, tile_size),
+            pred_results["inflamm_prob"],
+            coordinate_list,
+        )[:, :, 0]
+        inflamm_prediction[inflamm_probs_map > 0.5] = 1
 
     if len(pred_results["contour_prob"]) != 0:
         contour_probs_map = SemanticSegmentor.merge_prediction(
@@ -201,10 +201,12 @@ def process_tile_detection_masks(
         )[:, :, 0]
         contour_prediction[contour_probs_map > 0.5] = 1
 
+
     inflamm_prediction[contour_prediction == 1] = 0
     lymph_prediction[contour_prediction == 1] = 0
     mono_prediction[contour_prediction == 1] = 0
 
+    
     inflamm_labels = skimage.measure.label(inflamm_prediction)
     inflamm_stats = skimage.measure.regionprops(
         inflamm_labels, intensity_image=inflamm_probs_map
