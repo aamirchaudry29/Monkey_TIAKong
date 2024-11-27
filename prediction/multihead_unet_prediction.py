@@ -16,16 +16,15 @@ from tqdm.auto import tqdm
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     collate_fn,
-    erode_mask,
     filter_detection_with_mask,
     imagenet_normalise_torch,
-    morphological_post_processing,
     slide_nms,
 )
 from monkey.model.efficientunetb0.architecture import (
     EfficientUnet_MBConv_Multihead,
 )
 from monkey.model.utils import get_activation_function
+from prediction.utils import multihead_det_post_process
 
 
 def detection_in_tile(
@@ -65,7 +64,7 @@ def detection_in_tile(
         "inflamm_prob": [],
         "lymph_prob": [],
         "mono_prob": [],
-        "contour_prob": [],
+        # "contour_prob": [],
     }
     batch_size = 16
     dataloader = DataLoader(
@@ -96,23 +95,36 @@ def detection_in_tile(
         mono_prob = np.zeros(
             shape=(imgs.shape[0], patch_size, patch_size)
         )
-        contour_prob = np.zeros(
-            shape=(imgs.shape[0], patch_size, patch_size)
-        )
+        # contour_prob = np.zeros(
+        #     shape=(imgs.shape[0], patch_size, patch_size)
+        # )
 
         with torch.no_grad():
             for model in models:
                 model.eval()
-                logits = model(imgs)
-                processed_outputs = EfficientUnet_MBConv_Multihead.multihead_unet_post_process(
-                    logits,
-                    activation_dict,
-                    thresholds=[0.5, 0.5, 0.5, 0.5],
-                )
-                inflamm_prob += processed_outputs["inflamm_prob"]
-                lymph_prob += processed_outputs["lymph_prob"]
-                mono_prob += processed_outputs["mono_prob"]
-                contour_prob += processed_outputs["contour_prob"]
+                logits_pred = model(imgs)
+                head_1_logits = logits_pred[:, 0:1, :, :]
+                head_2_logits = logits_pred[:, 1:2, :, :]
+                head_3_logits = logits_pred[:, 2:3, :, :]
+
+                _inflamm_prob = activation_dict["head_1"](
+                    head_1_logits
+                ).cpu()
+                _lymph_prob = activation_dict["head_2"](
+                    head_2_logits
+                ).cpu()
+                _mono_prob = activation_dict["head_3"](
+                    head_3_logits
+                ).cpu()
+                # processed_outputs = EfficientUnet_MBConv_Multihead.multihead_unet_post_process(
+                #     logits,
+                #     activation_dict,
+                #     thresholds=[0.5, 0.5, 0.5, 0.5],
+                # )
+                inflamm_prob += _inflamm_prob
+                lymph_prob += _lymph_prob
+                mono_prob += _mono_prob
+                # contour_prob += processed_outputs["contour_prob"]
 
         inflamm_prob = inflamm_prob / len(models)
         lymph_prob = lymph_prob / len(models)
@@ -122,7 +134,7 @@ def detection_in_tile(
         predictions["inflamm_prob"].extend(list(inflamm_prob))
         predictions["lymph_prob"].extend(list(lymph_prob))
         predictions["mono_prob"].extend(list(mono_prob))
-        predictions["contour_prob"].extend(list(contour_prob))
+        # predictions["contour_prob"].extend(list(contour_prob))
 
     return predictions, patch_extractor.coordinate_list
 
@@ -155,9 +167,9 @@ def process_tile_detection_masks(
     inflamm_prediction = np.zeros(
         shape=(tile_size, tile_size), dtype=np.uint8
     )
-    contour_prediction = np.zeros(
-        shape=(tile_size, tile_size), dtype=np.uint8
-    )
+    # contour_prediction = np.zeros(
+    #     shape=(tile_size, tile_size), dtype=np.uint8
+    # )
     lymph_prediction = np.zeros(
         shape=(tile_size, tile_size), dtype=np.uint8
     )
@@ -175,7 +187,7 @@ def process_tile_detection_masks(
             pred_results["lymph_prob"],
             coordinate_list,
         )[:, :, 0]
-        lymph_prediction[lymph_probs_map > 0.5] = 1
+        # lymph_prediction[lymph_probs_map > 0.5] = 1
 
     if len(pred_results["mono_prob"]) != 0:
         mono_probs_map = SemanticSegmentor.merge_prediction(
@@ -183,7 +195,7 @@ def process_tile_detection_masks(
             pred_results["mono_prob"],
             coordinate_list,
         )[:, :, 0]
-        mono_prediction[mono_probs_map > 0.5] = 1
+        # mono_prediction[mono_probs_map > 0.5] = 1
 
     if len(pred_results["inflamm_prob"]) != 0:
         inflamm_probs_map = SemanticSegmentor.merge_prediction(
@@ -191,33 +203,41 @@ def process_tile_detection_masks(
             pred_results["inflamm_prob"],
             coordinate_list,
         )[:, :, 0]
-        inflamm_prediction[inflamm_probs_map > 0.5] = 1
+        # inflamm_prediction[inflamm_probs_map > 0.5] = 1
 
-    if len(pred_results["contour_prob"]) != 0:
-        contour_probs_map = SemanticSegmentor.merge_prediction(
-            (tile_size, tile_size),
-            pred_results["contour_prob"],
-            coordinate_list,
-        )[:, :, 0]
-        contour_prediction[contour_probs_map > 0.5] = 1
+    # if len(pred_results["contour_prob"]) != 0:
+    #     contour_probs_map = SemanticSegmentor.merge_prediction(
+    #         (tile_size, tile_size),
+    #         pred_results["contour_prob"],
+    #         coordinate_list,
+    #     )[:, :, 0]
+    # contour_prediction[contour_probs_map > 0.5] = 1
+    # inflamm_prediction[contour_prediction == 1] = 0
+    # lymph_prediction[contour_prediction == 1] = 0
+    # mono_prediction[contour_prediction == 1] = 0
 
+    processed_masks = multihead_det_post_process(
+        inflamm_probs_map,
+        lymph_probs_map,
+        mono_probs_map,
+        thresholds=[0.5, 0.5, 0.5],
+    )
 
-    inflamm_prediction[contour_prediction == 1] = 0
-    lymph_prediction[contour_prediction == 1] = 0
-    mono_prediction[contour_prediction == 1] = 0
-
-    
-    inflamm_labels = skimage.measure.label(inflamm_prediction)
+    inflamm_labels = skimage.measure.label(
+        processed_masks["inflamm_mask"]
+    )
     inflamm_stats = skimage.measure.regionprops(
         inflamm_labels, intensity_image=inflamm_probs_map
     )
 
-    lymph_labels = skimage.measure.label(lymph_prediction)
+    lymph_labels = skimage.measure.label(
+        processed_masks["lymph_mask"]
+    )
     lymph_stats = skimage.measure.regionprops(
         lymph_labels, intensity_image=lymph_probs_map
     )
 
-    mono_labels = skimage.measure.label(mono_prediction)
+    mono_labels = skimage.measure.label(processed_masks["mono_mask"])
     mono_stats = skimage.measure.regionprops(
         mono_labels, intensity_image=mono_probs_map
     )

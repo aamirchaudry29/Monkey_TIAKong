@@ -67,7 +67,9 @@ model.to("cuda")
 # -----------------------------------------------------------------------
 
 
-IOconfig.set_checkpoint_save_dir(run_name=f"fold_{run_config['val_fold']}")
+IOconfig.set_checkpoint_save_dir(
+    run_name=f"fold_{run_config['val_fold']}"
+)
 os.environ["WANDB_DIR"] = IOconfig.save_dir
 
 # Get dataloaders for task

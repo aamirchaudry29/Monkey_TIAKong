@@ -39,7 +39,7 @@ run_config = {
         "head_3": "sigmoid",
     },
     "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
-    "include_background_channel": False
+    "include_background_channel": False,
 }
 pprint(run_config)
 

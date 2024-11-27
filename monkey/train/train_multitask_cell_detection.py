@@ -170,8 +170,7 @@ def hovernext_validate_one_epoch(
         / len(validation_loader.sampler),
         "mono_F1": running_mono_score
         / len(validation_loader.sampler),
-        "val_loss": running_loss
-        / len(validation_loader.sampler)
+        "val_loss": running_loss / len(validation_loader.sampler),
     }
 
 
@@ -331,8 +330,7 @@ def validate_one_epoch(
         / len(validation_loader.sampler),
         "mono_F1": running_mono_score
         / len(validation_loader.sampler),
-        "val_loss": running_loss
-        / len(validation_loader.sampler)
+        "val_loss": running_loss / len(validation_loader.sampler),
     }
 
 
@@ -404,7 +402,7 @@ def multitask_train_loop(
         log_data = {
             "Epoch": epoch,
             "Train loss": avg_train_loss,
-            "Val loss": avg_scores['val_loss'],
+            "Val loss": avg_scores["val_loss"],
             "Sum F1 score": sum_val_score,
             "overall F1": avg_scores["overall_F1"],
             "lymph F1": avg_scores["lymph_F1"],

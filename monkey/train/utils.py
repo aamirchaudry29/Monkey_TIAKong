@@ -127,11 +127,11 @@ def compose_multitask_log_images(
         ),
     }
     if contour_true_masks is not None:
-        log_data['masks']['true_contour'] = wandb.Image(
+        log_data["masks"]["true_contour"] = wandb.Image(
             contour_true_masks[0, 0, :, :].float().cpu(), mode="L"
         )
     if contour_pred_probs is not None:
-        log_data['masks']['pred_contour_probs'] = wandb.Image(
+        log_data["masks"]["pred_contour_probs"] = wandb.Image(
             contour_pred_probs[0, 0, :, :].float().cpu(), mode="L"
         )
 
