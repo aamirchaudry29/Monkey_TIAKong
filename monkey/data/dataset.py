@@ -475,9 +475,12 @@ def get_detection_dataloaders(
         # Train using entire dataset
         train_file_ids.extend(test_file_ids)
 
-    train_sampler = get_detection_sampler(
+    train_sampler = get_detection_sampler_v2(
         file_ids=train_file_ids, IOConfig=IOConfig
     )
+    # train_sampler = get_detection_sampler(
+    #     file_ids=train_file_ids, IOConfig=IOConfig
+    # )
 
     print(f"train patches: {len(train_file_ids)}")
     print(f"test patches: {len(test_file_ids)}")
@@ -559,10 +562,14 @@ def get_detection_sampler(file_ids, IOConfig):
         0,
     ]  # [negatives, lymph only, mono only, both type]
 
+    total_cell_counts = [0, 0]
+
     for id in file_ids:
         stats = patch_stats[id]
         lymph_count = stats["lymph_count"]
+        total_cell_counts[0] += lymph_count
         mono_count = stats["mono_count"]
+        total_cell_counts[1] += mono_count
         total_cells = lymph_count + mono_count
         if total_cells == 0:
             class_instances.append(0)
@@ -578,11 +585,70 @@ def get_detection_sampler(file_ids, IOConfig):
                 class_instances.append(3)
                 class_counts[3] += 1
 
-    print(class_counts)
+    print(f"negative patches: {class_counts[0]}")
+    print(f"lymph only patches: {class_counts[1]}")
+    print(f"mono only patches: {class_counts[2]}")
+    print(f"inflamm patches: {class_counts[3]}")
+    print(f"Total lymph cells {total_cell_counts[0]}")
+    print(f"Total mono cells {total_cell_counts[1]}")
 
     sample_weights = []
     for i in class_instances:
         sample_weights.append(1 / class_counts[i])
+
+    weighted_sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(file_ids),
+        replacement=True,
+    )
+
+    return weighted_sampler
+
+
+def get_detection_sampler_v2(file_ids, IOConfig):
+    """
+    Get Weighted Sampler.
+    To balance positive and negative patches at pixel level.
+    """
+    patch_stats_path = os.path.join(
+        IOConfig.dataset_dir, "patch_stats.json"
+    )
+    with open(patch_stats_path, "r") as file:
+        patch_stats = json.load(file)
+
+    class_instances = []
+    class_areas_total = [
+        0,
+        0,
+        0,
+    ]  # [negatives, lymph, mono]
+
+    patch_area = 256 * 256
+    cell_area = 16 * 16
+
+    for id in file_ids:
+        stats = patch_stats[id]
+        lymph_count = stats["lymph_count"]
+        lymph_area = lymph_count * cell_area
+        mono_count = stats["mono_count"]
+        mono_area = mono_count * cell_area
+
+        background_area = patch_area - lymph_area - mono_area
+        class_instances.append(
+            [background_area, lymph_area, mono_area]
+        )
+
+    class_instances = np.array(class_instances)
+    pixel_class_sum = np.sum(class_instances, axis=0)
+
+    print(f"negative pixels: {pixel_class_sum[0]}")
+    print(f"lymph pixels: {pixel_class_sum[1]}")
+    print(f"mono pixels: {pixel_class_sum[2]}")
+
+    sample_weights = []
+    for i in range(class_instances.shape[0]):
+        weight_vector = class_instances[i] / pixel_class_sum
+        sample_weights.append(np.sum(weight_vector))
 
     weighted_sampler = WeightedRandomSampler(
         weights=sample_weights,

@@ -239,7 +239,7 @@ class Weighted_BCE_Loss(Loss_Function):
         self.multiclass = False
         self.pos_weight = 1000.0
 
-        self.mse = torch.nn.MSELoss(reduction='mean')
+        self.mse = torch.nn.MSELoss(reduction="mean")
 
     def set_multiclass(self, multiclass):
         self.multiclass = multiclass
@@ -260,7 +260,7 @@ class Weighted_BCE_Loss(Loss_Function):
         return torch.mean(torch.flatten(loss))
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        mse_loss = self.mse(input, target) * (self.pos_weight/100)
+        mse_loss = self.mse(input, target) * (self.pos_weight / 100)
         bce_loss = self.ce_loss(input, target.float())
         print(f"mse {mse_loss.item()}")
         print(f"bce {bce_loss.item()}")
@@ -317,9 +317,11 @@ class Weighted_BCE_Dice_Loss(Loss_Function):
         )
         loss = (
             target * -clipped_logits.log() * log_weight
-            + (1 - target) * -(1.0 - clipped_logits).log() * log_weight
+            + (1 - target)
+            * -(1.0 - clipped_logits).log()
+            * log_weight
         )
-        return (torch.sum(torch.flatten(loss)) / target.shape[0])
+        return torch.sum(torch.flatten(loss)) / target.shape[0]
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return self.ce_loss(input, target.float()) + dice_loss(

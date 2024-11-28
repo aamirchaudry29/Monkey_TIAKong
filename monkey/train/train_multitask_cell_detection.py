@@ -10,10 +10,10 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from monkey.model.hovernext.model import freeze_enc, unfreeze_enc
 from monkey.model.loss_functions import Loss_Function
 from monkey.model.utils import get_multiclass_patch_F1_score_batch
 from monkey.train.utils import compose_multitask_log_images
-from monkey.model.hovernext.model import freeze_enc, unfreeze_enc
 
 
 def hovernext_train_one_epoch(
