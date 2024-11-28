@@ -220,7 +220,7 @@ def process_tile_detection_masks(
         inflamm_probs_map,
         lymph_probs_map,
         mono_probs_map,
-        thresholds=[0.5, 0.5, 0.5],
+        thresholds=config.thresholds,
     )
 
     inflamm_labels = skimage.measure.label(
@@ -436,8 +436,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_inflamm_records,
         tile_size=4096,
-        box_size=16,
-        overlap_thresh=0.75,
+        box_size=30,
+        overlap_thresh=0.5,
     )
 
     final_lymph_records = slide_nms(
@@ -446,7 +446,7 @@ def wsi_detection_in_mask(
         detection_record=filtered_lymph_records,
         tile_size=4096,
         box_size=16,
-        overlap_thresh=0.75,
+        overlap_thresh=0.5,
     )
 
     final_mono_records = slide_nms(
@@ -454,8 +454,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_mono_records,
         tile_size=4096,
-        box_size=16,
-        overlap_thresh=0.75,
+        box_size=40,
+        overlap_thresh=0.5,
     )
 
     return {

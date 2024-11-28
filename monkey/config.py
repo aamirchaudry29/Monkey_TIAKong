@@ -62,6 +62,7 @@ class PredictionIOConfig:
         units: str = "level",
         stride: int = 256,
         threshold: float = 0.9,
+        thresholds: list = [0.3,0.3,0.3],
         min_size: int = 96,
         include_background: bool = False,
     ):
@@ -78,6 +79,7 @@ class PredictionIOConfig:
         self.threshold = threshold
         self.min_size = min_size
         self.include_background = include_background
+        self.thresholds = thresholds
 
     def check_dirs_exist(self):
         for dir in [self.wsi_dir, self.mask_dir, self.output_dir]:

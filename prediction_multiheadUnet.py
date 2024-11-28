@@ -34,6 +34,7 @@ def cross_validation(fold_number: int = 1):
         resolution=0,
         units="level",
         stride=224,
+        thresholds=[0.3,0.3,0.3]
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -94,13 +95,13 @@ def cross_validation(fold_number: int = 1):
         # Save to AnnotationStore for visualization
         # If model if not running at baseline res:
         # scale_factor = model_res / 0.24199951445730394
-        # annoation_store = detection_to_annotation_store(
-        #     detection_records, scale_factor=1.0
-        # )
-        # store_save_path = os.path.join(
-        #     config.output_dir, f"{wsi_name_without_ext}.db"
-        # )
-        # annoation_store.dump(store_save_path)
+        annoation_store = detection_to_annotation_store(
+            lymph_records, scale_factor=1.0
+        )
+        store_save_path = os.path.join(
+            config.output_dir, f"{wsi_name_without_ext}_lymph.db"
+        )
+        annoation_store.dump(store_save_path)
 
         # Save result in Monkey Challenge format
         # L2 lymphocyte vs monocyte detection

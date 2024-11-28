@@ -352,16 +352,11 @@ def multitask_train_loop(
     best_val_score = -np.inf
     epochs = run_config["epochs"]
 
-    freeze_enc(model)
-    pprint("Encoder freezed")
 
     for epoch in tqdm(
         range(1, epochs + 1), desc="epochs", leave=True
     ):
         pprint(f"EPOCH {epoch}")
-        if epoch == 10:
-            unfreeze_enc(model)
-            pprint("Encoder unfreezed")
 
         # avg_train_loss = train_one_epoch(
         #     model=model,
