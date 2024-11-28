@@ -1031,7 +1031,7 @@ class CellVit256_Unet(nn.Module):
         if retrieve_tokens:
             out_dict["tokens"] = z4
 
-        return out_dict
+        return out_dict["nuclei_binary_map"]
 
     def _forward_upsample(
         self,
