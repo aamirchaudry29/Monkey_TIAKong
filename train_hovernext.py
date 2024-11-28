@@ -127,9 +127,7 @@ optimizer = torch.optim.AdamW(
 # scheduler = lr_scheduler.ReduceLROnPlateau(
 #     optimizer, "max", factor=0.5, patience=10
 # )
-scheduler = lr_scheduler.StepLR(
-    optimizer, step_size=10, gamma=0.1
-)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 # Create WandB session
 # run = None

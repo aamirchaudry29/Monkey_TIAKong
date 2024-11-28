@@ -124,9 +124,7 @@ optimizer = torch.optim.AdamW(
 #     lr=run_config["learning_rate"],
 #     weight_decay=run_config["weight_decay"],
 # )
-scheduler = lr_scheduler.StepLR(
-    optimizer, step_size=10, gamma=0.1
-)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 
 # Create WandB session

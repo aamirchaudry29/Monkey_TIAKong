@@ -270,7 +270,9 @@ def validate_one_epoch(
             lymph_probs = activation_dict["head_1"](head_1_logits)
             mono_probs = activation_dict["head_2"](head_2_logits)
             # pred_3 = activation_dict["head_3"](head_3_logits)
-            overall_probs = torch.zeros_like(lymph_probs, requires_grad=True)
+            overall_probs = torch.zeros_like(
+                lymph_probs, requires_grad=True
+            )
             overall_probs += lymph_probs
             overall_probs += mono_probs
 
@@ -280,7 +282,7 @@ def validate_one_epoch(
             loss_2 = loss_fn_dict["head_2"].compute_loss(
                 mono_probs, mono_true_masks
             )
-   
+
             sum_loss = loss_1.item() + loss_2.item()
             # sum_loss = loss_1.item() + loss_2.item()
             running_loss += sum_loss * images.size(0)
@@ -353,7 +355,6 @@ def multitask_train_loop(
 
     best_val_score = -np.inf
     epochs = run_config["epochs"]
-
 
     for epoch in tqdm(
         range(1, epochs + 1), desc="epochs", leave=True

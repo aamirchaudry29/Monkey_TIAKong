@@ -70,7 +70,7 @@ def class_mask_to_multichannel_mask(
 
 
 class DetectionDataset(Dataset):
-    """Dataset for overall cell detection
+    """Dataset for binary cell detection
     Detecting Lymphocytes and Monocytes
     Data: RGB image and cell mask
     """
@@ -86,16 +86,27 @@ class DetectionDataset(Dataset):
         module: str = "detection",
         use_nuclick_masks: bool = False,
         include_background_channel: bool = False,
+        target_cell_type: str | None = None,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
         self.phase = phase
         self.do_augment = do_augment
         self.disk_radius = disk_radius
-        self.module = module
-        self.regression_map = regression_map
+        self.module = "detection"
+        self.regression_map = False
         self.use_nuclick_masks = use_nuclick_masks
-        self.include_background_channel = include_background_channel
+        self.include_background_channel = False
+        self.target_cell_type = target_cell_type
+
+        if self.target_cell_type is not None:
+            self.include_background_channel = False
+            if self.target_cell_type == "inflamm":
+                self.disk_radius = 11
+            if self.target_cell_type == "lymph":
+                self.disk_radius = 9
+            if self.target_cell_type == "mono":
+                self.disk_radius = 13
 
         if self.do_augment:
             self.augmentation = get_augmentation(
@@ -128,10 +139,12 @@ class DetectionDataset(Dataset):
                 augmented_data["mask"],
             )
 
-        if self.module == "multiclass_detection":
-            cell_mask = class_mask_to_multichannel_mask(cell_mask)
-        else:
+        if self.target_cell_type == "inflamm":
             cell_mask = class_mask_to_binary(cell_mask)
+        if self.target_cell_type == "lymph":
+            cell_mask = class_mask_to_multichannel_mask(cell_mask)[0]
+        if self.target_cell_type == "mono":
+            cell_mask = class_mask_to_multichannel_mask(cell_mask)[1]
 
         # Dilate cell centroids
         if not self.use_nuclick_masks:
@@ -165,8 +178,8 @@ class DetectionDataset(Dataset):
         if len(cell_mask.shape) == 2:
             # HxW -> 1xHxW
             cell_mask = cell_mask[np.newaxis, :, :]
-        if self.include_background_channel:
-            cell_mask = add_background_channel(cell_mask)
+        # if self.include_background_channel:
+        #     cell_mask = add_background_channel(cell_mask)
 
         # HxWx3 -> 3xHxW
         image = image / 255
@@ -453,6 +466,7 @@ def get_detection_dataloaders(
     use_nuclick_masks: bool = False,
     include_background_channel: bool = False,
     train_full_dataset: bool = False,
+    target_cell_type: str | None = None,
 ):
     """
     Get training and validation dataloaders
@@ -475,9 +489,16 @@ def get_detection_dataloaders(
         # Train using entire dataset
         train_file_ids.extend(test_file_ids)
 
-    train_sampler = get_detection_sampler_v2(
-        file_ids=train_file_ids, IOConfig=IOConfig
-    )
+    if target_cell_type is None:
+        train_sampler = get_detection_sampler_v2(
+            file_ids=train_file_ids, IOConfig=IOConfig
+        )
+    else:
+        train_sampler = get_detection_sampler_v2_binary(
+            file_ids=train_file_ids,
+            IOConfig=IOConfig,
+            cell_type=target_cell_type,
+        )
     # train_sampler = get_detection_sampler(
     #     file_ids=train_file_ids, IOConfig=IOConfig
     # )
@@ -496,6 +517,7 @@ def get_detection_dataloaders(
             module=module,
             use_nuclick_masks=use_nuclick_masks,
             include_background_channel=include_background_channel,
+            target_cell_type=target_cell_type,
         )
         val_dataset = DetectionDataset(
             IOConfig=IOConfig,
@@ -507,6 +529,7 @@ def get_detection_dataloaders(
             module=module,
             use_nuclick_masks=use_nuclick_masks,
             include_background_channel=include_background_channel,
+            target_cell_type=target_cell_type,
         )
     elif dataset_name == "multitask":
         train_dataset = Multitask_Dataset(
@@ -543,66 +566,66 @@ def get_detection_dataloaders(
     return train_loader, val_loader
 
 
-def get_detection_sampler(file_ids, IOConfig):
-    """
-    Get Weighted Sampler.
-    To balance positive and negative patches.
-    """
-    patch_stats_path = os.path.join(
-        IOConfig.dataset_dir, "patch_stats.json"
-    )
-    with open(patch_stats_path, "r") as file:
-        patch_stats = json.load(file)
+# def get_detection_sampler(file_ids, IOConfig):
+#     """
+#     Get Weighted Sampler.
+#     To balance positive and negative patches.
+#     """
+#     patch_stats_path = os.path.join(
+#         IOConfig.dataset_dir, "patch_stats.json"
+#     )
+#     with open(patch_stats_path, "r") as file:
+#         patch_stats = json.load(file)
 
-    class_instances = []
-    class_counts = [
-        0,
-        0,
-        0,
-        0,
-    ]  # [negatives, lymph only, mono only, both type]
+#     class_instances = []
+#     class_counts = [
+#         0,
+#         0,
+#         0,
+#         0,
+#     ]  # [negatives, lymph only, mono only, both type]
 
-    total_cell_counts = [0, 0]
+#     total_cell_counts = [0, 0]
 
-    for id in file_ids:
-        stats = patch_stats[id]
-        lymph_count = stats["lymph_count"]
-        total_cell_counts[0] += lymph_count
-        mono_count = stats["mono_count"]
-        total_cell_counts[1] += mono_count
-        total_cells = lymph_count + mono_count
-        if total_cells == 0:
-            class_instances.append(0)
-            class_counts[0] += 1
-        else:
-            if lymph_count > 0 and mono_count == 0:
-                class_instances.append(1)
-                class_counts[1] += 1
-            elif lymph_count == 0 and mono_count > 0:
-                class_instances.append(2)
-                class_counts[2] += 1
-            else:
-                class_instances.append(3)
-                class_counts[3] += 1
+#     for id in file_ids:
+#         stats = patch_stats[id]
+#         lymph_count = stats["lymph_count"]
+#         total_cell_counts[0] += lymph_count
+#         mono_count = stats["mono_count"]
+#         total_cell_counts[1] += mono_count
+#         total_cells = lymph_count + mono_count
+#         if total_cells == 0:
+#             class_instances.append(0)
+#             class_counts[0] += 1
+#         else:
+#             if lymph_count > 0 and mono_count == 0:
+#                 class_instances.append(1)
+#                 class_counts[1] += 1
+#             elif lymph_count == 0 and mono_count > 0:
+#                 class_instances.append(2)
+#                 class_counts[2] += 1
+#             else:
+#                 class_instances.append(3)
+#                 class_counts[3] += 1
 
-    print(f"negative patches: {class_counts[0]}")
-    print(f"lymph only patches: {class_counts[1]}")
-    print(f"mono only patches: {class_counts[2]}")
-    print(f"inflamm patches: {class_counts[3]}")
-    print(f"Total lymph cells {total_cell_counts[0]}")
-    print(f"Total mono cells {total_cell_counts[1]}")
+#     print(f"negative patches: {class_counts[0]}")
+#     print(f"lymph only patches: {class_counts[1]}")
+#     print(f"mono only patches: {class_counts[2]}")
+#     print(f"inflamm patches: {class_counts[3]}")
+#     print(f"Total lymph cells {total_cell_counts[0]}")
+#     print(f"Total mono cells {total_cell_counts[1]}")
 
-    sample_weights = []
-    for i in class_instances:
-        sample_weights.append(1 / class_counts[i])
+#     sample_weights = []
+#     for i in class_instances:
+#         sample_weights.append(1 / class_counts[i])
 
-    weighted_sampler = WeightedRandomSampler(
-        weights=sample_weights,
-        num_samples=len(file_ids),
-        replacement=True,
-    )
+#     weighted_sampler = WeightedRandomSampler(
+#         weights=sample_weights,
+#         num_samples=len(file_ids),
+#         replacement=True,
+#     )
 
-    return weighted_sampler
+#     return weighted_sampler
 
 
 def get_detection_sampler_v2(file_ids, IOConfig):
@@ -644,6 +667,71 @@ def get_detection_sampler_v2(file_ids, IOConfig):
     print(f"negative pixels: {pixel_class_sum[0]}")
     print(f"lymph pixels: {pixel_class_sum[1]}")
     print(f"mono pixels: {pixel_class_sum[2]}")
+
+    sample_weights = []
+    for i in range(class_instances.shape[0]):
+        weight_vector = class_instances[i] / pixel_class_sum
+        sample_weights.append(np.sum(weight_vector))
+
+    weighted_sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(file_ids),
+        replacement=True,
+    )
+
+    return weighted_sampler
+
+
+def get_detection_sampler_v2_binary(
+    file_ids, IOConfig, cell_type: str = "inflamm"
+):
+    """
+    Get Weighted Sampler.
+    To balance positive and negative patches at pixel level.
+    """
+
+    if cell_type not in ["inflamm", "lymph", "mono"]:
+        raise ValueError("Invalid cell type")
+
+    patch_stats_path = os.path.join(
+        IOConfig.dataset_dir, "patch_stats.json"
+    )
+    with open(patch_stats_path, "r") as file:
+        patch_stats = json.load(file)
+
+    class_instances = []
+    class_areas_total = [
+        0,
+        0,
+    ]  # [others, cell_type of interest]
+
+    patch_area = 256 * 256
+    cell_area = 16 * 16
+
+    for id in file_ids:
+        stats = patch_stats[id]
+
+        lymph_count = stats["lymph_count"]
+        lymph_area = lymph_count * cell_area
+        mono_count = stats["mono_count"]
+        mono_area = mono_count * cell_area
+
+        target_cell_area = 0.0
+        if cell_type == "inflamm":
+            target_cell_area = lymph_area + mono_area
+        if cell_type == "lymph":
+            target_cell_area = lymph_area
+        if cell_type == "mono":
+            target_cell_area = mono_area
+
+        background_area = patch_area - target_cell_area
+        class_instances.append([background_area, target_cell_area])
+
+    class_instances = np.array(class_instances)
+    pixel_class_sum = np.sum(class_instances, axis=0)
+
+    print(f"others pixels: {pixel_class_sum[0]}")
+    print(f"target cell pixels: {pixel_class_sum[1]}")
 
     sample_weights = []
     for i in range(class_instances.shape[0]):

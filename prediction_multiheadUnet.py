@@ -34,7 +34,7 @@ def cross_validation(fold_number: int = 1):
         resolution=0,
         units="level",
         stride=224,
-        thresholds=[0.3,0.3,0.3]
+        thresholds=[0.3, 0.3, 0.3],
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",

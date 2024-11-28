@@ -62,7 +62,7 @@ class PredictionIOConfig:
         units: str = "level",
         stride: int = 256,
         threshold: float = 0.9,
-        thresholds: list = [0.3,0.3,0.3],
+        thresholds: list = [0.3, 0.3, 0.3],
         min_size: int = 96,
         include_background: bool = False,
     ):
