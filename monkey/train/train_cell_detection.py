@@ -135,15 +135,14 @@ def train_one_epoch(
 def validate_one_epoch(
     model: nn.Module,
     validation_loader: DataLoader,
+    loss_fn: Loss_Function,
     run_config: dict,
     wandb_run: Optional[wandb.run] = None,
     activation: torch.nn = torch.nn.Sigmoid,
 ):
     running_val_score = 0.0
+    running_loss = 0.0
     module = run_config["module"]
-    include_background_channel = run_config[
-        "include_background_channel"
-    ]
 
     model.eval()
     for i, data in enumerate(
@@ -156,15 +155,9 @@ def validate_one_epoch(
         with torch.no_grad():
             logits_pred = model(images)
             pred_probs = activation(logits_pred)
+            loss = loss_fn.compute_loss(pred_probs, true_masks).item()
 
-            if include_background_channel:
-                mask_pred = torch.argmax(pred_probs, dim=1)
-                # to_one_hot
-                mask_pred_binary = torch.zeros_like(
-                    logits_pred
-                ).scatter_(1, mask_pred.unsqueeze(1), 1.0)
-            else:
-                mask_pred_binary = (pred_probs > 0.5).float()
+            mask_pred_binary = (pred_probs > 0.5).float()
 
             # Compute detection F1 score
             metrics = get_multiclass_patch_F1_score_batch(
@@ -172,6 +165,7 @@ def validate_one_epoch(
             )
 
         running_val_score += metrics["F1"] * images.size(0)
+        running_loss += loss * images.size(0)
 
     # Log an example prediction to WandB
     log_data = compose_log_images(
@@ -180,12 +174,13 @@ def validate_one_epoch(
         pred_masks=mask_pred_binary,
         pred_probs=pred_probs,
         module=module,
-        has_background_channel=include_background_channel,
+        has_background_channel=False,
     )
     wandb_run.log(log_data)
 
     avg_score = running_val_score / len(validation_loader.sampler)
-    return avg_score
+    avg_loss = running_loss / len(validation_loader.sampler)
+    return {"F1": avg_score, "Val_loss": avg_loss}
 
 
 def train_det_net(
@@ -210,35 +205,36 @@ def train_det_net(
     ):
         pprint(f"EPOCH {epoch}")
 
-        # avg_train_loss = train_one_epoch(
-        #     model,
-        #     train_loader,
-        #     optimizer,
-        #     loss_fn,
-        #     run_config,
-        #     activation,
-        # )
-        # avg_score = validate_one_epoch(
-        #     model,
-        #     validation_loader,
-        #     run_config,
-        #     wandb_run,
-        #     activation,
-        # )
-        avg_train_loss = train_one_epoch_mapde(
+        avg_train_loss = train_one_epoch(
             model,
             train_loader,
             optimizer,
             loss_fn,
             run_config,
+            activation,
         )
-        avg_score = validate_one_epoch_mapde(
+        avg_score = validate_one_epoch(
             model,
             validation_loader,
-            run_config,
             loss_fn,
+            run_config,
             wandb_run,
+            activation,
         )
+        # avg_train_loss = train_one_epoch_mapde(
+        #     model,
+        #     train_loader,
+        #     optimizer,
+        #     loss_fn,
+        #     run_config,
+        # )
+        # avg_score = validate_one_epoch_mapde(
+        #     model,
+        #     validation_loader,
+        #     run_config,
+        #     loss_fn,
+        #     wandb_run,
+        # )
 
         if scheduler is not None:
             scheduler.step(avg_train_loss)
@@ -246,7 +242,8 @@ def train_det_net(
         log_data = {
             "Epoch": epoch,
             "Train loss": avg_train_loss,
-            "Val score": avg_score,
+            "Val loss": avg_score["Val_loss"],
+            "F1": avg_score["F1"],
             "Learning rate": optimizer.param_groups[0]["lr"],
         }
         if wandb_run is not None:
