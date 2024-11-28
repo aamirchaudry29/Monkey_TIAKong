@@ -20,7 +20,7 @@ from monkey.train.train_multitask_cell_detection import (
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
     "model_name": "hovernext_det_large",
-    "val_fold": 2,  # [1-5]
+    "val_fold": 5,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,

@@ -33,7 +33,7 @@ run_config = {
     "loss_function": {
         "head_1": "BCE_Dice",
         "head_2": "BCE_Dice",
-        # "head_3": "Weighted_BCE",
+        "head_3": "BCE_Dice",
     },
     "loss_pos_weight": 1000.0,
     "do_augmentation": True,
@@ -92,9 +92,9 @@ loss_fn_dict = {
     "head_2": get_loss_function(
         run_config["loss_function"]["head_2"]
     ),
-    # "head_3": get_loss_function(
-    #     run_config["loss_function"]["head_3"]
-    # ),
+    "head_3": get_loss_function(
+        run_config["loss_function"]["head_3"]
+    ),
 }
 # loss_fn_dict["head_1"].set_multiclass(True)
 # loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
