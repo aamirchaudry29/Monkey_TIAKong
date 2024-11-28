@@ -22,7 +22,7 @@ run_config = {
     "model_name": "hovernext_det_large",
     "val_fold": 2,  # [1-5]
     "batch_size": 64,
-    "optimizer": "RMSprop",
+    "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
     "epochs": 50,
@@ -114,21 +114,21 @@ activation_fn_dict = {
 }
 
 
-# optimizer = torch.optim.AdamW(
-#     model.parameters(),
-#     lr=run_config["learning_rate"],
-#     weight_decay=run_config["weight_decay"],
-# )
-optimizer = torch.optim.RMSprop(
+optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
 )
+# optimizer = torch.optim.RMSprop(
+#     model.parameters(),
+#     lr=run_config["learning_rate"],
+#     weight_decay=run_config["weight_decay"],
+# )
 # scheduler = lr_scheduler.ReduceLROnPlateau(
 #     optimizer, "max", factor=0.5, patience=10
 # )
 scheduler = lr_scheduler.StepLR(
-    optimizer, step_size=10, gamma=0.2
+    optimizer, step_size=10, gamma=0.1
 )
 
 # Create WandB session

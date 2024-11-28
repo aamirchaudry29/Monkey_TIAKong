@@ -648,7 +648,7 @@ def get_detection_sampler_v2(file_ids, IOConfig):
     sample_weights = []
     for i in range(class_instances.shape[0]):
         weight_vector = class_instances[i] / pixel_class_sum
-        sample_weights.append(np.sum(weight_vector))
+        sample_weights.append(3 - np.sum(weight_vector))
 
     weighted_sampler = WeightedRandomSampler(
         weights=sample_weights,
