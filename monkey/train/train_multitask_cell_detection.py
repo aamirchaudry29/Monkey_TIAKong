@@ -13,6 +13,7 @@ from tqdm import tqdm
 from monkey.model.loss_functions import Loss_Function
 from monkey.model.utils import get_multiclass_patch_F1_score_batch
 from monkey.train.utils import compose_multitask_log_images
+from monkey.model.hovernext.model import freeze_enc, unfreeze_enc
 
 
 def hovernext_train_one_epoch(
@@ -351,28 +352,18 @@ def multitask_train_loop(
     best_val_score = -np.inf
     epochs = run_config["epochs"]
 
+    freeze_enc(model)
+    pprint("Encoder freezed")
+
     for epoch in tqdm(
         range(1, epochs + 1), desc="epochs", leave=True
     ):
         pprint(f"EPOCH {epoch}")
+        if epoch == 10:
+            unfreeze_enc(model)
+            pprint("Encoder unfreezed")
 
-        avg_train_loss = train_one_epoch(
-            model=model,
-            training_loader=train_loader,
-            optimizer=optimizer,
-            loss_fn_dict=loss_fn_dict,
-            run_config=run_config,
-            activation_dict=activation_dict,
-        )
-        avg_scores = validate_one_epoch(
-            model=model,
-            validation_loader=validation_loader,
-            loss_fn_dict=loss_fn_dict,
-            run_config=run_config,
-            activation_dict=activation_dict,
-            wandb_run=wandb_run,
-        )
-        # avg_train_loss = hovernext_train_one_epoch(
+        # avg_train_loss = train_one_epoch(
         #     model=model,
         #     training_loader=train_loader,
         #     optimizer=optimizer,
@@ -380,7 +371,7 @@ def multitask_train_loop(
         #     run_config=run_config,
         #     activation_dict=activation_dict,
         # )
-        # avg_scores = hovernext_validate_one_epoch(
+        # avg_scores = validate_one_epoch(
         #     model=model,
         #     validation_loader=validation_loader,
         #     loss_fn_dict=loss_fn_dict,
@@ -388,6 +379,22 @@ def multitask_train_loop(
         #     activation_dict=activation_dict,
         #     wandb_run=wandb_run,
         # )
+        avg_train_loss = hovernext_train_one_epoch(
+            model=model,
+            training_loader=train_loader,
+            optimizer=optimizer,
+            loss_fn_dict=loss_fn_dict,
+            run_config=run_config,
+            activation_dict=activation_dict,
+        )
+        avg_scores = hovernext_validate_one_epoch(
+            model=model,
+            validation_loader=validation_loader,
+            loss_fn_dict=loss_fn_dict,
+            run_config=run_config,
+            activation_dict=activation_dict,
+            wandb_run=wandb_run,
+        )
 
         sum_val_score = (
             avg_scores["overall_F1"]

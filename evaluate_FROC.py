@@ -19,7 +19,7 @@ def compute_FROC(fold: int = 1):
     # )
 
     FOLD = fold
-    model_name = "multihead_unet_experiment"
+    model_name = "hovernext_det_experiment"
     PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     # PREDICT_DIR = f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{FOLD}"
     SPACING_LEVEL0 = 0.24199951445730394
@@ -135,6 +135,7 @@ def compute_FROC(fold: int = 1):
         mono_sum_score += mono_froc["froc_score_slide"]
         mono_sum_f1 += mono_f1["F1"]
 
+
     results = {
         "model_name": model_name,
         "fold": fold,
@@ -154,5 +155,17 @@ if __name__ == "__main__":
     with Pool(5) as p:
         results = p.map(compute_FROC, folds)
 
+
+    # Sum across folds
+    inflamm_froc_sum = 0.0  
+    lymph_froc_sum = 0.0
+    mono_froc_sum = 0.0
     for result in results:
         pprint(result)
+        inflamm_froc_sum += result['Inflamm FROC']
+        lymph_froc_sum += result['Lymphocytes FROC']
+        mono_froc_sum  += result['Monocytes FROC']
+
+    pprint(f"Avg inflamm FROC {inflamm_froc_sum /  len(folds)}")
+    pprint(f"Avg lymph FROC {lymph_froc_sum /  len(folds)}")
+    pprint(f"Avg mono FROC {mono_froc_sum /  len(folds)}")

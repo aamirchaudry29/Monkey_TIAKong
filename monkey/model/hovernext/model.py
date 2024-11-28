@@ -173,7 +173,6 @@ def get_model(
         model.load_state_dict(new_state)
     return model
 
-
 def get_custom_hovernext(
     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
     pretrained=True,

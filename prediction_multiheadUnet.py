@@ -17,11 +17,12 @@ from monkey.data.data_utils import (
 from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
 )
+from monkey.model.hovernext.model import get_custom_hovernext
 from prediction.multihead_unet_prediction import wsi_detection_in_mask
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "multihead_unet_experiment"
+    detector_model_name = "hovernext_det_experiment"
     fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
 
@@ -60,13 +61,14 @@ def cross_validation(fold_number: int = 1):
     #     f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_100.pth",
     # ]
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_100.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_75.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
-        model = get_multihead_efficientunet(
-            pretrained=False, out_channels=[2, 1, 1]
-        )
+        # model = get_multihead_efficientunet(
+        #     pretrained=False, out_channels=[2, 1, 1]
+        # )
+        model = get_custom_hovernext(pretrained=False)
         checkpoint = torch.load(weight_path)
         model.load_state_dict(checkpoint["model"])
         model.eval()

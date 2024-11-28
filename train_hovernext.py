@@ -19,19 +19,19 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "hovernext_det",
-    "val_fold": 5,  # [1-5]
-    "batch_size": 64,
+    "model_name": "hovernext_det_large",
+    "val_fold": 3,  # [1-5]
+    "batch_size": 48,
     "optimizer": "AdamW",
-    "learning_rate": 0.0004,
+    "learning_rate": 0.001,
     "weight_decay": 0.01,
-    "epochs": 50,
+    "epochs": 75,
     "loss_function": {
-        "head_1": "Weighted_BCE_Dice",
-        "head_2": "Weighted_BCE_Dice",
-        "head_3": "Weighted_BCE_Dice",
+        "head_1": "BCE_Dice",
+        "head_2": "BCE_Dice",
+        "head_3": "BCE_Dice",
     },
-    "loss_pos_weight": 10.0,
+    "loss_pos_weight": 1.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
@@ -58,6 +58,7 @@ if run_config["use_nuclick_masks"]:
 
 # Create model
 model = get_custom_hovernext(
+    enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
 )
 model.to("cuda")
@@ -96,9 +97,9 @@ loss_fn_dict = {
         run_config["loss_function"]["head_3"]
     ),
 }
-loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
-loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
-loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
+# loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
+# loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
+# loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
 
 activation_fn_dict = {
     "head_1": get_activation_function(
@@ -122,7 +123,7 @@ optimizer = torch.optim.AdamW(
 #     optimizer, "max", factor=0.5, patience=10
 # )
 scheduler = lr_scheduler.MultiStepLR(
-    optimizer, milestones=[20, 40], gamma=0.5
+    optimizer, milestones=[10, 30, 45, 60], gamma=0.5
 )
 
 # Create WandB session

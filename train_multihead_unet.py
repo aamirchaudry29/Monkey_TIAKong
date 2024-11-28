@@ -27,15 +27,15 @@ run_config = {
     "val_fold": 5,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.001,
+    "learning_rate": 0.0004,
     "weight_decay": 0.01,
     "epochs": 50,
     "loss_function": {
-        "head_1": "Weighted_BCE_Dice",
-        "head_2": "Weighted_BCE_Dice",
-        "head_3": "Weighted_BCE_Dice",
+        "head_1": "Weighted_BCE",
+        "head_2": "Weighted_BCE",
+        "head_3": "Weighted_BCE",
     },
-    "loss_pos_weight": 10.0,
+    "loss_pos_weight": 1000.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",

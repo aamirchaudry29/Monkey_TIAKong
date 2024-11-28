@@ -103,19 +103,19 @@ def detection_in_tile(
             for model in models:
                 model.eval()
                 logits_pred = model(imgs)
-                head_1_logits = logits_pred[:, 0:1, :, :]
-                head_2_logits = logits_pred[:, 1:2, :, :]
-                head_3_logits = logits_pred[:, 2:3, :, :]
+                head_1_logits = logits_pred[:, 0, :, :]
+                head_2_logits = logits_pred[:, 1, :, :]
+                head_3_logits = logits_pred[:, 2, :, :]
 
                 _inflamm_prob = activation_dict["head_1"](
                     head_1_logits
-                ).cpu()
+                ).numpy(force=True)
                 _lymph_prob = activation_dict["head_2"](
                     head_2_logits
-                ).cpu()
+                ).numpy(force=True)
                 _mono_prob = activation_dict["head_3"](
                     head_3_logits
-                ).cpu()
+                ).numpy(force=True)
                 # processed_outputs = EfficientUnet_MBConv_Multihead.multihead_unet_post_process(
                 #     logits,
                 #     activation_dict,
@@ -129,7 +129,7 @@ def detection_in_tile(
         inflamm_prob = inflamm_prob / len(models)
         lymph_prob = lymph_prob / len(models)
         mono_prob = mono_prob / len(models)
-        contour_prob = contour_prob / len(models)
+        # contour_prob = contour_prob / len(models)
 
         predictions["inflamm_prob"].extend(list(inflamm_prob))
         predictions["lymph_prob"].extend(list(lymph_prob))
@@ -436,8 +436,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_inflamm_records,
         tile_size=4096,
-        box_size=30,
-        overlap_thresh=0.5,
+        box_size=16,
+        overlap_thresh=0.75,
     )
 
     final_lymph_records = slide_nms(
@@ -446,7 +446,7 @@ def wsi_detection_in_mask(
         detection_record=filtered_lymph_records,
         tile_size=4096,
         box_size=16,
-        overlap_thresh=0.5,
+        overlap_thresh=0.75,
     )
 
     final_mono_records = slide_nms(
@@ -454,8 +454,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_mono_records,
         tile_size=4096,
-        box_size=40,
-        overlap_thresh=0.5,
+        box_size=16,
+        overlap_thresh=0.75,
     )
 
     return {
