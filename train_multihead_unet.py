@@ -22,25 +22,25 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "multihead_unet_det",
-    "out_channels": [1, 1, 1],
-    "val_fold": 5,  # [1-5]
+    "model_name": "multihead_unet_det_lymph_mono",
+    "out_channels": [1, 1],
+    "val_fold": 2,  # [1-5]
     "batch_size": 64,
-    "optimizer": "AdamW",
+    "optimizer": "RMSprop",
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
     "epochs": 50,
     "loss_function": {
-        "head_1": "Weighted_BCE",
-        "head_2": "Weighted_BCE",
-        "head_3": "Weighted_BCE",
+        "head_1": "BCE_Dice",
+        "head_2": "BCE_Dice",
+        # "head_3": "Weighted_BCE",
     },
     "loss_pos_weight": 1000.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
         "head_2": "sigmoid",
-        "head_3": "sigmoid",
+        # "head_3": "sigmoid",
     },
     "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
 }
@@ -92,14 +92,14 @@ loss_fn_dict = {
     "head_2": get_loss_function(
         run_config["loss_function"]["head_2"]
     ),
-    "head_3": get_loss_function(
-        run_config["loss_function"]["head_3"]
-    ),
+    # "head_3": get_loss_function(
+    #     run_config["loss_function"]["head_3"]
+    # ),
 }
 # loss_fn_dict["head_1"].set_multiclass(True)
-loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
-loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
-loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
+# loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
+# loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
+# loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
 
 activation_fn_dict = {
     "head_1": get_activation_function(
@@ -108,19 +108,24 @@ activation_fn_dict = {
     "head_2": get_activation_function(
         run_config["activation_function"]["head_2"]
     ),
-    "head_3": get_activation_function(
-        run_config["activation_function"]["head_3"]
-    ),
+    # "head_3": get_activation_function(
+    #     run_config["activation_function"]["head_3"]
+    # ),
 }
 
 
-optimizer = torch.optim.AdamW(
+# optimizer = torch.optim.AdamW(
+#     model.parameters(),
+#     lr=run_config["learning_rate"],
+#     weight_decay=run_config["weight_decay"],
+# )
+optimizer = torch.optim.RMSprop(
     model.parameters(),
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
 )
 scheduler = lr_scheduler.MultiStepLR(
-    optimizer, milestones=[10, 40], gamma=0.1
+    optimizer, milestones=[10, 20, 30, 40], gamma=0.1
 )
 
 

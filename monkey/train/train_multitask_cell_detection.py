@@ -208,25 +208,26 @@ def train_one_epoch(
 
         head_1_logits = logits_pred["head_1"]
         head_2_logits = logits_pred["head_2"]
-        head_3_logits = logits_pred["head_3"]
+        # head_3_logits = logits_pred["head_3"]
 
         pred_1 = activation_dict["head_1"](head_1_logits)
         pred_2 = activation_dict["head_2"](head_2_logits)
-        pred_3 = activation_dict["head_3"](head_3_logits)
+        # pred_3 = activation_dict["head_3"](head_3_logits)
 
         # loss_1 = loss_fn_dict["head_1"].compute_loss(
         #     pred_1, head_1_true_masks
         # )
         loss_1 = loss_fn_dict["head_1"].compute_loss(
-            pred_1, binary_true_masks
+            pred_1, lymph_true_masks
         )
         loss_2 = loss_fn_dict["head_2"].compute_loss(
-            pred_2, lymph_true_masks
+            pred_2, mono_true_masks
         )
-        loss_3 = loss_fn_dict["head_3"].compute_loss(
-            pred_3, mono_true_masks
-        )
-        sum_loss = loss_1 + loss_2 + loss_3
+        # loss_3 = loss_fn_dict["head_3"].compute_loss(
+        #     pred_3, mono_true_masks
+        # )
+        # sum_loss = loss_1 + loss_2 + loss_3
+        sum_loss = loss_1 + loss_2
         sum_loss.backward()
         optimizer.step()
 
@@ -266,39 +267,44 @@ def validate_one_epoch(
             logits_pred = model(images)
             head_1_logits = logits_pred["head_1"]
             head_2_logits = logits_pred["head_2"]
-            head_3_logits = logits_pred["head_3"]
+            # head_3_logits = logits_pred["head_3"]
 
-            pred_1 = activation_dict["head_1"](head_1_logits)
-            pred_2 = activation_dict["head_2"](head_2_logits)
-            pred_3 = activation_dict["head_3"](head_3_logits)
+            lymph_probs = activation_dict["head_1"](head_1_logits)
+            mono_probs = activation_dict["head_2"](head_2_logits)
+            # pred_3 = activation_dict["head_3"](head_3_logits)
+            overall_probs = torch.zeros_like(lymph_probs)
+            overall_probs += lymph_probs
+            overall_probs += mono_probs
 
             loss_1 = loss_fn_dict["head_1"].compute_loss(
-                pred_1, binary_true_masks
+                lymph_probs, lymph_true_masks
             )
             loss_2 = loss_fn_dict["head_2"].compute_loss(
-                pred_2, lymph_true_masks
+                mono_probs, mono_true_masks
             )
-            loss_3 = loss_fn_dict["head_3"].compute_loss(
-                pred_3, mono_true_masks
-            )
-            sum_loss = loss_1.item() + loss_2.item() + loss_3.item()
+            # loss_3 = loss_fn_dict["head_3"].compute_loss(
+            #     pred_3, mono_true_masks
+            # )
+            # sum_loss = loss_1.item() + loss_2.item() + loss_3.item()
+            sum_loss = loss_1.item() + loss_2.item()
             running_loss += sum_loss * images.size(0)
 
-            overall_pred_binary = (pred_1 > 0.5).float()
-            lymph_pred_binary = (pred_2 > 0.5).float()
-            mono_pred_binary = (pred_3 > 0.5).float()
+            # overall_pred_binary = (pred_1 > 0.5).float()
+            lymph_pred_binary = (lymph_probs > 0.5).float()
+            mono_pred_binary = (mono_probs > 0.5).float()
+            overall_pred_binary = (overall_probs > 0.5).float()
 
             # Compute detection F1 score
             overall_metrics = get_multiclass_patch_F1_score_batch(
                 overall_pred_binary,
                 binary_true_masks,
-                pred_1,
+                overall_probs,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
-                lymph_pred_binary, lymph_true_masks, pred_2
+                lymph_pred_binary, lymph_true_masks, lymph_probs
             )
             mono_metrics = get_multiclass_patch_F1_score_batch(
-                mono_pred_binary, mono_true_masks, pred_3
+                mono_pred_binary, mono_true_masks, mono_probs
             )
 
         running_overall_score += (
@@ -314,9 +320,9 @@ def validate_one_epoch(
         lymph_true_masks,
         mono_true_masks,
         None,
-        overall_pred_probs=pred_1,
-        lymph_pred_probs=pred_2,
-        mono_pred_probs=pred_3,
+        overall_pred_probs=overall_probs,
+        lymph_pred_probs=lymph_probs,
+        mono_pred_probs=mono_probs,
         contour_pred_probs=None,
     )
     if wandb_run is not None:
@@ -363,23 +369,7 @@ def multitask_train_loop(
             unfreeze_enc(model)
             pprint("Encoder unfreezed")
 
-        # avg_train_loss = train_one_epoch(
-        #     model=model,
-        #     training_loader=train_loader,
-        #     optimizer=optimizer,
-        #     loss_fn_dict=loss_fn_dict,
-        #     run_config=run_config,
-        #     activation_dict=activation_dict,
-        # )
-        # avg_scores = validate_one_epoch(
-        #     model=model,
-        #     validation_loader=validation_loader,
-        #     loss_fn_dict=loss_fn_dict,
-        #     run_config=run_config,
-        #     activation_dict=activation_dict,
-        #     wandb_run=wandb_run,
-        # )
-        avg_train_loss = hovernext_train_one_epoch(
+        avg_train_loss = train_one_epoch(
             model=model,
             training_loader=train_loader,
             optimizer=optimizer,
@@ -387,7 +377,7 @@ def multitask_train_loop(
             run_config=run_config,
             activation_dict=activation_dict,
         )
-        avg_scores = hovernext_validate_one_epoch(
+        avg_scores = validate_one_epoch(
             model=model,
             validation_loader=validation_loader,
             loss_fn_dict=loss_fn_dict,
@@ -395,6 +385,22 @@ def multitask_train_loop(
             activation_dict=activation_dict,
             wandb_run=wandb_run,
         )
+        # avg_train_loss = hovernext_train_one_epoch(
+        #     model=model,
+        #     training_loader=train_loader,
+        #     optimizer=optimizer,
+        #     loss_fn_dict=loss_fn_dict,
+        #     run_config=run_config,
+        #     activation_dict=activation_dict,
+        # )
+        # avg_scores = hovernext_validate_one_epoch(
+        #     model=model,
+        #     validation_loader=validation_loader,
+        #     loss_fn_dict=loss_fn_dict,
+        #     run_config=run_config,
+        #     activation_dict=activation_dict,
+        #     wandb_run=wandb_run,
+        # )
 
         sum_val_score = (
             avg_scores["overall_F1"]
