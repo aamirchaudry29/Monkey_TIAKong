@@ -174,6 +174,60 @@ def get_model(
     return model
 
 
+def get_convnext_unet(
+    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+    pretrained=True,
+):
+    pre_path = None
+    if type(pretrained) == str:
+        pre_path = pretrained
+        pretrained = False
+    # small fix to deal with large pooling in convnext type models:
+    depth = 4 if "next" in enc else 5
+
+    encoder = get_timm_encoder(
+        name=enc,
+        in_channels=3,
+        depth=depth,
+        weights=pretrained,
+        output_stride=32,
+        drop_rate=0.5,
+        drop_path_rate=0.25,
+    )
+    decoder_channels = (256, 128, 64, 32, 16)[:depth]
+
+    decoder = UnetDecoder(
+        encoder_channels=encoder.out_channels,
+        decoder_channels=decoder_channels,
+        n_blocks=len(decoder_channels),
+        use_batchnorm=False,
+        center=False,
+        attention_type=None,
+        next="next" in enc,
+    )
+
+    head = smp.base.SegmentationHead(
+        in_channels=decoder.blocks[-1].conv2[0].out_channels,
+        out_channels=1,  # instance channels
+        activation=None,
+        kernel_size=1,
+    )
+
+    decoders = [decoder]
+    heads = [head]
+    model = MultiHeadModel(encoder, decoders, heads)
+    if pre_path:
+        state_dict = torch.load(pre_path, map_location=f"cpu")[
+            "model_state_dict"
+        ]
+        new_state = model.state_dict()
+        for k, v in state_dict.items():
+            if k.startswith("encoder."):
+                new_state[k] = v
+        model.load_state_dict(new_state)
+    return model
+
+
 def get_custom_hovernext(
     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
     pretrained=True,
