@@ -889,6 +889,7 @@ class CellVit256_Unet(nn.Module):
         drop_rate: float = 0,
         attn_drop_rate: float = 0,
         drop_path_rate: float = 0,
+        num_decoders: int = 1,
     ):
         # For simplicity, we will assume that extract layers must have a length of 4
         super().__init__()
@@ -903,6 +904,7 @@ class CellVit256_Unet(nn.Module):
         self.qkv_bias = True
         self.extract_layers = [3, 6, 9, 12]
         self.input_channels = 3  # RGB
+        self.num_decoders = num_decoders
 
         self.encoder = ViTCellViT(
             patch_size=self.patch_size,
@@ -968,9 +970,14 @@ class CellVit256_Unet(nn.Module):
 
         self.branches_output = {"nuclei_binary_map": 1}
 
-        self.nuclei_binary_map_decoder = (
-            self.create_upsampling_branch(1)
-        )  # todo: adapt for helper loss
+        self.out_decoders = []
+        for i in range(self.num_decoders):
+            decoder = self.create_upsampling_branch(1)
+            self.out_decoders.append(decoder)
+        self.out_decoders = nn.ModuleList(self.out_decoders)
+        # self.nuclei_binary_map_decoder = (
+        #     self.create_upsampling_branch(1)
+        # )  # todo: adapt for helper loss
 
     def forward(
         self, x: torch.Tensor, retrieve_tokens: bool = False
@@ -1025,13 +1032,16 @@ class CellVit256_Unet(nn.Module):
             .view(-1, self.embed_dim, *patch_dim)
         )
 
-        out_dict["nuclei_binary_map"] = self._forward_upsample(
-            z0, z1, z2, z3, z4, self.nuclei_binary_map_decoder
-        )
-        if retrieve_tokens:
-            out_dict["tokens"] = z4
+        out_list = []
+        for i in range(self.num_decoders):
+            out = self._forward_upsample(
+                z0, z1, z2, z3, z4, self.out_decoders[i]
+            )
+            out_list.append(out)
+        # if retrieve_tokens:
+        #     out_dict["tokens"] = z4
 
-        return out_dict["nuclei_binary_map"]
+        return torch.cat(out_list, 1)
 
     def _forward_upsample(
         self,
