@@ -68,13 +68,15 @@ def detect():
     print(f"wsi_name={wsi_name}")
     print(f"mask_name={mask_name}")
 
+    model_mpp = 0.24199951445730394
+    baseline_mpp = 0.24199951445730394
     config = PredictionIOConfig(
         wsi_dir=wsi_dir,
         mask_dir=mask_dir,
         output_dir=OUTPUT_PATH,
         patch_size=256,
-        resolution=0,
-        units="level",
+        resolution=model_mpp,
+        units="mpp",
         stride=224,
         thresholds=[0.5, 0.5, 0.5],
         min_distances=[11, 7, 13],

@@ -164,3 +164,4 @@ test/
 inference-docker/*.tar.gz
 weights/
 description.txt
+algorithmmodel.tar.gz
