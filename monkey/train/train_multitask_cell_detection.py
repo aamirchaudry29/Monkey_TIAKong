@@ -129,30 +129,30 @@ def hovernext_validate_one_epoch(
             binary_masks = multihead_det_post_process_batch(
                 inflamm_prob=pred_1,
                 lymph_prob=pred_2,
-                mono_prob=pred_3
+                mono_prob=pred_3,
             )
-            overall_pred_binary = binary_masks['inflamm_mask']
-            lymph_pred_binary = binary_masks['lymph_mask']
-            mono_pred_binary = binary_masks['mono_mask']
+            overall_pred_binary = binary_masks["inflamm_mask"]
+            lymph_pred_binary = binary_masks["lymph_mask"]
+            mono_pred_binary = binary_masks["mono_mask"]
 
             # Compute detection F1 score
             overall_metrics = get_multiclass_patch_F1_score_batch(
-                overall_pred_binary[:,np.newaxis, :,:],
+                overall_pred_binary[:, np.newaxis, :, :],
                 binary_true_masks,
                 [7.5],
                 pred_1,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
-                lymph_pred_binary[:,np.newaxis, :,:], 
-                lymph_true_masks, 
-                [4], 
-                pred_2
+                lymph_pred_binary[:, np.newaxis, :, :],
+                lymph_true_masks,
+                [4],
+                pred_2,
             )
             mono_metrics = get_multiclass_patch_F1_score_batch(
-                mono_pred_binary[:,np.newaxis, :,:], 
-                mono_true_masks, 
-                [10], 
-                pred_3
+                mono_pred_binary[:, np.newaxis, :, :],
+                mono_true_masks,
+                [10],
+                pred_3,
             )
 
         running_overall_score += (

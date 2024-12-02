@@ -19,7 +19,7 @@ def compute_FROC(fold: int = 1):
     # )
 
     FOLD = fold
-    model_name = "multihead_unet_det_20x"
+    model_name = "hovernext_det_large"
     PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     # PREDICT_DIR = f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{FOLD}"
     SPACING_LEVEL0 = 0.24199951445730394
@@ -179,8 +179,8 @@ def compute_FROC(fold: int = 1):
 
 
 if __name__ == "__main__":
-    # folds = [1, 2, 3, 4, 5]
-    folds = [1]
+    folds = [1, 2, 3, 4, 5]
+    # folds = [1]
     with Pool(5) as p:
         results = p.map(compute_FROC, folds)
 

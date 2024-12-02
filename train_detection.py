@@ -20,21 +20,19 @@ from monkey.train.train_cell_detection import train_det_net
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Detection_Inflamm",
-    "model_name": "convnextunet_base_seg",
+    "project_name": "Monkey_Detection_2_channel",
+    "model_name": "convnextunet_large_det",
     "val_fold": 1,  # [1-5]
     "batch_size": 64,
-    "optimizer": "NAdam",
+    "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.001,
     "epochs": 30,
-    "loss_function": "BCE_Dice",
+    "loss_function": "Jaccard_Loss",
     "loss_pos_weight": 1.0,
     "do_augmentation": True,
     "activation_function": "sigmoid",
-    "module": "detection",  # 'detection' or 'multiclass_detection'
-    "target_cell_type": "inflamm",
-    "use_nuclick_masks": True,
+    "use_nuclick_masks": False,
 }
 pprint(run_config)
 
@@ -52,9 +50,7 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-model = get_convnext_unet(
-    enc="convnextv2_base.fcmae_ft_in22k_in1k", pretrained=True
-)
+model = get_convnext_unet(pretrained=True, out_classes=2)
 # model = CellVit256_Unet()
 # model_path = "/home/u1910100/cloud_workspace/data/Monkey/HIPT_vit256_small_dino.pth"
 # model.load_pretrained_encoder(model_path)
@@ -71,11 +67,9 @@ os.environ["WANDB_DIR"] = IOconfig.save_dir
 train_loader, val_loader = get_detection_dataloaders(
     IOconfig,
     val_fold=run_config["val_fold"],
-    dataset_name="detection",
+    dataset_name="multitask",
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
-    module=run_config["module"],
-    target_cell_type=run_config["target_cell_type"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
 )
 
@@ -92,7 +86,9 @@ optimizer = torch.optim.NAdam(
     weight_decay=run_config["weight_decay"],
     # momentum=0.9,
 )
-scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+scheduler = lr_scheduler.ReduceLROnPlateau(
+    optimizer=optimizer, mode="min", factor=0.1, patience=10
+)
 
 # Create WandB session
 run = wandb.init(

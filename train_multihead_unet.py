@@ -80,7 +80,7 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
-    disk_radius=5
+    disk_radius=5,
 )
 
 
@@ -121,7 +121,7 @@ optimizer = torch.optim.AdamW(
     weight_decay=run_config["weight_decay"],
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.1, patience=10
+    optimizer, mode="min", factor=0.1, patience=10
 )
 
 

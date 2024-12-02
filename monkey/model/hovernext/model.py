@@ -177,7 +177,7 @@ def get_model(
 def get_convnext_unet(
     enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
-    out_classes = 1
+    out_classes=1,
 ):
     pre_path = None
     if type(pretrained) == str:

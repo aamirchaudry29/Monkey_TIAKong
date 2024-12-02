@@ -474,20 +474,6 @@ def jaccard_loss(
     return 1 - fn(input, target, reduce_batch_first=True)
 
 
-def non_zero_similarity_score(
-    input: Tensor, target: Tensor, epsilon=1e-11
-):
-    non_zero_overlap = torch.dot(
-        input.reshape(-1), target.reshape(-1)
-    )
-    if non_zero_overlap == 0.0:
-        sets_sum = 1.0
-    else:
-        sets_sum = torch.sum(input) + torch.sum(target)
-
-    return (2 * non_zero_overlap + epsilon) / (sets_sum + epsilon)
-
-
 # ------------------------ inter and intra class loss ----------------------
 def inter_class_exclusion_loss(dist_pred_pos, dist_pred_neg):
     """

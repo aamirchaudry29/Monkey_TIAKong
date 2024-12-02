@@ -10,10 +10,15 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from monkey.model.loss_functions import Loss_Function, MapDe_Loss
+from monkey.model.loss_functions import Loss_Function
 from monkey.model.mapde import model
 from monkey.model.utils import get_multiclass_patch_F1_score_batch
-from monkey.train.utils import compose_log_images
+from monkey.train.utils import (
+    compose_multitask_log_images,
+    compose_log_images,
+)
+from prediction.utils import post_process_batch
+from monkey.model.loss_functions import inter_class_exclusion_loss
 
 
 def train_one_epoch_mapde(
@@ -116,14 +121,18 @@ def train_one_epoch(
     ):
         images, true_labels = (
             data["image"].cuda().float(),
-            data["mask"].cuda().float(),
+            data["class_mask"].cuda().float(),
         )
         optimizer.zero_grad()
 
         logits_pred = model(images)
-        pred = activation(logits_pred)
-        loss = loss_fn.compute_loss(pred, true_labels)
-        loss.backward()
+        pred_probs = activation(logits_pred)
+        loss = loss_fn.compute_loss(pred_probs, true_labels)
+        inter_class_loss = inter_class_exclusion_loss(
+            pred_probs[:,0,:,:], pred_probs[:,1,:,:]
+        )
+        final_loss = 0.6 * loss + 0.4 * inter_class_loss
+        final_loss.backward()
         optimizer.step()
 
         epoch_loss += loss.item() * images.size(0)
@@ -139,53 +148,102 @@ def validate_one_epoch(
     wandb_run: Optional[wandb.run] = None,
     activation: torch.nn = torch.nn.Sigmoid,
 ):
-    running_val_score = 0.0
+    running_overall_score = 0.0
+    running_lymph_score = 0.0
+    running_mono_score = 0.0
     running_loss = 0.0
-    module = run_config["module"]
-    if run_config["target_cell_type"] == "inflamm":
-        margin = 7.5
-    elif run_config["target_cell_type"] == "lymph":
-        margin = 4
-    else:
-        margin = 10
 
     model.eval()
     for i, data in enumerate(
         tqdm(validation_loader, desc="validation", leave=False)
     ):
-        images, true_masks = (
-            data["image"].cuda().float(),
-            data["mask"].cuda().float(),
+        images = data["image"].cuda().float()
+
+        binary_true_masks = data["binary_mask"].cuda().float()
+        class_masks = data["class_mask"].cuda().float()
+        lymph_true_masks = (
+            data["class_mask"][:, 0:1, :, :].cuda().float()
+        )
+        mono_true_masks = (
+            data["class_mask"][:, 1:2, :, :].cuda().float()
         )
         with torch.no_grad():
             logits_pred = model(images)
             pred_probs = activation(logits_pred)
-            loss = loss_fn.compute_loss(pred_probs, true_masks).item()
+            loss = loss_fn.compute_loss(
+                pred_probs, class_masks
+            ).item()
+            inter_class_loss = inter_class_exclusion_loss(
+                pred_probs[:,0,:,:], pred_probs[:,1,:,:]
+            ).item()
+            final_loss = loss + inter_class_loss
 
-            mask_pred_binary = (pred_probs > 0.5).float()
+        lymph_pred_binary = post_process_batch(
+            pred_probs[:, 0:1, :, :],
+            threshold=0.5,
+            min_distance=9,
+        )
+        mono_pred_binary = post_process_batch(
+            pred_probs[:, 1:2, :, :],
+            threshold=0.5,
+            min_distance=13,
+        )
+        inflamm_pred_probs = (
+            pred_probs[:, 0:1, :, :] + pred_probs[:, 1:2, :, :]
+        )
+        inflamm_pred_binary = lymph_pred_binary + mono_pred_binary
 
-            # Compute detection F1 score
-            metrics = get_multiclass_patch_F1_score_batch(
-                mask_pred_binary, true_masks, [margin], pred_probs
-            )
+        # Compute detection F1 score
+        lymph_metrics = get_multiclass_patch_F1_score_batch(
+            lymph_pred_binary[:, np.newaxis, :, :],
+            lymph_true_masks,
+            [4],
+            pred_probs,
+        )
+        mono_metrics = get_multiclass_patch_F1_score_batch(
+            mono_pred_binary[:, np.newaxis, :, :],
+            mono_true_masks,
+            [10],
+            pred_probs,
+        )
+        inflamm_metrics = get_multiclass_patch_F1_score_batch(
+            inflamm_pred_binary[:, np.newaxis, :, :],
+            binary_true_masks,
+            [7.5],
+            inflamm_pred_probs,
+        )
 
-        running_val_score += metrics["F1"] * images.size(0)
-        running_loss += loss * images.size(0)
+        running_overall_score += (
+            inflamm_metrics["F1"]
+        ) * images.size(0)
+        running_lymph_score += (lymph_metrics["F1"]) * images.size(0)
+        running_mono_score += (mono_metrics["F1"]) * images.size(0)
+        running_loss += final_loss * images.size(0)
 
     # Log an example prediction to WandB
-    log_data = compose_log_images(
-        images=images,
-        true_masks=true_masks,
-        pred_masks=mask_pred_binary,
-        pred_probs=pred_probs,
-        module=module,
-        has_background_channel=False,
+    log_data = compose_multitask_log_images(
+        images,
+        binary_true_masks,
+        lymph_true_masks,
+        mono_true_masks,
+        None,
+        overall_pred_probs=inflamm_pred_probs,
+        lymph_pred_probs=pred_probs[:, 0:1, :, :],
+        mono_pred_probs=pred_probs[:, 1:2, :, :],
+        contour_pred_probs=None,
     )
     wandb_run.log(log_data)
 
-    avg_score = running_val_score / len(validation_loader.sampler)
     avg_loss = running_loss / len(validation_loader.sampler)
-    return {"F1": avg_score, "Val_loss": avg_loss}
+    return {
+        "overall_F1": running_overall_score
+        / len(validation_loader.sampler),
+        "lymph_F1": running_lymph_score
+        / len(validation_loader.sampler),
+        "mono_F1": running_mono_score
+        / len(validation_loader.sampler),
+        "val_loss": avg_loss,
+    }
 
 
 def train_det_net(
@@ -240,23 +298,31 @@ def train_det_net(
         #     loss_fn,
         #     wandb_run,
         # )
+        sum_val_score = (
+            avg_score["overall_F1"]
+            + avg_score["lymph_F1"]
+            + avg_score["mono_F1"]
+        )
 
         if scheduler is not None:
-            scheduler.step()
+            scheduler.step(sum_val_score)
 
         log_data = {
             "Epoch": epoch,
             "Train loss": avg_train_loss,
-            "Val loss": avg_score["Val_loss"],
-            "F1": avg_score["F1"],
+            "Val loss": avg_score["val_loss"],
+            "Sum F1 score": sum_val_score,
+            "overall F1": avg_score["overall_F1"],
+            "lymph F1": avg_score["lymph_F1"],
+            "mono F1": avg_score["mono_F1"],
             "Learning rate": optimizer.param_groups[0]["lr"],
         }
         if wandb_run is not None:
             wandb_run.log(log_data)
         pprint(log_data)
 
-        if avg_score["F1"] > best_val_score:
-            best_val_score = avg_score["F1"]
+        if sum_val_score > best_val_score:
+            best_val_score = sum_val_score
             pprint(f"Check Point {epoch}")
             checkpoint = {
                 "epoch": epoch,

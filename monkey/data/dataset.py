@@ -238,7 +238,7 @@ class Multitask_Dataset(Dataset):
         do_augment: bool = True,
         use_nuclick_masks: bool = True,
         include_background_channel: bool = False,
-        disk_radius: int = 9
+        disk_radius: int = 9,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -292,8 +292,12 @@ class Multitask_Dataset(Dataset):
 
         class_mask = class_mask_to_multichannel_mask(class_mask)
         if not self.use_nuclick_masks:
-            class_mask[0] = dilate_mask(class_mask[0], self.disk_radius)
-            class_mask[1] = dilate_mask(class_mask[1], self.disk_radius)
+            class_mask[0] = dilate_mask(
+                class_mask[0], self.disk_radius
+            )
+            class_mask[1] = dilate_mask(
+                class_mask[1], self.disk_radius
+            )
         if self.include_background_channel:
             class_mask = add_background_channel(class_mask)
 
@@ -571,7 +575,7 @@ def get_detection_dataloaders(
             do_augment=do_augmentation,
             use_nuclick_masks=use_nuclick_masks,
             include_background_channel=include_background_channel,
-            disk_radius=disk_radius
+            disk_radius=disk_radius,
         )
         val_dataset = Multitask_Dataset(
             IOConfig=IOConfig,
@@ -580,7 +584,7 @@ def get_detection_dataloaders(
             do_augment=False,
             use_nuclick_masks=use_nuclick_masks,
             include_background_channel=include_background_channel,
-            disk_radius=disk_radius
+            disk_radius=disk_radius,
         )
     else:
         raise ValueError("Invalid dataset name")
