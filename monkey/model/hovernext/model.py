@@ -175,8 +175,9 @@ def get_model(
 
 
 def get_convnext_unet(
-    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+    enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
+    out_classes = 1
 ):
     pre_path = None
     if type(pretrained) == str:
@@ -208,7 +209,7 @@ def get_convnext_unet(
 
     head = smp.base.SegmentationHead(
         in_channels=decoder.blocks[-1].conv2[0].out_channels,
-        out_channels=1,  # instance channels
+        out_channels=out_classes,  # instance channels
         activation=None,
         kernel_size=1,
     )

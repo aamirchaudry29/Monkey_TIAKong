@@ -19,7 +19,7 @@ def compute_FROC(fold: int = 1):
     # )
 
     FOLD = fold
-    model_name = "hovernext_det_large_experiment"
+    model_name = "multihead_unet_det_20x"
     PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     # PREDICT_DIR = f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{FOLD}"
     SPACING_LEVEL0 = 0.24199951445730394
@@ -45,6 +45,9 @@ def compute_FROC(fold: int = 1):
     mono_sum_f1 = 0.0
     mono_sum_precision = 0.0
     mono_sum_recall = 0.0
+    total_inflamm = 0
+    total_lymph = 0
+    total_mono = 0
 
     for wsi_name in val_wsi_files:
         wsi_id = extract_id(wsi_name)
@@ -55,16 +58,21 @@ def compute_FROC(fold: int = 1):
                 f"{wsi_id}_inflammatory-cells.json",
             )
         )
+        total_inflamm += len(gt_inf_cells["points"])
+
         gt_lymphocytes = open_json_file(
             json_path=os.path.join(
                 GROUND_TRUTH_DIRECTORY, f"{wsi_id}_lymphocytes.json"
             )
         )
+        total_lymph += len(gt_lymphocytes["points"])
+
         gt_monocytes = open_json_file(
             json_path=os.path.join(
                 GROUND_TRUTH_DIRECTORY, f"{wsi_id}_monocytes.json"
             )
         )
+        total_mono += len(gt_monocytes["points"])
 
         location_detected_inflamm = os.path.join(
             PREDICT_DIR, f"{wsi_id}_detected-inflammatory-cells.json"
@@ -163,6 +171,9 @@ def compute_FROC(fold: int = 1):
         "Inflamm Recall": inflamm_sum_recall / len(val_wsi_files),
         "Lymph Recall": lymph_sum_recall / len(val_wsi_files),
         "Mono Recall": mono_sum_recall / len(val_wsi_files),
+        "Total Inflamm cells": total_inflamm,
+        "Total Lymphocytes": total_lymph,
+        "Total Monocytes": total_mono,
     }
     return results
 

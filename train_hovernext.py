@@ -9,7 +9,7 @@ from torch.optim import lr_scheduler
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
 from monkey.model.cellvit.cellvit import CellVit256_Unet
-from monkey.model.hovernext.model import get_custom_hovernext
+from monkey.model.hovernext.model import get_custom_hovernext, get_convnext_unet
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
 from monkey.train.train_multitask_cell_detection import (
@@ -20,7 +20,7 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "hovernext_det_large",
+    "model_name": "convnext_unet_2_channel",
     "val_fold": 5,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",

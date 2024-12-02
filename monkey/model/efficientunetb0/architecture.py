@@ -246,14 +246,14 @@ class EfficientUnet_MBConv_Multihead(nn.Module):
         encoder_output = self.encoder(x)
         skip_connections_out = self.skip_connections(x)
 
-        output_dict = {}
+        output_list = []
         for i in range(self.num_heads):
             head_name = f"head_{i+1}"
             out = self.decoders[head_name](
                 x, encoder_output, skip_connections_out
             )
-            output_dict[head_name] = out
-        return output_dict
+            output_list.append(out)
+        return torch.cat(output_list, 1)
 
     @staticmethod
     def multihead_unet_post_process(

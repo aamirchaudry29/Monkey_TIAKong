@@ -75,6 +75,7 @@ def multihead_det_post_process_batch(
     lymph_prob: torch.Tensor,
     mono_prob: torch.Tensor,
     thresholds: list = [0.5, 0.5, 0.5],
+    min_distances: list = [5, 5, 5],
 ):
 
     if torch.is_tensor(inflamm_prob):
@@ -105,7 +106,7 @@ def multihead_det_post_process_batch(
     for i in range(0, batches):
         inflamm_coordinates = peak_local_max(
             inflamm_prob[i],
-            min_distance=5,
+            min_distance=min_distances[0],
             threshold_abs=thresholds[0],
             exclude_border=False,
         )
@@ -115,7 +116,7 @@ def multihead_det_post_process_batch(
 
         lymph_coordinates = peak_local_max(
             lymph_prob[i],
-            min_distance=5,
+            min_distance=min_distances[1],
             threshold_abs=thresholds[1],
             exclude_border=False,
         )
@@ -125,7 +126,7 @@ def multihead_det_post_process_batch(
 
         mono_coordinates = peak_local_max(
             mono_prob[i],
-            min_distance=5,
+            min_distance=min_distances[2],
             threshold_abs=thresholds[2],
             exclude_border=False,
         )

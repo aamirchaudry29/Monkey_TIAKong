@@ -22,25 +22,25 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "multihead_unet_det_lymph_mono",
-    "out_channels": [1, 1],
-    "val_fold": 2,  # [1-5]
+    "model_name": "multihead_unet_det_20x",
+    "out_channels": [1, 1, 1],
+    "val_fold": 1,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
-    "epochs": 50,
+    "epochs": 30,
     "loss_function": {
         "head_1": "BCE_Dice",
         "head_2": "BCE_Dice",
         "head_3": "BCE_Dice",
     },
-    "loss_pos_weight": 1000.0,
+    "loss_pos_weight": 1.0,
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
         "head_2": "sigmoid",
-        # "head_3": "sigmoid",
+        "head_3": "sigmoid",
     },
     "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
 }
@@ -49,7 +49,7 @@ pprint(run_config)
 # Specify IO config
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
-    dataset_dir="/mnt/lab-share/Monkey/patches_256/",
+    dataset_dir="/mnt/lab-share/Monkey/patches_256_20x/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
 if run_config["use_nuclick_masks"]:
@@ -80,6 +80,7 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
+    disk_radius=5
 )
 
 
@@ -108,9 +109,9 @@ activation_fn_dict = {
     "head_2": get_activation_function(
         run_config["activation_function"]["head_2"]
     ),
-    # "head_3": get_activation_function(
-    #     run_config["activation_function"]["head_3"]
-    # ),
+    "head_3": get_activation_function(
+        run_config["activation_function"]["head_3"]
+    ),
 }
 
 
@@ -119,12 +120,9 @@ optimizer = torch.optim.AdamW(
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
 )
-# optimizer = torch.optim.RMSprop(
-#     model.parameters(),
-#     lr=run_config["learning_rate"],
-#     weight_decay=run_config["weight_decay"],
-# )
-scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+scheduler = lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode='min', factor=0.1, patience=10
+)
 
 
 # Create WandB session

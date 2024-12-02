@@ -14,6 +14,7 @@ from monkey.model.hovernext.model import freeze_enc, unfreeze_enc
 from monkey.model.loss_functions import Loss_Function
 from monkey.model.utils import get_multiclass_patch_F1_score_batch
 from monkey.train.utils import compose_multitask_log_images
+from prediction.utils import multihead_det_post_process_batch
 
 
 def hovernext_train_one_epoch(
@@ -125,22 +126,33 @@ def hovernext_validate_one_epoch(
             sum_loss = loss_1.item() + loss_2.item() + loss_3.item()
             running_loss += sum_loss * images.size(0)
 
-            overall_pred_binary = (pred_1 > 0.5).float()
-            lymph_pred_binary = (pred_2 > 0.5).float()
-            mono_pred_binary = (pred_3 > 0.5).float()
+            binary_masks = multihead_det_post_process_batch(
+                inflamm_prob=pred_1,
+                lymph_prob=pred_2,
+                mono_prob=pred_3
+            )
+            overall_pred_binary = binary_masks['inflamm_mask']
+            lymph_pred_binary = binary_masks['lymph_mask']
+            mono_pred_binary = binary_masks['mono_mask']
 
             # Compute detection F1 score
             overall_metrics = get_multiclass_patch_F1_score_batch(
-                overall_pred_binary,
+                overall_pred_binary[:,np.newaxis, :,:],
                 binary_true_masks,
                 [7.5],
                 pred_1,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
-                lymph_pred_binary, lymph_true_masks, [4], pred_2
+                lymph_pred_binary[:,np.newaxis, :,:], 
+                lymph_true_masks, 
+                [4], 
+                pred_2
             )
             mono_metrics = get_multiclass_patch_F1_score_batch(
-                mono_pred_binary, mono_true_masks, [10], pred_3
+                mono_pred_binary[:,np.newaxis, :,:], 
+                mono_true_masks, 
+                [10], 
+                pred_3
             )
 
         running_overall_score += (

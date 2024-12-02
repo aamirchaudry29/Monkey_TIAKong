@@ -253,6 +253,8 @@ def process_tile_detection_masks(
     inflamm_points = []
     lymph_points = []
     mono_points = []
+    baseline_mpp = 0.24199951445730394
+    scale_factor = config.resolution / baseline_mpp
 
     for region in inflamm_stats:
         centroid = region["centroid"]
@@ -268,8 +270,8 @@ def process_tile_detection_masks(
         r1 = r + y_start
 
         prediction_record = {
-            "x": int(np.round(c1)),
-            "y": int(np.round(r1)),
+            "x": int(np.round(c1 * scale_factor)),
+            "y": int(np.round(r1 * scale_factor)),
             "type": "inflammatory",
             "prob": float(confidence),
         }
@@ -290,8 +292,8 @@ def process_tile_detection_masks(
         r1 = r + y_start
 
         prediction_record = {
-            "x": int(np.round(c1)),
-            "y": int(np.round(r1)),
+            "x": int(np.round(c1 * scale_factor)),
+            "y": int(np.round(r1 * scale_factor)),
             "type": "lymphocyte",
             "prob": float(confidence),
         }
@@ -312,8 +314,8 @@ def process_tile_detection_masks(
         r1 = r + y_start
 
         prediction_record = {
-            "x": int(np.round(c1)),
-            "y": int(np.round(r1)),
+            "x": int(np.round(c1 * scale_factor)),
+            "y": int(np.round(r1 * scale_factor)),
             "type": "monocyte",
             "prob": float(confidence),
         }
