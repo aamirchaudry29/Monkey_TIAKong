@@ -133,13 +133,14 @@ def hovernext_validate_one_epoch(
             overall_metrics = get_multiclass_patch_F1_score_batch(
                 overall_pred_binary,
                 binary_true_masks,
+                [7.5],
                 pred_1,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
-                lymph_pred_binary, lymph_true_masks, pred_2
+                lymph_pred_binary, lymph_true_masks, [4], pred_2
             )
             mono_metrics = get_multiclass_patch_F1_score_batch(
-                mono_pred_binary, mono_true_masks, pred_3
+                mono_pred_binary, mono_true_masks, [10], pred_3
             )
 
         running_overall_score += (
@@ -206,25 +207,25 @@ def train_one_epoch(
 
         logits_pred = model(images)
 
-        head_1_logits = logits_pred["head_1"]
-        head_2_logits = logits_pred["head_2"]
-        # head_3_logits = logits_pred["head_3"]
+        head_1_logits = logits_pred[:, 0:1, :, :]
+        head_2_logits = logits_pred[:, 1:2, :, :]
+        head_3_logits = logits_pred[:, 2:3, :, :]
 
-        lymph_probs = activation_dict["head_1"](head_1_logits)
-        mono_probs = activation_dict["head_2"](head_2_logits)
-        # pred_3 = activation_dict["head_3"](head_3_logits)
+        lymph_probs = activation_dict["head_2"](head_2_logits)
+        mono_probs = activation_dict["head_3"](head_3_logits)
+        inflamm_probs = activation_dict["head_1"](head_1_logits)
 
-        # loss_1 = loss_fn_dict["head_1"].compute_loss(
-        #     pred_1, head_1_true_masks
-        # )
         loss_1 = loss_fn_dict["head_1"].compute_loss(
             lymph_probs, lymph_true_masks
         )
         loss_2 = loss_fn_dict["head_2"].compute_loss(
             mono_probs, mono_true_masks
         )
+        loss_3 = loss_fn_dict["head_1"].compute_loss(
+            inflamm_probs, binary_true_masks
+        )
 
-        sum_loss = loss_1 + loss_2
+        sum_loss = loss_1 + loss_2 + loss_3
         # sum_loss = loss_1 + loss_2
         sum_loss.backward()
         optimizer.step()
@@ -263,18 +264,13 @@ def validate_one_epoch(
 
         with torch.no_grad():
             logits_pred = model(images)
-            head_1_logits = logits_pred["head_1"]
-            head_2_logits = logits_pred["head_2"]
-            # head_3_logits = logits_pred["head_3"]
+            head_1_logits = logits_pred[:, 0:1, :, :]
+            head_2_logits = logits_pred[:, 1:2, :, :]
+            head_3_logits = logits_pred[:, 2:3, :, :]
 
             lymph_probs = activation_dict["head_1"](head_1_logits)
             mono_probs = activation_dict["head_2"](head_2_logits)
-            # pred_3 = activation_dict["head_3"](head_3_logits)
-            overall_probs = torch.zeros_like(
-                lymph_probs, requires_grad=True
-            )
-            overall_probs += lymph_probs
-            overall_probs += mono_probs
+            inflamm_probs = activation_dict["head_1"](head_1_logits)
 
             loss_1 = loss_fn_dict["head_1"].compute_loss(
                 lymph_probs, lymph_true_masks
@@ -282,27 +278,31 @@ def validate_one_epoch(
             loss_2 = loss_fn_dict["head_2"].compute_loss(
                 mono_probs, mono_true_masks
             )
+            loss_3 = loss_fn_dict["head_1"].compute_loss(
+                inflamm_probs, binary_true_masks
+            )
 
-            sum_loss = loss_1.item() + loss_2.item()
+            sum_loss = loss_1.item() + loss_2.item() + loss_3.item()
             # sum_loss = loss_1.item() + loss_2.item()
             running_loss += sum_loss * images.size(0)
 
             # overall_pred_binary = (pred_1 > 0.5).float()
             lymph_pred_binary = (lymph_probs > 0.5).float()
             mono_pred_binary = (mono_probs > 0.5).float()
-            overall_pred_binary = (overall_probs > 0.5).float()
+            inflamm_pred_binary = (inflamm_probs > 0.5).float()
 
             # Compute detection F1 score
             overall_metrics = get_multiclass_patch_F1_score_batch(
-                overall_pred_binary,
+                inflamm_pred_binary,
                 binary_true_masks,
-                overall_probs,
+                [7.5],
+                inflamm_probs,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
-                lymph_pred_binary, lymph_true_masks, lymph_probs
+                lymph_pred_binary, lymph_true_masks, [4], lymph_probs
             )
             mono_metrics = get_multiclass_patch_F1_score_batch(
-                mono_pred_binary, mono_true_masks, mono_probs
+                mono_pred_binary, mono_true_masks, [10], mono_probs
             )
 
         running_overall_score += (
@@ -318,7 +318,7 @@ def validate_one_epoch(
         lymph_true_masks,
         mono_true_masks,
         None,
-        overall_pred_probs=overall_probs,
+        overall_pred_probs=inflamm_probs,
         lymph_pred_probs=lymph_probs,
         mono_pred_probs=mono_probs,
         contour_pred_probs=None,
@@ -401,8 +401,8 @@ def multitask_train_loop(
         )
 
         if scheduler is not None:
-            # scheduler.step(sum_val_score)
-            scheduler.step()
+            scheduler.step(sum_val_score)
+            # scheduler.step()
 
         log_data = {
             "Epoch": epoch,

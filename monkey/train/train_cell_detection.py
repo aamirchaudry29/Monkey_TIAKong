@@ -122,7 +122,6 @@ def train_one_epoch(
 
         logits_pred = model(images)
         pred = activation(logits_pred)
-
         loss = loss_fn.compute_loss(pred, true_labels)
         loss.backward()
         optimizer.step()
@@ -143,6 +142,12 @@ def validate_one_epoch(
     running_val_score = 0.0
     running_loss = 0.0
     module = run_config["module"]
+    if run_config['target_cell_type'] == "inflamm":
+        margin = 7.5
+    elif run_config['target_cell_type'] == "lymph":
+        margin = 4
+    else:
+        margin = 10
 
     model.eval()
     for i, data in enumerate(
@@ -161,7 +166,7 @@ def validate_one_epoch(
 
             # Compute detection F1 score
             metrics = get_multiclass_patch_F1_score_batch(
-                mask_pred_binary, true_masks, pred_probs
+                mask_pred_binary, true_masks, [margin], pred_probs
             )
 
         running_val_score += metrics["F1"] * images.size(0)
@@ -237,7 +242,7 @@ def train_det_net(
         # )
 
         if scheduler is not None:
-            scheduler.step(avg_train_loss)
+            scheduler.step()
 
         log_data = {
             "Epoch": epoch,
@@ -250,8 +255,8 @@ def train_det_net(
             wandb_run.log(log_data)
         pprint(log_data)
 
-        if avg_score > best_val_score:
-            best_val_score = avg_score
+        if avg_score["F1"] > best_val_score:
+            best_val_score = avg_score["F1"] 
             pprint(f"Check Point {epoch}")
             checkpoint = {
                 "epoch": epoch,

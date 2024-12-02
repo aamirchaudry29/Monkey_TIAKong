@@ -22,6 +22,7 @@ from monkey.data.data_utils import (
     load_image,
     load_mask,
     load_nuclick_annotation,
+    load_json_annotation
 )
 
 
@@ -67,6 +68,36 @@ def class_mask_to_multichannel_mask(
         label = idx + 1
         mask[idx, :, :] = np.where(class_mask == label, 1, 0)
     return mask
+
+
+class BoundingBoxDataset(Dataset):
+    """
+    Dataset for training YOLO, RCNN,...
+    """
+    def __init__(
+        self,
+        IOConfig: TrainingIOConfig,
+        file_ids: list,
+        phase: str = "train",
+        do_augment: bool = False,
+        box_radius: int = 9,
+    ):
+        self.IOConfig = IOConfig
+        self.file_ids = file_ids
+        self.phase = phase
+        self.do_augment = do_augment
+        self.box_radius = box_radius
+
+    def __len__(self) -> int:
+        return len(self.file_ids)
+
+    def __getitem__(self, idx: int) -> dict:
+        # Load image and mask
+        file_id = self.file_ids[idx]
+        image = load_image(file_id, self.IOConfig)
+        annotation_json = load_json_annotation(file_id, self.IOConfig)
+        
+
 
 
 class DetectionDataset(Dataset):
@@ -240,7 +271,7 @@ class Multitask_Dataset(Dataset):
         else:
             class_mask = load_mask(file_id, self.IOConfig)
             binary_mask = class_mask_to_binary(class_mask)
-            binary_mask = dilate_mask(binary_mask, 11)
+            binary_mask = dilate_mask(binary_mask, 9)
             contour_mask = np.zeros_like(binary_mask)
 
         # augmentation
@@ -261,7 +292,7 @@ class Multitask_Dataset(Dataset):
         class_mask = class_mask_to_multichannel_mask(class_mask)
         if not self.use_nuclick_masks:
             class_mask[0] = dilate_mask(class_mask[0], 9)
-            class_mask[1] = dilate_mask(class_mask[1], 13)
+            class_mask[1] = dilate_mask(class_mask[1], 9)
         if self.include_background_channel:
             class_mask = add_background_channel(class_mask)
 
@@ -489,16 +520,16 @@ def get_detection_dataloaders(
         # Train using entire dataset
         train_file_ids.extend(test_file_ids)
 
-    if target_cell_type is None:
-        train_sampler = get_detection_sampler_v2(
-            file_ids=train_file_ids, IOConfig=IOConfig
-        )
-    else:
-        train_sampler = get_detection_sampler_v2_binary(
-            file_ids=train_file_ids,
-            IOConfig=IOConfig,
-            cell_type=target_cell_type,
-        )
+    # if target_cell_type is None:
+    train_sampler = get_detection_sampler_v2(
+        file_ids=train_file_ids, IOConfig=IOConfig
+    )
+    # else:
+    #     train_sampler = get_detection_sampler_v2_binary(
+    #         file_ids=train_file_ids,
+    #         IOConfig=IOConfig,
+    #         cell_type=target_cell_type,
+    #     )
     # train_sampler = get_detection_sampler(
     #     file_ids=train_file_ids, IOConfig=IOConfig
     # )
