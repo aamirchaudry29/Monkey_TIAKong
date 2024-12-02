@@ -22,12 +22,12 @@ from monkey.train.train_cell_detection import train_det_net
 run_config = {
     "project_name": "Monkey_Detection_2_channel",
     "model_name": "convnextunet_large_det",
-    "val_fold": 1,  # [1-5]
+    "val_fold": 5,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.001,
-    "epochs": 30,
+    "epochs": 50,
     "loss_function": "Jaccard_Loss",
     "loss_pos_weight": 1.0,
     "do_augmentation": True,
@@ -76,6 +76,7 @@ train_loader, val_loader = get_detection_dataloaders(
 
 # Create loss function, optimizer and scheduler
 loss_fn = get_loss_function(run_config["loss_function"])
+loss_fn.set_multiclass(True)
 
 activation_fn = get_activation_function(
     run_config["activation_function"]

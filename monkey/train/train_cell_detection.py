@@ -18,7 +18,7 @@ from monkey.train.utils import (
     compose_log_images,
 )
 from prediction.utils import post_process_batch
-from monkey.model.loss_functions import inter_class_exclusion_loss
+from monkey.model.loss_functions import inter_class_exclusion_loss, jaccard_loss
 
 
 def train_one_epoch_mapde(
@@ -123,19 +123,24 @@ def train_one_epoch(
             data["image"].cuda().float(),
             data["class_mask"].cuda().float(),
         )
+        binary_true_masks = data["binary_mask"].cuda().float()
         optimizer.zero_grad()
 
         logits_pred = model(images)
         pred_probs = activation(logits_pred)
-        loss = loss_fn.compute_loss(pred_probs, true_labels)
+        class_loss = loss_fn.compute_loss(pred_probs, true_labels)
         inter_class_loss = inter_class_exclusion_loss(
             pred_probs[:,0,:,:], pred_probs[:,1,:,:]
         )
-        final_loss = 0.6 * loss + 0.4 * inter_class_loss
+        overall_probs = pred_probs[:,0:1,:,:] + pred_probs[:,1:2,:,:]
+        overall_loss = jaccard_loss(
+            overall_probs, binary_true_masks, multiclass=False
+        )
+        final_loss = 2 * overall_loss + 2 * class_loss + inter_class_loss
         final_loss.backward()
         optimizer.step()
 
-        epoch_loss += loss.item() * images.size(0)
+        epoch_loss += final_loss.item() * images.size(0)
 
     return epoch_loss / len(training_loader.sampler)
 
@@ -170,13 +175,17 @@ def validate_one_epoch(
         with torch.no_grad():
             logits_pred = model(images)
             pred_probs = activation(logits_pred)
-            loss = loss_fn.compute_loss(
+            class_loss = loss_fn.compute_loss(
                 pred_probs, class_masks
             ).item()
             inter_class_loss = inter_class_exclusion_loss(
                 pred_probs[:,0,:,:], pred_probs[:,1,:,:]
             ).item()
-            final_loss = loss + inter_class_loss
+            overall_probs = pred_probs[:,0:1,:,:] + pred_probs[:,1:2,:,:]
+            overall_loss = jaccard_loss(
+                overall_probs, binary_true_masks, multiclass=False
+            ).item()
+            final_loss = 2 * overall_loss + 2 * class_loss + inter_class_loss
 
         lymph_pred_binary = post_process_batch(
             pred_probs[:, 0:1, :, :],
