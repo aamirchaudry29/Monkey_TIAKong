@@ -12,18 +12,44 @@ def get_augmentation(
                 alb.OneOf(
                     [
                         alb.HueSaturationValue(
-                            hue_shift_limit=30,
-                            sat_shift_limit=(-30, 30),
-                            val_shift_limit=10,
+                            hue_shift_limit=20,
+                            sat_shift_limit=0,
+                            val_shift_limit=0,
                             always_apply=False,
-                            p=0.5,
+                            p=0.8,
                         ),  # .8
                         alb.RGBShift(
                             r_shift_limit=20,
                             g_shift_limit=20,
                             b_shift_limit=20,
-                            p=0.5,
+                            p=0.8,
                         ),  # .7
+                    ],
+                    p=1,
+                ),
+                alb.OneOf(
+                    [
+                        alb.HueSaturationValue(
+                            hue_shift_limit=0,
+                            sat_shift_limit=(-30, -10),
+                            val_shift_limit=0,
+                            always_apply=False,
+                            p=0.8,
+                        ),
+                        alb.HueSaturationValue(
+                            hue_shift_limit=0,
+                            sat_shift_limit=(10, 20),
+                            val_shift_limit=0,
+                            always_apply=False,
+                            p=0.5,
+                        ), 
+                        alb.HueSaturationValue(
+                            hue_shift_limit=0,
+                            sat_shift_limit=10,
+                            val_shift_limit=0,
+                            always_apply=False,
+                            p=0.8,
+                        ), 
                     ],
                     p=1,
                 ),
@@ -46,7 +72,7 @@ def get_augmentation(
                 ),
                 alb.ShiftScaleRotate(
                     shift_limit=0.01,
-                    scale_limit=0,
+                    scale_limit=0.1,
                     rotate_limit=180,
                     # border_mode=cv2.BORDER_CONSTANT,
                     value=0,
