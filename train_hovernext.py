@@ -10,8 +10,8 @@ from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
 from monkey.model.cellvit.cellvit import CellVit256_Unet
 from monkey.model.hovernext.model import (
-    get_custom_hovernext,
     get_convnext_unet,
+    get_custom_hovernext,
 )
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function

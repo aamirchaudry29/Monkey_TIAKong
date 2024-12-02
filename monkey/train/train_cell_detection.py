@@ -10,15 +10,17 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from monkey.model.loss_functions import Loss_Function
+from monkey.model.loss_functions import (
+    Loss_Function,
+    inter_class_exclusion_loss,
+)
 from monkey.model.mapde import model
 from monkey.model.utils import get_multiclass_patch_F1_score_batch
 from monkey.train.utils import (
-    compose_multitask_log_images,
     compose_log_images,
+    compose_multitask_log_images,
 )
 from prediction.utils import post_process_batch
-from monkey.model.loss_functions import inter_class_exclusion_loss
 
 
 def train_one_epoch_mapde(
@@ -129,7 +131,7 @@ def train_one_epoch(
         pred_probs = activation(logits_pred)
         loss = loss_fn.compute_loss(pred_probs, true_labels)
         inter_class_loss = inter_class_exclusion_loss(
-            pred_probs[:,0,:,:], pred_probs[:,1,:,:]
+            pred_probs[:, 0, :, :], pred_probs[:, 1, :, :]
         )
         final_loss = 0.6 * loss + 0.4 * inter_class_loss
         final_loss.backward()
@@ -174,7 +176,7 @@ def validate_one_epoch(
                 pred_probs, class_masks
             ).item()
             inter_class_loss = inter_class_exclusion_loss(
-                pred_probs[:,0,:,:], pred_probs[:,1,:,:]
+                pred_probs[:, 0, :, :], pred_probs[:, 1, :, :]
             ).item()
             final_loss = loss + inter_class_loss
 
