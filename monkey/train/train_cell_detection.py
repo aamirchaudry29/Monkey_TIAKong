@@ -142,9 +142,9 @@ def validate_one_epoch(
     running_val_score = 0.0
     running_loss = 0.0
     module = run_config["module"]
-    if run_config['target_cell_type'] == "inflamm":
+    if run_config["target_cell_type"] == "inflamm":
         margin = 7.5
-    elif run_config['target_cell_type'] == "lymph":
+    elif run_config["target_cell_type"] == "lymph":
         margin = 4
     else:
         margin = 10
@@ -256,7 +256,7 @@ def train_det_net(
         pprint(log_data)
 
         if avg_score["F1"] > best_val_score:
-            best_val_score = avg_score["F1"] 
+            best_val_score = avg_score["F1"]
             pprint(f"Check Point {epoch}")
             checkpoint = {
                 "epoch": epoch,

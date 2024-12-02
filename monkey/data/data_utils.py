@@ -665,12 +665,12 @@ def non_max_suppression_fast(boxes, overlapThresh):
     return pick
 
 
-def nms(boxes : np.ndarray ,overlapThresh : float):
+def nms(boxes: np.ndarray, overlapThresh: float):
     """
     Apply non-maximum suppression to avoid detecting too many
     overlapping bounding boxes for a given object.
     Args:
-        boxes: (tensor) The location preds for the image 
+        boxes: (tensor) The location preds for the image
             along with the class predscores, Shape: [num_boxes,5].
         overlapThresh: (float) The overlap thresh for suppressing unnecessary boxes.
     Returns:
@@ -683,29 +683,28 @@ def nms(boxes : np.ndarray ,overlapThresh : float):
     # this is important since we'll be doing a bunch of divisions
     if boxes.dtype.kind == "i":
         boxes = boxes.astype("float")
- 
-    # we extract coordinates for every 
+
+    # we extract coordinates for every
     # prediction box present in P
     x1 = boxes[:, 0]
     y1 = boxes[:, 1]
     x2 = boxes[:, 2]
     y2 = boxes[:, 3]
- 
+
     # we extract the confidence scores as well
     scores = boxes[:, 4]
- 
+
     # calculate area of every block in P
     area = (x2 - x1 + 1) * (y2 - y1 + 1)
-     
+
     # sort the prediction boxes in P
     # according to their confidence scores
     idxs = scores.argsort()
- 
-    # initialise an empty list for 
+
+    # initialise an empty list for
     # filtered prediction boxes
     pick = []
-     
- 
+
     while len(idxs) > 0:
         # grab the last index in the indexes list and add the
         # index value to the list of picked indexes
@@ -734,7 +733,7 @@ def nms(boxes : np.ndarray ,overlapThresh : float):
     # return only the bounding boxes that were picked using the
     # integer data type
     # return boxes[pick].astype("int")
-     
+
     return pick
 
 
@@ -774,7 +773,9 @@ def point_to_box(x, y, size, prob=None):
     if prob == None:
         return np.array([x - size, y - size, x + size, y + size])
     else:
-        return np.array([x - size, y - size, x + size, y + size, prob])
+        return np.array(
+            [x - size, y - size, x + size, y + size, prob]
+        )
 
 
 def slide_nms(
@@ -820,7 +821,9 @@ def slide_nms(
         # Convert each point to a box
         boxes = np.array(
             [
-                point_to_box(entry["x"], entry["y"], box_size, entry['prob'])
+                point_to_box(
+                    entry["x"], entry["y"], box_size, entry["prob"]
+                )
                 for entry in patch_points
             ]
         )

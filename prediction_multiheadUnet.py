@@ -14,15 +14,19 @@ from monkey.data.data_utils import (
     open_json_file,
     save_detection_records_monkey,
 )
+from monkey.model.cellvit.cellvit import CellVit256_Unet
 from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
 )
-from monkey.model.hovernext.model import get_custom_hovernext
+from monkey.model.hovernext.model import (
+    get_convnext_unet,
+    get_custom_hovernext,
+)
 from prediction.multihead_unet_prediction import wsi_detection_in_mask
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "hovernext_det_experiment"
+    detector_model_name = "hovernext_det_large"
     fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
 
@@ -34,7 +38,8 @@ def cross_validation(fold_number: int = 1):
         resolution=0,
         units="level",
         stride=224,
-        thresholds=[0.3, 0.3, 0.3],
+        thresholds=[0.5, 0.5, 0.5],
+        min_distances=[11, 9, 13],
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -62,14 +67,20 @@ def cross_validation(fold_number: int = 1):
     #     f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_100.pth",
     # ]
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
         # model = get_multihead_efficientunet(
-        #     pretrained=False, out_channels=[2, 1, 1]
+        #     pretrained=False, out_channels=[1, 1, 1]
         # )
-        model = get_custom_hovernext(pretrained=False)
+        # model = get_custom_hovernext(pretrained=False)
+        model = get_custom_hovernext(
+            enc="convnextv2_large.fcmae_ft_in22k_in1k",
+            pretrained=False,
+        )
         checkpoint = torch.load(weight_path)
         model.load_state_dict(checkpoint["model"])
         model.eval()
@@ -95,13 +106,13 @@ def cross_validation(fold_number: int = 1):
         # Save to AnnotationStore for visualization
         # If model if not running at baseline res:
         # scale_factor = model_res / 0.24199951445730394
-        annoation_store = detection_to_annotation_store(
-            lymph_records, scale_factor=1.0
-        )
-        store_save_path = os.path.join(
-            config.output_dir, f"{wsi_name_without_ext}_lymph.db"
-        )
-        annoation_store.dump(store_save_path)
+        # annoation_store = detection_to_annotation_store(
+        #     lymph_records, scale_factor=1.0
+        # )
+        # store_save_path = os.path.join(
+        #     config.output_dir, f"{wsi_name_without_ext}_lymph.db"
+        # )
+        # annoation_store.dump(store_save_path)
 
         # Save result in Monkey Challenge format
         # L2 lymphocyte vs monocyte detection
@@ -116,6 +127,6 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(1, 3):
+    for i in range(5, 6):
         pprint(f"Fold {i}")
         cross_validation(i)

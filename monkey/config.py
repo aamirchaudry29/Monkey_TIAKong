@@ -65,7 +65,7 @@ class PredictionIOConfig:
         thresholds: list = [0.3, 0.3, 0.3],
         min_size: int = 96,
         include_background: bool = False,
-        min_distances: list= [5,5,5]
+        min_distances: list = [5, 5, 5],
     ):
         self.wsi_dir = wsi_dir
         self.mask_dir = mask_dir

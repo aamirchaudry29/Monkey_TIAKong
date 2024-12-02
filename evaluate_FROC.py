@@ -134,18 +134,18 @@ def compute_FROC(fold: int = 1):
 
         inflamm_sum_score += inflamm_froc["froc_score_slide"]
         inflamm_sum_f1 += inflamm_f1["F1"]
-        inflamm_sum_precision += inflamm_f1['Precision']
-        inflamm_sum_recall += inflamm_f1['Recall']
+        inflamm_sum_precision += inflamm_f1["Precision"]
+        inflamm_sum_recall += inflamm_f1["Recall"]
 
         lymph_sum_score += lymph_froc["froc_score_slide"]
         lymph_sum_f1 += lymph_f1["F1"]
-        lymph_sum_precision += lymph_f1['Precision']
-        lymph_sum_recall += lymph_f1['Recall']
+        lymph_sum_precision += lymph_f1["Precision"]
+        lymph_sum_recall += lymph_f1["Recall"]
 
         mono_sum_score += mono_froc["froc_score_slide"]
         mono_sum_f1 += mono_f1["F1"]
-        mono_sum_precision += mono_f1['Precision']
-        mono_sum_recall += mono_f1['Recall']
+        mono_sum_precision += mono_f1["Precision"]
+        mono_sum_recall += mono_f1["Recall"]
 
     results = {
         "model_name": model_name,
@@ -156,7 +156,8 @@ def compute_FROC(fold: int = 1):
         "Inflamm F1": inflamm_sum_f1 / len(val_wsi_files),
         "Lymphocytes F1": lymph_sum_f1 / len(val_wsi_files),
         "Monocytes F1": mono_sum_f1 / len(val_wsi_files),
-        "Inflamm Precision": inflamm_sum_precision / len(val_wsi_files),
+        "Inflamm Precision": inflamm_sum_precision
+        / len(val_wsi_files),
         "Lymph Precision": lymph_sum_precision / len(val_wsi_files),
         "Mono Precision": mono_sum_precision / len(val_wsi_files),
         "Inflamm Recall": inflamm_sum_recall / len(val_wsi_files),

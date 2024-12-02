@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from skimage.feature import peak_local_max
+
 from monkey.data.data_utils import morphological_post_processing
 
 
@@ -9,7 +10,7 @@ def multihead_det_post_process(
     lymph_prob: torch.Tensor,
     mono_prob: torch.Tensor,
     thresholds: list = [0.5, 0.5, 0.5],
-    min_distances: list = [5, 5, 5]
+    min_distances: list = [5, 5, 5],
 ):
     if torch.is_tensor(inflamm_prob):
         inflamm_prob = inflamm_prob.numpy(force=True)

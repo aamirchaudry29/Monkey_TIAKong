@@ -7,8 +7,8 @@
 #SBATCH --mem=32000             # Memory (mb) to use 
 #SBATCH --time=1:00:00      # Job time limit
 #
-#SBATCH --output=/home/u1910100/logs/joboutput_%j.out # Standard out from your job
-#SBATCH --error=/home/u1910100/logs/joboutput_%j.err  # Standard error from your job
+#SBATCH --output=/home/u1910100/logs/eval_%j.out # Standard out from your job
+#SBATCH --error=/home/u1910100/logs/eval_%j.err  # Standard error from your job
 
 ## Activate Conda Environmnet ##
 echo "init env ... "

@@ -199,7 +199,11 @@ def get_patch_F1_score(
 
 
 def evaluate_cell_predictions(
-    gt_centers, pred_centers, probs, margin: float, mpp=0.24199951445730394
+    gt_centers,
+    pred_centers,
+    probs,
+    margin: float,
+    mpp=0.24199951445730394,
 ) -> dict:
     """
     Calculate detection F1 score from binary masks
@@ -225,7 +229,7 @@ def evaluate_cell_predictions(
         gt_centers,
         pred_centers,
         probs,
-        int(margin/ mpp),
+        int(margin / mpp),
     )
 
     # print(f"tp:{tp}, fn:{fn}, fp:{fp}")

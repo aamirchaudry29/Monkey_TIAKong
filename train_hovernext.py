@@ -8,6 +8,7 @@ from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
+from monkey.model.cellvit.cellvit import CellVit256_Unet
 from monkey.model.hovernext.model import get_custom_hovernext
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
@@ -61,6 +62,9 @@ model = get_custom_hovernext(
     enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
 )
+# model = CellVit256_Unet(num_decoders=3)
+# model_path = "/home/u1910100/cloud_workspace/data/Monkey/HIPT_vit256_small_dino.pth"
+# model.load_pretrained_encoder(model_path)
 model.to("cuda")
 # -----------------------------------------------------------------------
 
@@ -119,15 +123,16 @@ optimizer = torch.optim.AdamW(
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
 )
-# optimizer = torch.optim.RMSprop(
+# optimizer = torch.optim.RAdam(
 #     model.parameters(),
 #     lr=run_config["learning_rate"],
 #     weight_decay=run_config["weight_decay"],
 # )
-# scheduler = lr_scheduler.ReduceLROnPlateau(
-#     optimizer, "max", factor=0.5, patience=10
-# )
-scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+# scheduler = None
+scheduler = lr_scheduler.ReduceLROnPlateau(
+    optimizer, "max", factor=0.1, patience=10
+)
+# scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
 # Create WandB session
 # run = None

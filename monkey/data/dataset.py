@@ -20,9 +20,9 @@ from monkey.data.data_utils import (
     imagenet_normalise,
     load_classification_data_example,
     load_image,
+    load_json_annotation,
     load_mask,
     load_nuclick_annotation,
-    load_json_annotation
 )
 
 
@@ -74,6 +74,7 @@ class BoundingBoxDataset(Dataset):
     """
     Dataset for training YOLO, RCNN,...
     """
+
     def __init__(
         self,
         IOConfig: TrainingIOConfig,
@@ -96,8 +97,6 @@ class BoundingBoxDataset(Dataset):
         file_id = self.file_ids[idx]
         image = load_image(file_id, self.IOConfig)
         annotation_json = load_json_annotation(file_id, self.IOConfig)
-        
-
 
 
 class DetectionDataset(Dataset):

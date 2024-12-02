@@ -120,7 +120,7 @@ class Dice_Focal_Loss(Loss_Function):
     def compute_loss(self, input: Tensor, target: Tensor):
         loss_1 = self.focal_loss.compute_loss(input, target)
         loss_2 = self.dice_loss.compute_loss(input, target)
-        return loss_1  + loss_2
+        return loss_1 + loss_2
 
     def set_multiclass(self, multiclass: bool):
         self.multiclass = multiclass
