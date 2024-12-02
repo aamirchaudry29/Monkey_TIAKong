@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from skimage.feature import peak_local_max
+from monkey.data.data_utils import morphological_post_processing
 
 
 def multihead_det_post_process(
@@ -8,6 +9,7 @@ def multihead_det_post_process(
     lymph_prob: torch.Tensor,
     mono_prob: torch.Tensor,
     thresholds: list = [0.5, 0.5, 0.5],
+    min_distances: list = [5, 5, 5]
 ):
     if torch.is_tensor(inflamm_prob):
         inflamm_prob = inflamm_prob.numpy(force=True)
@@ -26,33 +28,39 @@ def multihead_det_post_process(
 
     inflamm_coordinates = peak_local_max(
         inflamm_prob,
-        min_distance=5,
+        min_distance=min_distances[0],
         threshold_abs=thresholds[0],
         exclude_border=False,
     )
     inflamm_output_mask[
         inflamm_coordinates[:, 0], inflamm_coordinates[:, 1]
     ] = 1
+    # inflamm_output_mask = (inflamm_prob > thresholds[0]).astype(np.uint8)
+    # inflamm_output_mask = morphological_post_processing(inflamm_output_mask)
 
     lymph_coordinates = peak_local_max(
         lymph_prob,
-        min_distance=5,
+        min_distance=min_distances[1],
         threshold_abs=thresholds[1],
         exclude_border=False,
     )
     lymph_output_mask[
         lymph_coordinates[:, 0], lymph_coordinates[:, 1]
     ] = 1
+    # lymph_output_mask = (lymph_prob > thresholds[1]).astype(np.uint8)
+    # lymph_output_mask = morphological_post_processing(lymph_output_mask)
 
     mono_coordinates = peak_local_max(
         mono_prob,
-        min_distance=5,
+        min_distance=min_distances[2],
         threshold_abs=thresholds[2],
         exclude_border=False,
     )
     mono_output_mask[
         mono_coordinates[:, 0], mono_coordinates[:, 1]
     ] = 1
+    # mono_output_mask = (mono_prob > thresholds[2]).astype(np.uint8)
+    # mono_output_mask = morphological_post_processing(mono_output_mask)
 
     return {
         "inflamm_mask": inflamm_output_mask,

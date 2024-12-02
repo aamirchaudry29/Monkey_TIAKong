@@ -164,22 +164,28 @@ def process_tile_detection_masks(
             A list of detection records: [{'x', 'y', 'type', 'probability'}]
 
     """
-    inflamm_prediction = np.zeros(
-        shape=(tile_size, tile_size), dtype=np.uint8
-    )
+    # inflamm_prediction = np.zeros(
+    #     shape=(tile_size, tile_size), dtype=np.uint8
+    # )
     # contour_prediction = np.zeros(
     #     shape=(tile_size, tile_size), dtype=np.uint8
     # )
-    lymph_prediction = np.zeros(
-        shape=(tile_size, tile_size), dtype=np.uint8
-    )
-    mono_prediction = np.zeros(
-        shape=(tile_size, tile_size), dtype=np.uint8
-    )
+    # lymph_prediction = np.zeros(
+    #     shape=(tile_size, tile_size), dtype=np.uint8
+    # )
+    # mono_prediction = np.zeros(
+    #     shape=(tile_size, tile_size), dtype=np.uint8
+    # )
 
-    inflamm_probs_map = None
-    lymph_probs_map = None
-    mono_probs_map = None
+    inflamm_probs_map = np.zeros(
+        shape=(tile_size, tile_size)
+    )
+    lymph_probs_map = np.zeros(
+        shape=(tile_size, tile_size)
+    )
+    mono_probs_map = np.zeros(
+        shape=(tile_size, tile_size)
+    )
 
     if len(pred_results["lymph_prob"]) != 0:
         lymph_probs_map = SemanticSegmentor.merge_prediction(
@@ -216,28 +222,34 @@ def process_tile_detection_masks(
     # lymph_prediction[contour_prediction == 1] = 0
     # mono_prediction[contour_prediction == 1] = 0
 
+    # inflamm_probs_map = inflamm_probs_map + lymph_probs_map + mono_probs_map
+    # min = np.min(np.ravel(inflamm_probs_map))
+    # max = np.max(np.ravel(inflamm_probs_map))
+    # inflamm_probs_map = (inflamm_probs_map - min) / (max-min)
+
     processed_masks = multihead_det_post_process(
         inflamm_probs_map,
         lymph_probs_map,
         mono_probs_map,
         thresholds=config.thresholds,
+        min_distances=config.min_distances
     )
 
     inflamm_labels = skimage.measure.label(
-        processed_masks["inflamm_mask"]
+        processed_masks["inflamm_mask"],connectivity=1
     )
     inflamm_stats = skimage.measure.regionprops(
         inflamm_labels, intensity_image=inflamm_probs_map
     )
 
     lymph_labels = skimage.measure.label(
-        processed_masks["lymph_mask"]
+        processed_masks["lymph_mask"],connectivity=1
     )
     lymph_stats = skimage.measure.regionprops(
         lymph_labels, intensity_image=lymph_probs_map
     )
 
-    mono_labels = skimage.measure.label(processed_masks["mono_mask"])
+    mono_labels = skimage.measure.label(processed_masks["mono_mask"],connectivity=1)
     mono_stats = skimage.measure.regionprops(
         mono_labels, intensity_image=mono_probs_map
     )
@@ -436,7 +448,7 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_inflamm_records,
         tile_size=4096,
-        box_size=30,
+        box_size=11,
         overlap_thresh=0.5,
     )
 
@@ -445,7 +457,7 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_lymph_records,
         tile_size=4096,
-        box_size=16,
+        box_size=9,
         overlap_thresh=0.5,
     )
 
@@ -454,7 +466,7 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_mono_records,
         tile_size=4096,
-        box_size=40,
+        box_size=13,
         overlap_thresh=0.5,
     )
 
