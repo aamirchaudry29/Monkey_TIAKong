@@ -19,7 +19,7 @@ def compute_FROC(fold: int = 1):
     # )
 
     FOLD = fold
-    model_name = "hovernext_det_experiment"
+    model_name = "hovernext_det_large_experiment"
     PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     # PREDICT_DIR = f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{FOLD}"
     SPACING_LEVEL0 = 0.24199951445730394
@@ -35,10 +35,16 @@ def compute_FROC(fold: int = 1):
 
     inflamm_sum_score = 0.0
     inflamm_sum_f1 = 0.0
+    inflamm_sum_precision = 0.0
+    inflamm_sum_recall = 0.0
     lymph_sum_score = 0.0
     lymph_sum_f1 = 0.0
+    lymph_sum_precision = 0.0
+    lymph_sum_recall = 0.0
     mono_sum_score = 0.0
     mono_sum_f1 = 0.0
+    mono_sum_precision = 0.0
+    mono_sum_recall = 0.0
 
     for wsi_name in val_wsi_files:
         wsi_id = extract_id(wsi_name)
@@ -128,12 +134,18 @@ def compute_FROC(fold: int = 1):
 
         inflamm_sum_score += inflamm_froc["froc_score_slide"]
         inflamm_sum_f1 += inflamm_f1["F1"]
+        inflamm_sum_precision += inflamm_f1['Precision']
+        inflamm_sum_recall += inflamm_f1['Recall']
 
         lymph_sum_score += lymph_froc["froc_score_slide"]
         lymph_sum_f1 += lymph_f1["F1"]
+        lymph_sum_precision += lymph_f1['Precision']
+        lymph_sum_recall += lymph_f1['Recall']
 
         mono_sum_score += mono_froc["froc_score_slide"]
         mono_sum_f1 += mono_f1["F1"]
+        mono_sum_precision += mono_f1['Precision']
+        mono_sum_recall += mono_f1['Recall']
 
     results = {
         "model_name": model_name,
@@ -144,13 +156,19 @@ def compute_FROC(fold: int = 1):
         "Inflamm F1": inflamm_sum_f1 / len(val_wsi_files),
         "Lymphocytes F1": lymph_sum_f1 / len(val_wsi_files),
         "Monocytes F1": mono_sum_f1 / len(val_wsi_files),
+        "Inflamm Precision": inflamm_sum_precision / len(val_wsi_files),
+        "Lymph Precision": lymph_sum_precision / len(val_wsi_files),
+        "Mono Precision": mono_sum_precision / len(val_wsi_files),
+        "Inflamm Recall": inflamm_sum_recall / len(val_wsi_files),
+        "Lymph Recall": lymph_sum_recall / len(val_wsi_files),
+        "Mono Recall": mono_sum_recall / len(val_wsi_files),
     }
     return results
 
 
 if __name__ == "__main__":
-    folds = [1, 2, 3, 4, 5]
-    # folds = [1]
+    # folds = [1, 2, 3, 4, 5]
+    folds = [1]
     with Pool(5) as p:
         results = p.map(compute_FROC, folds)
 
