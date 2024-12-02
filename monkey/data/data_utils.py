@@ -665,6 +665,79 @@ def non_max_suppression_fast(boxes, overlapThresh):
     return pick
 
 
+def nms(boxes : np.ndarray ,overlapThresh : float):
+    """
+    Apply non-maximum suppression to avoid detecting too many
+    overlapping bounding boxes for a given object.
+    Args:
+        boxes: (tensor) The location preds for the image 
+            along with the class predscores, Shape: [num_boxes,5].
+        overlapThresh: (float) The overlap thresh for suppressing unnecessary boxes.
+    Returns:
+        A list of filtered boxes, Shape: [ , 5]
+    """
+    # if there are no boxes, return an empty list
+    if len(boxes) == 0:
+        return []
+    # if the bounding boxes integers, convert them to floats --
+    # this is important since we'll be doing a bunch of divisions
+    if boxes.dtype.kind == "i":
+        boxes = boxes.astype("float")
+ 
+    # we extract coordinates for every 
+    # prediction box present in P
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+ 
+    # we extract the confidence scores as well
+    scores = boxes[:, 4]
+ 
+    # calculate area of every block in P
+    area = (x2 - x1 + 1) * (y2 - y1 + 1)
+     
+    # sort the prediction boxes in P
+    # according to their confidence scores
+    idxs = scores.argsort()
+ 
+    # initialise an empty list for 
+    # filtered prediction boxes
+    pick = []
+     
+ 
+    while len(idxs) > 0:
+        # grab the last index in the indexes list and add the
+        # index value to the list of picked indexes
+        last = len(idxs) - 1
+        i = idxs[last]
+        pick.append(i)
+        # find the largest (x, y) coordinates for the start of
+        # the bounding box and the smallest (x, y) coordinates
+        # for the end of the bounding box
+        xx1 = np.maximum(x1[i], x1[idxs[:last]])
+        yy1 = np.maximum(y1[i], y1[idxs[:last]])
+        xx2 = np.minimum(x2[i], x2[idxs[:last]])
+        yy2 = np.minimum(y2[i], y2[idxs[:last]])
+        # compute the width and height of the bounding box
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+        # compute the ratio of overlap
+        overlap = (w * h) / area[idxs[:last]]
+        # delete all indexes from the index list that have
+        idxs = np.delete(
+            idxs,
+            np.concatenate(
+                ([last], np.where(overlap > overlapThresh)[0])
+            ),
+        )
+    # return only the bounding boxes that were picked using the
+    # integer data type
+    # return boxes[pick].astype("int")
+     
+    return pick
+
+
 def get_centerpoints(box, dist):
     """Returns centerpoints of box"""
     return (box[0] + dist, box[1] + dist)
@@ -687,9 +760,21 @@ def get_points_within_box(
     return results
 
 
-def point_to_box(x, y, size):
-    """Convert centerpoint to bounding box of fixed size"""
-    return np.array([x - size, y - size, x + size, y + size])
+def point_to_box(x, y, size, prob=None):
+    """
+    Convert centerpoint to bounding box of fixed size
+    Args:
+        x: x coordinate
+        y: y coordinate
+        size: radius of the box
+        prob: probability of the point
+    Returns:
+        box: np.ndarray[4], if prob is not None [5]
+    """
+    if prob == None:
+        return np.array([x - size, y - size, x + size, y + size])
+    else:
+        return np.array([x - size, y - size, x + size, y + size, prob])
 
 
 def slide_nms(
@@ -735,11 +820,11 @@ def slide_nms(
         # Convert each point to a box
         boxes = np.array(
             [
-                point_to_box(entry["x"], entry["y"], box_size)
+                point_to_box(entry["x"], entry["y"], box_size, entry['prob'])
                 for entry in patch_points
             ]
         )
-        indices = non_max_suppression_fast(boxes, overlap_thresh)
+        indices = nms(boxes, overlap_thresh)
         for i in indices:
             center_nms_points.append(patch_points[i])
         # for box in nms_boxes:
