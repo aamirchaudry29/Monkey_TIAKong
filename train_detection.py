@@ -61,9 +61,9 @@ if run_config["use_nuclick_masks"]:
 model = get_custom_hovernext(
     pretrained=True,
     num_heads=2,
-    decoders_out_channels=[1,1],
+    decoders_out_channels=[1, 1],
     use_batchnorm=True,
-    attention_type='scse'
+    attention_type="scse",
 )
 checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
 model.to("cuda")
