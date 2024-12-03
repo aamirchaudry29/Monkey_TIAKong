@@ -232,6 +232,8 @@ def get_convnext_unet(
 def get_custom_hovernext(
     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
     pretrained=True,
+    num_heads=3, 
+    decoders_out_channels=[1,1,1]
 ):
     pre_path = None
     if type(pretrained) == str:
@@ -251,55 +253,79 @@ def get_custom_hovernext(
     )
     decoder_channels = (256, 128, 64, 32, 16)[:depth]
 
-    decoder_inflamm = UnetDecoder(
-        encoder_channels=encoder.out_channels,
-        decoder_channels=decoder_channels,
-        n_blocks=len(decoder_channels),
-        use_batchnorm=False,
-        center=False,
-        attention_type=None,
-        next="next" in enc,
-    )
-    decoder_lymph = UnetDecoder(
-        encoder_channels=encoder.out_channels,
-        decoder_channels=decoder_channels,
-        n_blocks=len(decoder_channels),
-        use_batchnorm=False,
-        center=False,
-        attention_type=None,
-        next="next" in enc,
-    )
-    decoder_mono = UnetDecoder(
-        encoder_channels=encoder.out_channels,
-        decoder_channels=decoder_channels,
-        n_blocks=len(decoder_channels),
-        use_batchnorm=False,
-        center=False,
-        attention_type=None,
-        next="next" in enc,
-    )
+    decoders = []
+    for i in range(num_heads):
+        decoders.append(UnetDecoder(
+            encoder_channels=encoder.out_channels,
+            decoder_channels=decoders_out_channels[i],
+            n_blocks=len(decoder_channels),
+            use_batchnorm=False,
+            center=False,
+            attention_type=None,
+            next="next" in enc,
+            
+        ))
 
-    head_inflamm = smp.base.SegmentationHead(
-        in_channels=decoder_inflamm.blocks[-1].conv2[0].out_channels,
-        out_channels=1,  # instance channels
-        activation=None,
-        kernel_size=1,
-    )
-    head_lymph = smp.base.SegmentationHead(
-        in_channels=decoder_lymph.blocks[-1].conv2[0].out_channels,
-        out_channels=1,
-        activation=None,
-        kernel_size=1,
-    )
-    head_mono = smp.base.SegmentationHead(
-        in_channels=decoder_mono.blocks[-1].conv2[0].out_channels,
-        out_channels=1,
-        activation=None,
-        kernel_size=1,
-    )
+    # decoder_inflamm = UnetDecoder(
+    #     encoder_channels=encoder.out_channels,
+    #     decoder_channels=decoder_channels,
+    #     n_blocks=len(decoder_channels),
+    #     use_batchnorm=False,
+    #     center=False,
+    #     attention_type=None,
+    #     next="next" in enc,
+    # )
+    # decoder_lymph = UnetDecoder(
+    #     encoder_channels=encoder.out_channels,
+    #     decoder_channels=decoder_channels,
+    #     n_blocks=len(decoder_channels),
+    #     use_batchnorm=False,
+    #     center=False,
+    #     attention_type=None,
+    #     next="next" in enc,
+    # )
+    # decoder_mono = UnetDecoder(
+    #     encoder_channels=encoder.out_channels,
+    #     decoder_channels=decoder_channels,
+    #     n_blocks=len(decoder_channels),
+    #     use_batchnorm=False,
+    #     center=False,
+    #     attention_type=None,
+    #     next="next" in enc,
+    # )
 
-    decoders = [decoder_inflamm, decoder_lymph, decoder_mono]
-    heads = [head_inflamm, head_lymph, head_mono]
+    heads = []
+    for i in range(num_heads):
+        heads.append(
+            smp.base.SegmentationHead(
+                in_channels=decoders[i].blocks[-1].conv2[0].out_channels,
+                out_channels=1,  # instance channels
+                activation=None,
+                kernel_size=1,
+            )
+        )
+
+    # head_inflamm = smp.base.SegmentationHead(
+    #     in_channels=decoder_inflamm.blocks[-1].conv2[0].out_channels,
+    #     out_channels=1,  # instance channels
+    #     activation=None,
+    #     kernel_size=1,
+    # )
+    # head_lymph = smp.base.SegmentationHead(
+    #     in_channels=decoder_lymph.blocks[-1].conv2[0].out_channels,
+    #     out_channels=1,
+    #     activation=None,
+    #     kernel_size=1,
+    # )
+    # head_mono = smp.base.SegmentationHead(
+    #     in_channels=decoder_mono.blocks[-1].conv2[0].out_channels,
+    #     out_channels=1,
+    #     activation=None,
+    #     kernel_size=1,
+    # )
+
+    # decoders = [decoder_inflamm, decoder_lymph, decoder_mono]
+    # heads = [head_inflamm, head_lymph, head_mono]
     model = MultiHeadModel(encoder, decoders, heads)
     if pre_path:
         state_dict = torch.load(pre_path, map_location=f"cpu")[
