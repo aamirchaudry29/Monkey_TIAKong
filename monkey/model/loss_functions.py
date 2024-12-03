@@ -46,6 +46,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Dice_Focal_Loss": Dice_Focal_Loss,
         "Weighted_CE_Dice": Weighted_CE_Dice_Loss,
         "MapDe_Loss": MapDe_Loss,
+        "Weighted_BCE_Jaccard": Weighted_BCE_Jaccard_Loss
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -237,7 +238,7 @@ class Weighted_BCE_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss", True)
         self.multiclass = False
-        self.pos_weight = 1000.0
+        self.pos_weight = 2.0
 
     def set_multiclass(self, multiclass):
         self.multiclass = multiclass
@@ -247,8 +248,9 @@ class Weighted_BCE_Loss(Loss_Function):
 
     def compute_loss(self, input: Tensor, target: Tensor):
         weight_map = 1 + (self.pos_weight - 1) * target
+        print(weight_map)
         loss = nn.functional.binary_cross_entropy(
-            input.float(), target.float(), weight=weight_map 
+            input.float(), target.float(), weight=weight_map, reduction='mean'
         )
         return loss
 
@@ -287,32 +289,45 @@ class Weighted_BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss + Dice Loss", True)
         self.multiclass = False
-        self.pos_weight = 10.0
+        self.pos_weight = 1000.0
+        self.bce_loss = Weighted_BCE_Loss()
+        self.bce_loss.set_weight(self.pos_weight)
 
     def set_multiclass(self, multiclass):
         self.multiclass = multiclass
 
     def set_weight(self, pos_weight: float):
         self.pos_weight = pos_weight
-
-    def ce_loss(self, input: Tensor, target: Tensor):
-        epsilon = 1e-7
-        log_weight = 1 + (self.pos_weight - 1) * target
-        clipped_logits = torch.clamp(
-            input, min=epsilon, max=1.0 - epsilon
-        )
-        loss = (
-            target * -clipped_logits.log() * log_weight
-            + (1 - target)
-            * -(1.0 - clipped_logits).log()
-            * log_weight
-        )
-        return torch.sum(torch.flatten(loss)) / target.shape[0]
+        self.bce_loss.set_weight(self.pos_weight)
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        return self.ce_loss(input, target.float()) + dice_loss(
+        bce =  self.bce_loss.compute_loss(input, target) 
+        dice = dice_loss(
             input.float(), target.float(), multiclass=self.multiclass
         )
+        return bce + dice
+
+class Weighted_BCE_Jaccard_Loss(Loss_Function):
+    def __init__(self) -> None:
+        super().__init__("Weighted BCE Loss + Jaccard Loss", True)
+        self.multiclass = False
+        self.pos_weight = 1000.0
+        self.bce_loss = Weighted_BCE_Loss()
+        self.bce_loss.set_weight(self.pos_weight)
+
+    def set_multiclass(self, multiclass):
+        self.multiclass = multiclass
+
+    def set_weight(self, pos_weight: float):
+        self.pos_weight = pos_weight
+        self.bce_loss.set_weight(self.pos_weight)
+
+    def compute_loss(self, input: Tensor, target: Tensor):
+        bce =  self.bce_loss.compute_loss(input, target) 
+        dice = jaccard_loss(
+            input.float(), target.float(), multiclass=self.multiclass
+        )
+        return bce + dice
 
 
 class Weighted_CE_Dice_Loss(Loss_Function):
