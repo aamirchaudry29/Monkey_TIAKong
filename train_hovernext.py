@@ -12,6 +12,7 @@ from monkey.model.cellvit.cellvit import CellVit256_Unet
 from monkey.model.hovernext.model import (
     get_convnext_unet,
     get_custom_hovernext,
+    load_encoder_weights
 )
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
@@ -23,17 +24,17 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "convnext_unet_2_channel",
-    "val_fold": 5,  # [1-5]
+    "model_name": "hovernext_3_head",
+    "val_fold": 1,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.0004,
-    "weight_decay": 0.01,
-    "epochs": 50,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
+    "epochs": 30,
     "loss_function": {
-        "head_1": "BCE_Dice",
-        "head_2": "BCE_Dice",
-        "head_3": "BCE_Dice",
+        "head_1": "Jaccard_Loss",
+        "head_2": "Jaccard_Loss",
+        "head_3": "Jaccard_Loss",
     },
     "loss_pos_weight": 1.0,
     "do_augmentation": True,
@@ -64,11 +65,13 @@ if run_config["use_nuclick_masks"]:
 model = get_custom_hovernext(
     enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
+    use_batchnorm=True,
+    attention_type='scse'
 )
-# model = CellVit256_Unet(num_decoders=3)
-# model_path = "/home/u1910100/cloud_workspace/data/Monkey/HIPT_vit256_small_dino.pth"
-# model.load_pretrained_encoder(model_path)
+checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
 model.to("cuda")
+model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
+pprint("Lizzard encoder weights loaded")
 # -----------------------------------------------------------------------
 
 
@@ -133,7 +136,7 @@ optimizer = torch.optim.AdamW(
 # )
 # scheduler = None
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, "max", factor=0.1, patience=10
+    optimizer, "max", factor=0.1, patience=5
 )
 # scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 

@@ -25,6 +25,7 @@ cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
 echo "starting prediction script"
 
 # python3.11 prediction_singular.py
-python3.11 prediction_multiheadUnet.py
+# python3.11 prediction_multiheadUnet.py
+python3.11 prediction_lymph_mono.py
 
 echo "finished"

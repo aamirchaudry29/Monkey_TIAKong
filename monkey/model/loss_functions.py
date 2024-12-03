@@ -239,32 +239,18 @@ class Weighted_BCE_Loss(Loss_Function):
         self.multiclass = False
         self.pos_weight = 1000.0
 
-        self.mse = torch.nn.MSELoss(reduction="mean")
-
     def set_multiclass(self, multiclass):
         self.multiclass = multiclass
 
     def set_weight(self, pos_weight: float):
         self.pos_weight = pos_weight
 
-    def ce_loss(self, input: Tensor, target: Tensor):
-        epsilon = 1e-7
-        log_weight = 1 + (self.pos_weight - 1) * target
-        clipped_logits = torch.clamp(
-            input, min=epsilon, max=1.0 - epsilon
-        )
-        loss = (
-            target * -clipped_logits.log() * log_weight
-            + (1 - target) * -(1.0 - clipped_logits).log()
-        )
-        return torch.mean(torch.flatten(loss))
-
     def compute_loss(self, input: Tensor, target: Tensor):
-        mse_loss = self.mse(input, target) * (self.pos_weight / 100)
-        bce_loss = self.ce_loss(input, target.float())
-        print(f"mse {mse_loss.item()}")
-        print(f"bce {bce_loss.item()}")
-        return mse_loss + bce_loss
+        weight_map = 1 + (self.pos_weight - 1) * target
+        loss = nn.functional.binary_cross_entropy(
+            input.float(), target.float(), weight=weight_map 
+        )
+        return loss
 
 
 # Binary cross entropy + Dice loss

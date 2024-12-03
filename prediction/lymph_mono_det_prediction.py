@@ -397,7 +397,7 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_inflamm_records,
         tile_size=4096,
-        box_size=11,
+        box_size=30,
         overlap_thresh=0.5,
     )
 
@@ -406,7 +406,7 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_lymph_records,
         tile_size=4096,
-        box_size=9,
+        box_size=16,
         overlap_thresh=0.5,
     )
 
@@ -415,7 +415,7 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_mono_records,
         tile_size=4096,
-        box_size=13,
+        box_size=40,
         overlap_thresh=0.5,
     )
 
