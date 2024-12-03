@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,7 +31,8 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 
     Options:
         {"Jaccard_Loss", "Dice", "BCE", "Weighted_BCE", "BCE_Dice",
-        "Weighted_BCE_Dice","MSE", "Weighted_CrossEntropy", "Dice_Focal_Loss"}
+        "Weighted_BCE_Dice","MSE", "Weighted_CrossEntropy", "Dice_Focal_Loss"
+        "Weighted_CE_Dice"}
     """
     loss_functions = {
         "Jaccard_Loss": Jaccard_Loss,
@@ -42,6 +44,8 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "MSE": MSE_Loss,
         "Weighted_CrossEntropy": CrossEntropy_Loss,
         "Dice_Focal_Loss": Dice_Focal_Loss,
+        "Weighted_CE_Dice": Weighted_CE_Dice_Loss,
+        "MapDe_Loss": MapDe_Loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -54,6 +58,44 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 
 
 # -------------------------------------Classes implementing loss functions---------------------------------
+class MapDe_Loss(Loss_Function):
+    def __init__(self, use_weights=True):
+        super().__init__("MapDe_Loss", use_weights)
+        self.multiclass = False
+        self.pos_weight = 1000.0
+
+    def set_multiclass(self, multiclass):
+        self.multiclass = multiclass
+
+    def set_weight(self, pos_weight):
+        self.pos_weight = pos_weight
+
+    def ce_loss(self, input: Tensor, target: Tensor):
+        epsilon = 1e-7
+        log_weight = 1 + (self.pos_weight - 1) * target
+        clipped_logits = torch.clamp(
+            input, min=epsilon, max=1.0 - epsilon
+        )
+        clipped_logits = torch.sigmoid(clipped_logits)
+        loss = (
+            target * -clipped_logits.log() * log_weight
+            + (1 - target) * -(1.0 - clipped_logits).log()
+        )
+        return torch.mean(torch.flatten(loss))
+
+    def compute_loss(self, input: Tensor, target: Tensor):
+        if self.multiclass:
+            bce_loss = 0.0
+            for channel in range(input.shape[1]):
+                bce_loss += self.ce_loss(
+                    input[:, channel, ...],
+                    target[:, channel, ...].float(),
+                )
+        else:
+            bce_loss = self.ce_loss(input, target.float())
+        return bce_loss
+
+
 class Focal_Loss(Loss_Function):
     def __init__(self, use_weights=False):
         super().__init__("name", use_weights)
@@ -78,7 +120,7 @@ class Dice_Focal_Loss(Loss_Function):
     def compute_loss(self, input: Tensor, target: Tensor):
         loss_1 = self.focal_loss.compute_loss(input, target)
         loss_2 = self.dice_loss.compute_loss(input, target)
-        return loss_1 * 0.5 + loss_2 * 0.5
+        return loss_1 + loss_2
 
     def set_multiclass(self, multiclass: bool):
         self.multiclass = multiclass
@@ -110,17 +152,24 @@ class CrossEntropy_Loss(Loss_Function):
 class MSE_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("MSE", False)
+        self.multiclass = False
+        self.pos_weight = 1000.0
+
+    def set_multiclass(self, multiclass):
+        self.multiclass = multiclass
+
+    def set_weight(self, pos_weight):
+        self.pos_weight = pos_weight
 
     def compute_loss(
         self,
         input: Tensor,
         target: Tensor,
-        pos_Weight: float = 1000.0,
     ):
         assert (
             input.size() == target.size()
         )  # "Input size {} must be the same as target size {}".format(input.size(), target.size())
-        target = target * pos_Weight
+        target = target * self.pos_weight
         return nn.MSELoss()(input, target)
 
         ####
@@ -187,11 +236,35 @@ class BCE_Loss(Loss_Function):
 class Weighted_BCE_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss", True)
+        self.multiclass = False
+        self.pos_weight = 1000.0
+
+        self.mse = torch.nn.MSELoss(reduction="mean")
+
+    def set_multiclass(self, multiclass):
+        self.multiclass = multiclass
+
+    def set_weight(self, pos_weight: float):
+        self.pos_weight = pos_weight
+
+    def ce_loss(self, input: Tensor, target: Tensor):
+        epsilon = 1e-7
+        log_weight = 1 + (self.pos_weight - 1) * target
+        clipped_logits = torch.clamp(
+            input, min=epsilon, max=1.0 - epsilon
+        )
+        loss = (
+            target * -clipped_logits.log() * log_weight
+            + (1 - target) * -(1.0 - clipped_logits).log()
+        )
+        return torch.mean(torch.flatten(loss))
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        class_weight = 2.0
-        weight_map = 1.0 + target * class_weight
-        return nn.BCELoss(weight=weight_map)(input, target.float())
+        mse_loss = self.mse(input, target) * (self.pos_weight / 100)
+        bce_loss = self.ce_loss(input, target.float())
+        print(f"mse {mse_loss.item()}")
+        print(f"bce {bce_loss.item()}")
+        return mse_loss + bce_loss
 
 
 # Binary cross entropy + Dice loss
@@ -204,6 +277,9 @@ class BCE_Dice_Loss(Loss_Function):
     def set_multiclass(self, multiclass: bool):
         self.multiclass = multiclass
 
+    def set_weight(self, weight):
+        return
+
     def compute_loss(self, input: Tensor, target: Tensor):
         if self.multiclass:
             bce_loss = 0.0
@@ -212,7 +288,6 @@ class BCE_Dice_Loss(Loss_Function):
                     input[:, channel, ...],
                     target[:, channel, ...].float(),
                 )
-            bce_loss = bce_loss / input.shape[1]
         else:
             bce_loss = self.bce_loss_fn(input, target.float())
 
@@ -226,17 +301,56 @@ class Weighted_BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss + Dice Loss", True)
         self.multiclass = False
+        self.pos_weight = 10.0
+
+    def set_multiclass(self, multiclass):
+        self.multiclass = multiclass
+
+    def set_weight(self, pos_weight: float):
+        self.pos_weight = pos_weight
+
+    def ce_loss(self, input: Tensor, target: Tensor):
+        epsilon = 1e-7
+        log_weight = 1 + (self.pos_weight - 1) * target
+        clipped_logits = torch.clamp(
+            input, min=epsilon, max=1.0 - epsilon
+        )
+        loss = (
+            target * -clipped_logits.log() * log_weight
+            + (1 - target)
+            * -(1.0 - clipped_logits).log()
+            * log_weight
+        )
+        return torch.sum(torch.flatten(loss)) / target.shape[0]
+
+    def compute_loss(self, input: Tensor, target: Tensor):
+        return self.ce_loss(input, target.float()) + dice_loss(
+            input.float(), target.float(), multiclass=self.multiclass
+        )
+
+
+class Weighted_CE_Dice_Loss(Loss_Function):
+    def __init__(self) -> None:
+        super().__init__("Weighted CE Loss + Dice Loss", True)
+        self.multiclass = True
+        self.weights = torch.tensor([0.4, 0.6], device="cuda")
 
     def set_multiclass(self, multiclass: bool):
         self.multiclass = multiclass
 
-    def compute_loss(self, input: Tensor, target: Tensor):
-        class_weight = 2.0
-        weight_map = 1.0 + target * class_weight
+    def set_weight(self, weights: Tensor):
+        self.weights = weights
+        self.weights.to("cuda")
 
-        return nn.BCELoss(weight=weight_map)(
-            input, target.float()
-        ) + dice_loss(
+    def compute_loss(self, input: Tensor, target: Tensor):
+
+        # convert target to one-hot
+        # BxCxHxW -> BxHxW
+        target_indices = torch.argmax(target, dim=1)
+
+        return nn.CrossEntropyLoss(
+            weight=self.weights, reduction="sum"
+        )(input, target_indices) + dice_loss(
             input.float(), target.float(), multiclass=self.multiclass
         )
 
@@ -249,6 +363,7 @@ def dice_coeff(
     epsilon=1e-6,
 ):
     # Average of Dice coefficient for all batches, or for a single mask
+
     assert input.size() == target.size()
     if input.dim() == 2 and reduce_batch_first:
         raise ValueError(
@@ -276,7 +391,7 @@ def multiclass_dice_coeff(
     reduce_batch_first: bool = False,
     epsilon=1e-6,
 ):
-    # Average of Dice coefficient for all classes
+
     assert input.size() == target.size()
     dice = 0
     for channel in range(input.shape[1]):
@@ -287,7 +402,8 @@ def multiclass_dice_coeff(
             epsilon,
         )
 
-    return dice / input.shape[1]
+    # return dice / input.shape[1]
+    return dice
 
 
 def dice_loss(
@@ -356,20 +472,6 @@ def jaccard_loss(
     assert input.size() == target.size()
     fn = multiclass_jaccard_coeff if multiclass else jaccard_coef
     return 1 - fn(input, target, reduce_batch_first=True)
-
-
-def non_zero_similarity_score(
-    input: Tensor, target: Tensor, epsilon=1e-11
-):
-    non_zero_overlap = torch.dot(
-        input.reshape(-1), target.reshape(-1)
-    )
-    if non_zero_overlap == 0.0:
-        sets_sum = 1.0
-    else:
-        sets_sum = torch.sum(input) + torch.sum(target)
-
-    return (2 * non_zero_overlap + epsilon) / (sets_sum + epsilon)
 
 
 # ------------------------ inter and intra class loss ----------------------

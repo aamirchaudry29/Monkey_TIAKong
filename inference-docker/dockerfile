@@ -35,6 +35,10 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN pip install tiatoolbox==1.5.1
 RUN pip install timm==1.0.11
+RUN pip install monai==1.4.0
+RUN pip install --no-deps segmentation-models-pytorch==0.3.4
+RUN pip install --no-deps pretrainedmodels==0.7.4
+RUN pip install --no-deps efficientnet-pytorch==0.7.1
 
 # Ensures that Python output to stdout/stderr is not buffered: prevents missing information when terminating
 ENV PYTHONUNBUFFERED=1
@@ -51,7 +55,9 @@ WORKDIR /opt/app
 COPY --chown=user:user resources /opt/app/resources
 COPY --chown=user:user monkey /opt/app/monkey
 COPY --chown=user:user prediction /opt/app/prediction
+COPY --chown=user:user evaluation /opt/app/evaluation
 COPY --chown=user:user --chmod=0755 inference-docker/inference.py /opt/app/
+COPY --chown=user:user --chmod=0755 inference-docker/inference_multiheadunet.py /opt/app/
 COPY --chown=user:user --chmod=0755 inference-docker/commands.sh /opt/app/
 
 WORKDIR /opt/app/

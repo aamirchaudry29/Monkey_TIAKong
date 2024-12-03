@@ -20,6 +20,7 @@ from monkey.data.data_utils import (
     imagenet_normalise,
     load_classification_data_example,
     load_image,
+    load_json_annotation,
     load_mask,
     load_nuclick_annotation,
 )
@@ -69,10 +70,39 @@ def class_mask_to_multichannel_mask(
     return mask
 
 
+class BoundingBoxDataset(Dataset):
+    """
+    Dataset for training YOLO, RCNN,...
+    """
+
+    def __init__(
+        self,
+        IOConfig: TrainingIOConfig,
+        file_ids: list,
+        phase: str = "train",
+        do_augment: bool = False,
+        box_radius: int = 9,
+    ):
+        self.IOConfig = IOConfig
+        self.file_ids = file_ids
+        self.phase = phase
+        self.do_augment = do_augment
+        self.box_radius = box_radius
+
+    def __len__(self) -> int:
+        return len(self.file_ids)
+
+    def __getitem__(self, idx: int) -> dict:
+        # Load image and mask
+        file_id = self.file_ids[idx]
+        image = load_image(file_id, self.IOConfig)
+        annotation_json = load_json_annotation(file_id, self.IOConfig)
+
+
 class DetectionDataset(Dataset):
-    """Dataset for overall cell detection
+    """Dataset for binary cell detection
     Detecting Lymphocytes and Monocytes
-    Data: RGB image and binary cell mask
+    Data: RGB image and cell mask
     """
 
     def __init__(
@@ -86,20 +116,31 @@ class DetectionDataset(Dataset):
         module: str = "detection",
         use_nuclick_masks: bool = False,
         include_background_channel: bool = False,
+        target_cell_type: str | None = None,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
         self.phase = phase
         self.do_augment = do_augment
         self.disk_radius = disk_radius
-        self.module = module
-        self.regression_map = regression_map
+        self.module = "detection"
+        self.regression_map = False
         self.use_nuclick_masks = use_nuclick_masks
-        self.include_background_channel = include_background_channel
+        self.include_background_channel = False
+        self.target_cell_type = target_cell_type
+
+        if self.target_cell_type is not None:
+            self.include_background_channel = False
+            if self.target_cell_type == "inflamm":
+                self.disk_radius = 11
+            if self.target_cell_type == "lymph":
+                self.disk_radius = 9
+            if self.target_cell_type == "mono":
+                self.disk_radius = 13
 
         if self.do_augment:
             self.augmentation = get_augmentation(
-                module=self.module, gt_type="mask", aug_prob=0.7
+                module=self.module, gt_type="mask", aug_prob=0.9
             )
 
     def __len__(self) -> int:
@@ -111,9 +152,10 @@ class DetectionDataset(Dataset):
         image = load_image(file_id, self.IOConfig)
 
         if self.use_nuclick_masks:
-            cell_mask = load_nuclick_annotation(
+            nuclick_annotation = load_nuclick_annotation(
                 file_id, self.IOConfig
             )
+            cell_mask = nuclick_annotation["class_mask"]
         else:
             cell_mask = load_mask(file_id, self.IOConfig)
 
@@ -127,10 +169,12 @@ class DetectionDataset(Dataset):
                 augmented_data["mask"],
             )
 
-        if self.module == "multiclass_detection":
-            cell_mask = class_mask_to_multichannel_mask(cell_mask)
-        else:
+        if self.target_cell_type == "inflamm":
             cell_mask = class_mask_to_binary(cell_mask)
+        if self.target_cell_type == "lymph":
+            cell_mask = class_mask_to_multichannel_mask(cell_mask)[0]
+        if self.target_cell_type == "mono":
+            cell_mask = class_mask_to_multichannel_mask(cell_mask)[1]
 
         # Dilate cell centroids
         if not self.use_nuclick_masks:
@@ -148,7 +192,7 @@ class DetectionDataset(Dataset):
             if len(cell_mask.shape) == 2:
                 cell_mask = generate_regression_map(
                     binary_mask=cell_mask,
-                    d_thresh=7,
+                    d_thresh=3,
                     alpha=5,
                     scale=1,
                 )
@@ -164,8 +208,8 @@ class DetectionDataset(Dataset):
         if len(cell_mask.shape) == 2:
             # HxW -> 1xHxW
             cell_mask = cell_mask[np.newaxis, :, :]
-        if self.include_background_channel:
-            cell_mask = add_background_channel(cell_mask)
+        # if self.include_background_channel:
+        #     cell_mask = add_background_channel(cell_mask)
 
         # HxWx3 -> 3xHxW
         image = image / 255
@@ -176,6 +220,102 @@ class DetectionDataset(Dataset):
             "id": file_id,
             "image": image,
             "mask": cell_mask,
+        }
+
+        return data
+
+
+class Multitask_Dataset(Dataset):
+    """
+    Dataset for multihead unet
+    """
+
+    def __init__(
+        self,
+        IOConfig: TrainingIOConfig,
+        file_ids: list,
+        phase: str = "train",
+        do_augment: bool = True,
+        use_nuclick_masks: bool = True,
+        include_background_channel: bool = False,
+        disk_radius: int = 9,
+    ):
+        self.IOConfig = IOConfig
+        self.file_ids = file_ids
+        self.phase = phase
+        self.do_augment = do_augment
+        self.use_nuclick_masks = use_nuclick_masks
+        self.module = "multiclass_detection"
+        self.include_background_channel = include_background_channel
+        self.disk_radius = disk_radius
+
+        if self.do_augment:
+            self.augmentation = get_augmentation(
+                module=self.module, gt_type="mask", aug_prob=0.9
+            )
+
+    def __len__(self) -> int:
+        return len(self.file_ids)
+
+    def __getitem__(self, idx: int) -> dict:
+        # Load image and mask
+        file_id = self.file_ids[idx]
+        image = load_image(file_id, self.IOConfig)
+
+        if self.use_nuclick_masks:
+            nuclick_annotation = load_nuclick_annotation(
+                file_id, self.IOConfig
+            )
+            binary_mask = nuclick_annotation["binary_mask"]
+            class_mask = nuclick_annotation["class_mask"]
+            contour_mask = nuclick_annotation["contour_mask"]
+        else:
+            class_mask = load_mask(file_id, self.IOConfig)
+            binary_mask = class_mask_to_binary(class_mask)
+            binary_mask = dilate_mask(binary_mask, self.disk_radius)
+            contour_mask = np.zeros_like(binary_mask)
+
+        # augmentation
+        if self.do_augment:
+            augmented_data = self.augmentation(
+                image=image,
+                mask=binary_mask,
+                class_mask=class_mask,
+                contour_mask=contour_mask,
+            )
+            image, binary_mask, class_mask, contour_mask = (
+                augmented_data["image"],
+                augmented_data["mask"],
+                augmented_data["class_mask"],
+                augmented_data["contour_mask"],
+            )
+
+        class_mask = class_mask_to_multichannel_mask(class_mask)
+        if not self.use_nuclick_masks:
+            class_mask[0] = dilate_mask(
+                class_mask[0], self.disk_radius
+            )
+            class_mask[1] = dilate_mask(
+                class_mask[1], self.disk_radius
+            )
+        if self.include_background_channel:
+            class_mask = add_background_channel(class_mask)
+
+        # HxW -> 1xHxW
+        binary_mask = binary_mask[np.newaxis, :, :]
+        contour_mask = contour_mask[np.newaxis, :, :]
+
+        # HxWx3 -> 3xHxW
+        image = image / 255
+        image = imagenet_normalise(image)
+        image = np.moveaxis(image, -1, 0)
+
+        data = {
+            "id": file_id,
+            "image": image,
+            "binary_mask": binary_mask,
+            "class_mask": class_mask,
+            "contour_mask": contour_mask,
         }
 
         return data
@@ -353,7 +493,7 @@ def get_classification_sampler(file_ids):
 def get_detection_dataloaders(
     IOConfig: TrainingIOConfig,
     val_fold=1,
-    task=1,
+    dataset_name="detection",
     batch_size=4,
     disk_radius=11,
     regression_map: bool = False,
@@ -361,51 +501,93 @@ def get_detection_dataloaders(
     do_augmentation: bool = False,
     use_nuclick_masks: bool = False,
     include_background_channel: bool = False,
+    train_full_dataset: bool = False,
+    target_cell_type: str | None = None,
 ):
-    """Get training and validation dataloaders
-    Task 1: Overall Inflammation cell (MNL) detection
-    Task 2: Detect and distinguish monocytes and lymphocytes
+    """
+    Get training and validation dataloaders
     """
 
-    if task not in [1, 2]:
-        raise ValueError(f"Task {task} is in invalid")
+    if dataset_name not in ["detection", "multitask"]:
+        raise ValueError(f"Dataset Name {dataset_name} is in invalid")
 
     if module not in ["detection", "multiclass_detection"]:
         raise ValueError(f"Module {module} is in invalid")
+
+    if val_fold not in [1, 2, 3, 4, 5]:
+        raise ValueError(f"val_fold {val_fold} is in invalid")
 
     split = get_split_from_json(IOConfig, val_fold)
     train_file_ids = split["train_file_ids"]
     test_file_ids = split["test_file_ids"]
 
-    train_sampler = get_detection_sampler(
+    if train_full_dataset:
+        # Train using entire dataset
+        train_file_ids.extend(test_file_ids)
+
+    # if target_cell_type is None:
+    train_sampler = get_detection_sampler_v2(
         file_ids=train_file_ids, IOConfig=IOConfig
     )
+    # else:
+    #     train_sampler = get_detection_sampler_v2_binary(
+    #         file_ids=train_file_ids,
+    #         IOConfig=IOConfig,
+    #         cell_type=target_cell_type,
+    #     )
+    # train_sampler = get_detection_sampler(
+    #     file_ids=train_file_ids, IOConfig=IOConfig
+    # )
 
     print(f"train patches: {len(train_file_ids)}")
     print(f"test patches: {len(test_file_ids)}")
 
-    train_dataset = DetectionDataset(
-        IOConfig=IOConfig,
-        file_ids=train_file_ids,
-        phase="Train",
-        do_augment=do_augmentation,
-        disk_radius=disk_radius,
-        regression_map=regression_map,
-        module=module,
-        use_nuclick_masks=use_nuclick_masks,
-        include_background_channel=include_background_channel,
-    )
-    val_dataset = DetectionDataset(
-        IOConfig=IOConfig,
-        file_ids=test_file_ids,
-        phase="Test",
-        do_augment=False,
-        disk_radius=disk_radius,
-        regression_map=regression_map,
-        module=module,
-        use_nuclick_masks=use_nuclick_masks,
-        include_background_channel=include_background_channel,
-    )
+    if dataset_name == "detection":
+        train_dataset = DetectionDataset(
+            IOConfig=IOConfig,
+            file_ids=train_file_ids,
+            phase="Train",
+            do_augment=do_augmentation,
+            disk_radius=disk_radius,
+            regression_map=regression_map,
+            module=module,
+            use_nuclick_masks=use_nuclick_masks,
+            include_background_channel=include_background_channel,
+            target_cell_type=target_cell_type,
+        )
+        val_dataset = DetectionDataset(
+            IOConfig=IOConfig,
+            file_ids=test_file_ids,
+            phase="Test",
+            do_augment=False,
+            disk_radius=disk_radius,
+            regression_map=regression_map,
+            module=module,
+            use_nuclick_masks=use_nuclick_masks,
+            include_background_channel=include_background_channel,
+            target_cell_type=target_cell_type,
+        )
+    elif dataset_name == "multitask":
+        train_dataset = Multitask_Dataset(
+            IOConfig=IOConfig,
+            file_ids=train_file_ids,
+            phase="Train",
+            do_augment=do_augmentation,
+            use_nuclick_masks=use_nuclick_masks,
+            include_background_channel=include_background_channel,
+            disk_radius=disk_radius,
+        )
+        val_dataset = Multitask_Dataset(
+            IOConfig=IOConfig,
+            file_ids=test_file_ids,
+            phase="Test",
+            do_augment=False,
+            use_nuclick_masks=use_nuclick_masks,
+            include_background_channel=include_background_channel,
+            disk_radius=disk_radius,
+        )
+    else:
+        raise ValueError("Invalid dataset name")
 
     train_loader = DataLoader(
         train_dataset,
@@ -422,10 +604,72 @@ def get_detection_dataloaders(
     return train_loader, val_loader
 
 
-def get_detection_sampler(file_ids, IOConfig):
+# def get_detection_sampler(file_ids, IOConfig):
+#     """
+#     Get Weighted Sampler.
+#     To balance positive and negative patches.
+#     """
+#     patch_stats_path = os.path.join(
+#         IOConfig.dataset_dir, "patch_stats.json"
+#     )
+#     with open(patch_stats_path, "r") as file:
+#         patch_stats = json.load(file)
+
+#     class_instances = []
+#     class_counts = [
+#         0,
+#         0,
+#         0,
+#         0,
+#     ]  # [negatives, lymph only, mono only, both type]
+
+#     total_cell_counts = [0, 0]
+
+#     for id in file_ids:
+#         stats = patch_stats[id]
+#         lymph_count = stats["lymph_count"]
+#         total_cell_counts[0] += lymph_count
+#         mono_count = stats["mono_count"]
+#         total_cell_counts[1] += mono_count
+#         total_cells = lymph_count + mono_count
+#         if total_cells == 0:
+#             class_instances.append(0)
+#             class_counts[0] += 1
+#         else:
+#             if lymph_count > 0 and mono_count == 0:
+#                 class_instances.append(1)
+#                 class_counts[1] += 1
+#             elif lymph_count == 0 and mono_count > 0:
+#                 class_instances.append(2)
+#                 class_counts[2] += 1
+#             else:
+#                 class_instances.append(3)
+#                 class_counts[3] += 1
+
+#     print(f"negative patches: {class_counts[0]}")
+#     print(f"lymph only patches: {class_counts[1]}")
+#     print(f"mono only patches: {class_counts[2]}")
+#     print(f"inflamm patches: {class_counts[3]}")
+#     print(f"Total lymph cells {total_cell_counts[0]}")
+#     print(f"Total mono cells {total_cell_counts[1]}")
+
+#     sample_weights = []
+#     for i in class_instances:
+#         sample_weights.append(1 / class_counts[i])
+
+#     weighted_sampler = WeightedRandomSampler(
+#         weights=sample_weights,
+#         num_samples=len(file_ids),
+#         replacement=True,
+#     )
+
+#     return weighted_sampler
+
+
+def get_detection_sampler_v2(file_ids, IOConfig):
     """
     Get Weighted Sampler.
-    To balance positive and negative patches.
+    To balance positive and negative patches at pixel level.
     """
     patch_stats_path = os.path.join(
         IOConfig.dataset_dir, "patch_stats.json"
@@ -434,23 +678,103 @@ def get_detection_sampler(file_ids, IOConfig):
         patch_stats = json.load(file)
 
     class_instances = []
-    class_counts = [0, 0]  # [negatives, positives]
+    class_areas_total = [
+        0,
+        0,
+        0,
+    ]  # [negatives, lymph, mono]
+
+    patch_area = 256 * 256
+    cell_area = 16 * 16
 
     for id in file_ids:
         stats = patch_stats[id]
-        total_cells = stats["lymph_count"] + stats["mono_count"]
-        if total_cells == 0:
-            class_instances.append(0)
-            class_counts[0] += 1
-        else:
-            class_instances.append(1)
-            class_counts[1] += 1
+        lymph_count = stats["lymph_count"]
+        lymph_area = lymph_count * cell_area
+        mono_count = stats["mono_count"]
+        mono_area = mono_count * cell_area
 
-    print(class_counts)
+        background_area = patch_area - lymph_area - mono_area
+        class_instances.append(
+            [background_area, lymph_area, mono_area]
+        )
+
+    class_instances = np.array(class_instances)
+    pixel_class_sum = np.sum(class_instances, axis=0)
+
+    print(f"negative pixels: {pixel_class_sum[0]}")
+    print(f"lymph pixels: {pixel_class_sum[1]}")
+    print(f"mono pixels: {pixel_class_sum[2]}")
 
     sample_weights = []
-    for i in class_instances:
-        sample_weights.append(1 / class_counts[i])
+    for i in range(class_instances.shape[0]):
+        weight_vector = class_instances[i] / pixel_class_sum
+        sample_weights.append(np.sum(weight_vector))
+
+    weighted_sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(file_ids),
+        replacement=True,
+    )
+
+    return weighted_sampler
+
+
+def get_detection_sampler_v2_binary(
+    file_ids, IOConfig, cell_type: str = "inflamm"
+):
+    """
+    Get Weighted Sampler.
+    To balance positive and negative patches at pixel level.
+    """
+
+    if cell_type not in ["inflamm", "lymph", "mono"]:
+        raise ValueError("Invalid cell type")
+
+    patch_stats_path = os.path.join(
+        IOConfig.dataset_dir, "patch_stats.json"
+    )
+    with open(patch_stats_path, "r") as file:
+        patch_stats = json.load(file)
+
+    class_instances = []
+    class_areas_total = [
+        0,
+        0,
+    ]  # [others, cell_type of interest]
+
+    patch_area = 256 * 256
+    cell_area = 16 * 16
+
+    for id in file_ids:
+        stats = patch_stats[id]
+
+        lymph_count = stats["lymph_count"]
+        lymph_area = lymph_count * cell_area
+        mono_count = stats["mono_count"]
+        mono_area = mono_count * cell_area
+
+        target_cell_area = 0.0
+        if cell_type == "inflamm":
+            target_cell_area = lymph_area + mono_area
+        if cell_type == "lymph":
+            target_cell_area = lymph_area
+        if cell_type == "mono":
+            target_cell_area = mono_area
+
+        background_area = patch_area - target_cell_area
+        class_instances.append([background_area, target_cell_area])
+
+    class_instances = np.array(class_instances)
+    pixel_class_sum = np.sum(class_instances, axis=0)
+
+    print(f"others pixels: {pixel_class_sum[0]}")
+    print(f"target cell pixels: {pixel_class_sum[1]}")
+
+    sample_weights = []
+    for i in range(class_instances.shape[0]):
+        weight_vector = class_instances[i] / pixel_class_sum
+        sample_weights.append(np.sum(weight_vector))
 
     weighted_sampler = WeightedRandomSampler(
         weights=sample_weights,

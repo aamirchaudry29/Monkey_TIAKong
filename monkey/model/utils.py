@@ -66,6 +66,7 @@ def get_cell_centers(
 def get_multiclass_patch_F1_score_batch(
     batch_pred_patch: np.ndarray | Tensor,
     batch_target_patch: np.ndarray | Tensor,
+    margins: list,
     batch_intensity_image: np.ndarray | Tensor | None,
 ) -> dict:
     """
@@ -99,7 +100,7 @@ def get_multiclass_patch_F1_score_batch(
         class_target = batch_target_patch[:, i, :, :]
         class_intensity = batch_intensity_image[:, i, :, :]
         metrics = get_patch_F1_score_batch(
-            class_pred, class_target, class_intensity
+            class_pred, class_target, margins[i], class_intensity
         )
         sum_f1 += metrics["F1"]
         sum_precision += metrics["Precision"]
@@ -115,6 +116,7 @@ def get_multiclass_patch_F1_score_batch(
 def get_patch_F1_score_batch(
     batch_pred_patch: np.ndarray | Tensor,
     batch_target_patch: np.ndarray | Tensor,
+    margin: float,
     batch_intensity_image: np.ndarray | Tensor | None,
 ) -> dict:
     """
@@ -148,7 +150,7 @@ def get_patch_F1_score_batch(
         target_patch = batch_target_patch[i, :, :]
         intensity_image = batch_intensity_image[i, :, :]
         metrics = get_patch_F1_score(
-            pred_patch, target_patch, intensity_image
+            pred_patch, target_patch, margin, intensity_image
         )
         sum_f1 += metrics["F1"]
         sum_precision += metrics["Precision"]
@@ -164,6 +166,7 @@ def get_patch_F1_score_batch(
 def get_patch_F1_score(
     pred_patch: np.ndarray | Tensor,
     target_patch: np.ndarray | Tensor,
+    margin: float,
     intensity_image: np.ndarray | Tensor | None,
 ) -> dict:
     """
@@ -189,14 +192,18 @@ def get_patch_F1_score(
     pred_probs = pred_stats["probs"]
     true_centers = get_cell_centers(target_patch)["centers"]
     metrics = evaluate_cell_predictions(
-        true_centers, pred_centers, pred_probs
+        true_centers, pred_centers, pred_probs, margin
     )
 
     return metrics
 
 
 def evaluate_cell_predictions(
-    gt_centers, pred_centers, probs, mpp=0.24199951445730394
+    gt_centers,
+    pred_centers,
+    probs,
+    margin: float,
+    mpp=0.24199951445730394,
 ) -> dict:
     """
     Calculate detection F1 score from binary masks
@@ -222,7 +229,7 @@ def evaluate_cell_predictions(
         gt_centers,
         pred_centers,
         probs,
-        int(7.5 / mpp),
+        int(margin / mpp),
     )
 
     # print(f"tp:{tp}, fn:{fn}, fp:{fp}")

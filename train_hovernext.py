@@ -1,40 +1,49 @@
-# Training code for overall cell detection
-
+# Training code for customized hovernext
 import os
 from pprint import pprint
 
-import segmentation_models_pytorch as smp
 import torch
 import wandb
 from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
+from monkey.model.cellvit.cellvit import CellVit256_Unet
 from monkey.model.hovernext.model import (
     get_convnext_unet,
     get_custom_hovernext,
-    load_encoder_weights,
 )
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
-from monkey.train.train_cell_detection import train_det_net
+from monkey.train.train_multitask_cell_detection import (
+    multitask_train_loop,
+)
 
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Detection_2_decoder",
-    "model_name": "hovernext_large_lizzard_pretrained",
-    "val_fold": 1,  # [1-5]
+    "project_name": "Monkey_Multiclass_Detection",
+    "model_name": "convnext_unet_2_channel",
+    "val_fold": 5,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.0001,
-    "weight_decay": 0.0001,
+    "learning_rate": 0.0004,
+    "weight_decay": 0.01,
     "epochs": 50,
-    "loss_function": "Jaccard_Loss",
+    "loss_function": {
+        "head_1": "BCE_Dice",
+        "head_2": "BCE_Dice",
+        "head_3": "BCE_Dice",
+    },
     "loss_pos_weight": 1.0,
     "do_augmentation": True,
-    "activation_function": "sigmoid",
-    "use_nuclick_masks": False,
+    "activation_function": {
+        "head_1": "sigmoid",
+        "head_2": "sigmoid",
+        "head_3": "sigmoid",
+    },
+    "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
+    "include_background_channel": False,
 }
 pprint(run_config)
 
@@ -42,7 +51,7 @@ pprint(run_config)
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
-    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/{run_config['project_name']}/{run_config['model_name']}",
+    save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
 if run_config["use_nuclick_masks"]:
     # Use NuClick masks
@@ -52,23 +61,14 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-# model = get_convnext_unet(
-#     pretrained=True,
-#     out_classes=2,
-#     use_batchnorm=True,
-#     attention_type="scse",
-# )
 model = get_custom_hovernext(
+    enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
-    num_heads=2,
-    decoders_out_channels=[1,1],
-    use_batchnorm=True,
-    attention_type='scse'
 )
-checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
+# model = CellVit256_Unet(num_decoders=3)
+# model_path = "/home/u1910100/cloud_workspace/data/Monkey/HIPT_vit256_small_dino.pth"
+# model.load_pretrained_encoder(model_path)
 model.to("cuda")
-model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
-pprint("Lizzard encoder weights loaded")
 # -----------------------------------------------------------------------
 
 
@@ -85,41 +85,73 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
+    include_background_channel=run_config[
+        "include_background_channel"
+    ],
 )
 
 
 # Create loss function, optimizer and scheduler
-loss_fn = get_loss_function(run_config["loss_function"])
-loss_fn.set_multiclass(True)
 
-activation_fn = get_activation_function(
-    run_config["activation_function"]
-)
-optimizer = torch.optim.NAdam(
+loss_fn_dict = {
+    "head_1": get_loss_function(
+        run_config["loss_function"]["head_1"]
+    ),
+    "head_2": get_loss_function(
+        run_config["loss_function"]["head_2"]
+    ),
+    "head_3": get_loss_function(
+        run_config["loss_function"]["head_3"]
+    ),
+}
+# loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
+# loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
+# loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
+
+activation_fn_dict = {
+    "head_1": get_activation_function(
+        run_config["activation_function"]["head_1"]
+    ),
+    "head_2": get_activation_function(
+        run_config["activation_function"]["head_2"]
+    ),
+    "head_3": get_activation_function(
+        run_config["activation_function"]["head_3"]
+    ),
+}
+
+
+optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=run_config["learning_rate"],
     weight_decay=run_config["weight_decay"],
-    # momentum=0.9,
 )
+# optimizer = torch.optim.RAdam(
+#     model.parameters(),
+#     lr=run_config["learning_rate"],
+#     weight_decay=run_config["weight_decay"],
+# )
+# scheduler = None
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer=optimizer, mode="min", factor=0.1, patience=10
+    optimizer, "max", factor=0.1, patience=10
 )
+# scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
 # Create WandB session
+# run = None
 run = wandb.init(
     project=f"{run_config['project_name']}_{run_config['model_name']}",
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
 )
-# run = None
 
 # Start training
-model = train_det_net(
+model = multitask_train_loop(
     model=model,
     train_loader=train_loader,
     validation_loader=val_loader,
-    loss_fn=loss_fn,
-    activation=activation_fn,
+    loss_fn_dict=loss_fn_dict,
+    activation_dict=activation_fn_dict,
     optimizer=optimizer,
     scheduler=scheduler,
     save_dir=IOconfig.checkpoint_save_dir,

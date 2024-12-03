@@ -1,0 +1,124 @@
+import numpy as np
+import torch
+from skimage.feature import peak_local_max
+
+from monkey.data.data_utils import morphological_post_processing
+
+
+def multihead_det_post_process(
+    inflamm_prob: torch.Tensor,
+    lymph_prob: torch.Tensor,
+    mono_prob: torch.Tensor,
+    thresholds: list = [0.5, 0.5, 0.5],
+    min_distances: list = [5, 5, 5],
+):
+    if torch.is_tensor(inflamm_prob):
+        inflamm_prob = inflamm_prob.numpy(force=True)
+    if torch.is_tensor(lymph_prob):
+        lymph_prob = lymph_prob.numpy(force=True)
+    if torch.is_tensor(mono_prob):
+        mono_prob = mono_prob.numpy(force=True)
+
+    inflamm_output_mask = np.zeros(
+        shape=inflamm_prob.shape, dtype=np.uint8
+    )
+    lymph_output_mask = np.zeros(
+        shape=lymph_prob.shape, dtype=np.uint8
+    )
+    mono_output_mask = np.zeros(shape=mono_prob.shape, dtype=np.uint8)
+
+    inflamm_coordinates = peak_local_max(
+        inflamm_prob,
+        min_distance=min_distances[0],
+        threshold_abs=thresholds[0],
+        exclude_border=False,
+    )
+    inflamm_output_mask[
+        inflamm_coordinates[:, 0], inflamm_coordinates[:, 1]
+    ] = 1
+
+    lymph_coordinates = peak_local_max(
+        lymph_prob,
+        min_distance=min_distances[1],
+        threshold_abs=thresholds[1],
+        exclude_border=False,
+    )
+    lymph_output_mask[
+        lymph_coordinates[:, 0], lymph_coordinates[:, 1]
+    ] = 1
+
+    mono_coordinates = peak_local_max(
+        mono_prob,
+        min_distance=min_distances[2],
+        threshold_abs=thresholds[2],
+        exclude_border=False,
+    )
+    mono_output_mask[
+        mono_coordinates[:, 0], mono_coordinates[:, 1]
+    ] = 1
+
+    return {
+        "inflamm_mask": inflamm_output_mask,
+        "lymph_mask": lymph_output_mask,
+        "mono_mask": mono_output_mask,
+    }
+
+
+def multihead_det_post_process_batch(
+    inflamm_prob: torch.Tensor,
+    lymph_prob: torch.Tensor,
+    mono_prob: torch.Tensor,
+    thresholds: list = [0.5, 0.5, 0.5],
+    min_distances: list = [5, 5, 5],
+):
+
+    inflamm_output_mask = post_process_batch(
+        inflamm_prob,
+        threshold=thresholds[0],
+        min_distance=min_distances[0],
+    )
+    lymph_output_mask = post_process_batch(
+        lymph_prob,
+        threshold=thresholds[1],
+        min_distance=min_distances[1],
+    )
+    mono_output_mask = post_process_batch(
+        mono_prob,
+        threshold=thresholds[2],
+        min_distance=min_distances[2],
+    )
+
+    return {
+        "inflamm_mask": inflamm_output_mask,
+        "lymph_mask": lymph_output_mask,
+        "mono_mask": mono_output_mask,
+    }
+
+
+def post_process_batch(
+    prob: torch.Tensor,
+    threshold: 0.5,
+    min_distance: 5,
+):
+
+    if torch.is_tensor(prob):
+        prob = prob.numpy(force=True)
+
+    prob = np.squeeze(prob, axis=1)
+
+    batches = prob.shape[0]
+    output_mask = np.zeros(
+        shape=(batches, prob.shape[1], prob.shape[2]),
+        dtype=np.uint8,
+    )
+
+    for i in range(0, batches):
+        coordinates = peak_local_max(
+            prob[i],
+            min_distance=min_distance,
+            threshold_abs=threshold,
+            exclude_border=False,
+        )
+        output_mask[i][coordinates[:, 0], coordinates[:, 1]] = 1
+
+    return output_mask

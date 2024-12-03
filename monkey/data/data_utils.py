@@ -44,16 +44,30 @@ def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
 def load_nuclick_annotation(file_id: str, IOConfig: TrainingIOConfig):
     """
     Load a single NuClick annotation mask
-    Nuclick file format: 5 channel .np file
+    Nuclick file format: 6 channel .np file
     channel 1-3: RGB image
-    channel 4: instance map
-    channel 5: class map (1:lymphocytes,2:monocytes)
+    channel 4: binary segmentation mask
+    channel 5: class mask (1:lymphocytes,2:monocytes)
+    channel 6: binary contour mask
+
+    Returns:
+        annotation: {'binary_mask', 'class_mask', 'contour_mask'}
     """
-    mask_name = f"{file_id}.npy"
-    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
-    mask = np.load(mask_path)
-    mask = mask.astype(np.uint8)
-    return mask[:, :, 4]
+    file_name = f"{file_id}.npy"
+    file_path = os.path.join(IOConfig.mask_dir, file_name)
+    data = np.load(file_path)
+    data = data.astype(np.uint8)
+    binary_mask = data[:, :, 3]
+    class_mask = data[:, :, 4]
+    contour = data[:, :, 5]
+
+    annotation = {
+        "binary_mask": binary_mask,
+        "class_mask": class_mask,
+        "contour_mask": contour,
+    }
+
+    return annotation
 
 
 def get_label_from_class_id(file_id: str):
@@ -434,17 +448,15 @@ def detection_to_annotation_store(
 
 
 def save_detection_records_monkey(
-    detection_records: list[dict],
     IOConfig: PredictionIOConfig,
-    task: str = "overall_detection",
+    overall_detection_records: list[dict] = [],
+    lymph_detection_records: list[dict] = [],
+    mono_detection_records: list[dict] = [],
     wsi_id: str | None = None,
 ) -> None:
     """
     Save cell detection records into Monkey challenge format
     """
-
-    if task not in ["overall_detection", "detection_classification"]:
-        raise ValueError(f"task {task} is not valid")
 
     output_dir = IOConfig.output_dir
 
@@ -466,49 +478,60 @@ def save_detection_records_monkey(
         "version": {"major": 1, "minor": 0},
         "points": [],
     }
-    if task == "overall_detection":
-        for i, record in enumerate(detection_records):
-            counter = i + 1
-            x = record["x"]
-            y = record["y"]
-            confidence = record["prob"]
-            cell_type = record["type"]
-            prediction_record = {
-                "name": "Point " + str(counter),
-                "point": [
-                    px_to_mm(x, 0.24199951445730394),
-                    px_to_mm(y, 0.24199951445730394),
-                    0.24199951445730394,
-                ],
-                "probability": confidence,
-            }
-            output_dict_inflammatory_cells["points"].append(
-                prediction_record
-            )
-    else:
-        for i, record in enumerate(detection_records):
-            counter = i + 1
-            x = record["x"]
-            y = record["y"]
-            confidence = record["prob"]
-            cell_type = record["type"]
-            prediction_record = {
-                "name": "Point " + str(counter),
-                "point": [
-                    px_to_mm(x, 0.24199951445730394),
-                    px_to_mm(y, 0.24199951445730394),
-                    0.24199951445730394,
-                ],
-                "probability": confidence,
-            }
-            if cell_type == "lymphocyte":
-                output_dict_lymphocytes["points"].append(
-                    prediction_record
-                )
-            if cell_type == "monocyte":
-                output_dict_monocytes["points"].append(
-                    prediction_record
-                )
+
+    for i, record in enumerate(overall_detection_records):
+        counter = i + 1
+        x = record["x"]
+        y = record["y"]
+        confidence = record["prob"]
+        cell_type = record["type"]
+        prediction_record = {
+            "name": "Point " + str(counter),
+            "point": [
+                px_to_mm(x, 0.24199951445730394),
+                px_to_mm(y, 0.24199951445730394),
+                0.24199951445730394,
+            ],
+            "probability": confidence,
+        }
+        output_dict_inflammatory_cells["points"].append(
+            prediction_record
+        )
+
+    for i, record in enumerate(lymph_detection_records):
+        counter = i + 1
+        x = record["x"]
+        y = record["y"]
+        confidence = record["prob"]
+        cell_type = record["type"]
+        prediction_record = {
+            "name": "Point " + str(counter),
+            "point": [
+                px_to_mm(x, 0.24199951445730394),
+                px_to_mm(y, 0.24199951445730394),
+                0.24199951445730394,
+            ],
+            "probability": confidence,
+        }
+
+        output_dict_lymphocytes["points"].append(prediction_record)
+
+    for i, record in enumerate(mono_detection_records):
+        counter = i + 1
+        x = record["x"]
+        y = record["y"]
+        confidence = record["prob"]
+        cell_type = record["type"]
+        prediction_record = {
+            "name": "Point " + str(counter),
+            "point": [
+                px_to_mm(x, 0.24199951445730394),
+                px_to_mm(y, 0.24199951445730394),
+                0.24199951445730394,
+            ],
+            "probability": confidence,
+        }
+        output_dict_monocytes["points"].append(prediction_record)
 
     if wsi_id is not None:
         json_filename_lymphocytes = (
@@ -525,42 +548,27 @@ def save_detection_records_monkey(
             "detected-inflammatory-cells.json"
         )
 
-    if task == "overall_detection":
-        output_path_json = os.path.join(
-            output_dir, json_filename_lymphocytes
-        )
-        write_json_file(
-            location=output_path_json, content=output_dict_lymphocytes
-        )
+    output_path_json = os.path.join(
+        output_dir, json_filename_lymphocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_lymphocytes
+    )
 
-        output_path_json = os.path.join(
-            output_dir, json_filename_monocytes
-        )
-        write_json_file(
-            location=output_path_json, content=output_dict_monocytes
-        )
+    output_path_json = os.path.join(
+        output_dir, json_filename_monocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_monocytes
+    )
 
-        output_path_json = os.path.join(
-            output_dir, json_filename_inflammatory_cells
-        )
-        write_json_file(
-            location=output_path_json,
-            content=output_dict_inflammatory_cells,
-        )
-    else:
-        output_path_json = os.path.join(
-            output_dir, json_filename_lymphocytes
-        )
-        write_json_file(
-            location=output_path_json, content=output_dict_lymphocytes
-        )
-
-        output_path_json = os.path.join(
-            output_dir, json_filename_monocytes
-        )
-        write_json_file(
-            location=output_path_json, content=output_dict_monocytes
-        )
+    output_path_json = os.path.join(
+        output_dir, json_filename_inflammatory_cells
+    )
+    write_json_file(
+        location=output_path_json,
+        content=output_dict_inflammatory_cells,
+    )
 
 
 def filter_detection_with_mask(
@@ -657,6 +665,78 @@ def non_max_suppression_fast(boxes, overlapThresh):
     return pick
 
 
+def nms(boxes: np.ndarray, overlapThresh: float):
+    """
+    Apply non-maximum suppression to avoid detecting too many
+    overlapping bounding boxes for a given object.
+    Args:
+        boxes: (tensor) The location preds for the image
+            along with the class predscores, Shape: [num_boxes,5].
+        overlapThresh: (float) The overlap thresh for suppressing unnecessary boxes.
+    Returns:
+        A list of filtered boxes, Shape: [ , 5]
+    """
+    # if there are no boxes, return an empty list
+    if len(boxes) == 0:
+        return []
+    # if the bounding boxes integers, convert them to floats --
+    # this is important since we'll be doing a bunch of divisions
+    if boxes.dtype.kind == "i":
+        boxes = boxes.astype("float")
+
+    # we extract coordinates for every
+    # prediction box present in P
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+
+    # we extract the confidence scores as well
+    scores = boxes[:, 4]
+
+    # calculate area of every block in P
+    area = (x2 - x1 + 1) * (y2 - y1 + 1)
+
+    # sort the prediction boxes in P
+    # according to their confidence scores
+    idxs = scores.argsort()
+
+    # initialise an empty list for
+    # filtered prediction boxes
+    pick = []
+
+    while len(idxs) > 0:
+        # grab the last index in the indexes list and add the
+        # index value to the list of picked indexes
+        last = len(idxs) - 1
+        i = idxs[last]
+        pick.append(i)
+        # find the largest (x, y) coordinates for the start of
+        # the bounding box and the smallest (x, y) coordinates
+        # for the end of the bounding box
+        xx1 = np.maximum(x1[i], x1[idxs[:last]])
+        yy1 = np.maximum(y1[i], y1[idxs[:last]])
+        xx2 = np.minimum(x2[i], x2[idxs[:last]])
+        yy2 = np.minimum(y2[i], y2[idxs[:last]])
+        # compute the width and height of the bounding box
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+        # compute the ratio of overlap
+        overlap = (w * h) / area[idxs[:last]]
+        # delete all indexes from the index list that have
+        idxs = np.delete(
+            idxs,
+            np.concatenate(
+                ([last], np.where(overlap > overlapThresh)[0])
+            ),
+        )
+    # return only the bounding boxes that were picked using the
+    # integer data type
+    # return boxes[pick].astype("int")
+
+    return pick
+
+
 def get_centerpoints(box, dist):
     """Returns centerpoints of box"""
     return (box[0] + dist, box[1] + dist)
@@ -679,9 +759,23 @@ def get_points_within_box(
     return results
 
 
-def point_to_box(x, y, size):
-    """Convert centerpoint to bounding box of fixed size"""
-    return np.array([x - size, y - size, x + size, y + size])
+def point_to_box(x, y, size, prob=None):
+    """
+    Convert centerpoint to bounding box of fixed size
+    Args:
+        x: x coordinate
+        y: y coordinate
+        size: radius of the box
+        prob: probability of the point
+    Returns:
+        box: np.ndarray[4], if prob is not None [5]
+    """
+    if prob == None:
+        return np.array([x - size, y - size, x + size, y + size])
+    else:
+        return np.array(
+            [x - size, y - size, x + size, y + size, prob]
+        )
 
 
 def slide_nms(
@@ -727,11 +821,13 @@ def slide_nms(
         # Convert each point to a box
         boxes = np.array(
             [
-                point_to_box(entry["x"], entry["y"], box_size)
+                point_to_box(
+                    entry["x"], entry["y"], box_size, entry["prob"]
+                )
                 for entry in patch_points
             ]
         )
-        indices = non_max_suppression_fast(boxes, overlap_thresh)
+        indices = nms(boxes, overlap_thresh)
         for i in indices:
             center_nms_points.append(patch_points[i])
         # for box in nms_boxes:
@@ -740,7 +836,7 @@ def slide_nms(
     return center_nms_points
 
 
-def erode_mask(mask, size=3):
+def erode_mask(mask, size=3, iterations=1):
     kernel = cv2.getStructuringElement(
         cv2.MORPH_ELLIPSE, (size, size)
     )
@@ -748,10 +844,10 @@ def erode_mask(mask, size=3):
         for i in range(mask.shape[0]):
             for j in range(mask.shape[1]):
                 mask[i, j, :, :] = cv2.erode(
-                    mask[i, j, :, :], kernel, iterations=1
+                    mask[i, j, :, :], kernel, iterations=iterations
                 )
     else:
-        mask = cv2.erode(mask, kernel, iterations=1)
+        mask = cv2.erode(mask, kernel, iterations=iterations)
 
     return mask
 
