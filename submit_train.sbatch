@@ -24,8 +24,8 @@ echo "done"
 cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
 echo "starting training script"
 
-# python3.11 train_detection.py
+python3.11 train_detection.py
 # python3.11 train_multihead_unet.py
-python3.11 train_hovernext.py
+# python3.11 train_hovernext.py
 
 echo "finished"

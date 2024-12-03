@@ -38,7 +38,7 @@ def cross_validation(fold_number: int = 1):
         resolution=model_mpp,
         units="mpp",
         stride=224,
-        thresholds=[0.1, 0.1, 0.1],
+        thresholds=[0.5, 0.5, 0.5],
         min_distances=[7, 7, 7],
     )
 
@@ -51,14 +51,20 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/Monkey_Detection_2_channel/{detector_model_name}/fold_1/epoch_12.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/Monkey_Detection_2_channel/{detector_model_name}/fold_1/epoch_6.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
         # model = get_multihead_efficientunet(
         #     pretrained=False, out_channels=[1, 1, 1]
         # )
-        # model = get_custom_hovernext(pretrained=False)
+        # model = get_custom_hovernext(
+        #     pretrained=False,
+        #     num_heads=2,
+        #     decoders_out_channels=[1,1],
+        #     use_batchnorm=True,
+        #     attention_type='scse'
+        # )
         model = get_convnext_unet(
             enc="convnextv2_large.fcmae_ft_in22k_in1k",
             pretrained=False,

@@ -22,14 +22,14 @@ from monkey.train.train_cell_detection import train_det_net
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Detection_2_decoder",
+    "project_name": "Monkey_Detection_2_channel",
     "model_name": "hovernext_large_lizzard_pretrained",
-    "val_fold": 1,  # [1-5]
+    "val_fold": 5,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.0001,
+    "learning_rate": 0.0004,
     "weight_decay": 0.0001,
-    "epochs": 50,
+    "epochs": 30,
     "loss_function": "Jaccard_Loss",
     "loss_pos_weight": 1.0,
     "do_augmentation": True,
@@ -52,19 +52,19 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-# model = get_convnext_unet(
-#     pretrained=True,
-#     out_classes=2,
-#     use_batchnorm=True,
-#     attention_type="scse",
-# )
-model = get_custom_hovernext(
+model = get_convnext_unet(
     pretrained=True,
-    num_heads=2,
-    decoders_out_channels=[1, 1],
+    out_classes=2,
     use_batchnorm=True,
     attention_type="scse",
 )
+# model = get_custom_hovernext(
+#     pretrained=True,
+#     num_heads=2,
+#     decoders_out_channels=[1, 1],
+#     use_batchnorm=True,
+#     attention_type="scse",
+# )
 checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
 model.to("cuda")
 model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
@@ -102,7 +102,7 @@ optimizer = torch.optim.NAdam(
     # momentum=0.9,
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer=optimizer, mode="min", factor=0.1, patience=10
+    optimizer=optimizer, mode="max", factor=0.1, patience=5
 )
 
 # Create WandB session

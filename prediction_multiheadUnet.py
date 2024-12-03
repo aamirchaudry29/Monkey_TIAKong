@@ -41,8 +41,8 @@ def cross_validation(fold_number: int = 1):
         resolution=model_mpp,
         units="mpp",
         stride=224,
-        thresholds=[0.5, 0.5, 0.5],
-        min_distances=[11, 7, 13],
+        thresholds=[0.3, 0.3, 0.3],
+        min_distances=[7, 7, 7],
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -70,9 +70,9 @@ def cross_validation(fold_number: int = 1):
     #     f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_100.pth",
     # ]
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best.pth",
         f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
@@ -130,6 +130,6 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(1, 2):
+    for i in range(5, 6):
         pprint(f"Fold {i}")
         cross_validation(i)

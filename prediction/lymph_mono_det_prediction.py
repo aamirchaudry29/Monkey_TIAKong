@@ -19,6 +19,7 @@ from monkey.data.data_utils import (
     filter_detection_with_mask,
     imagenet_normalise_torch,
     slide_nms,
+    normalize_detection_probs
 )
 from monkey.model.efficientunetb0.architecture import (
     EfficientUnet_MBConv_Multihead,
@@ -109,6 +110,7 @@ def detection_in_tile(
                     head_2_logits
                 ).numpy(force=True)
                 _inflamm_prob = _lymph_prob + _mono_prob
+                # _inflamm_prob = np.clip(_inflamm_prob, 0, 0.99)
 
                 inflamm_prob += _inflamm_prob
                 lymph_prob += _lymph_prob
@@ -419,8 +421,13 @@ def wsi_detection_in_mask(
         overlap_thresh=0.5,
     )
 
+    # return {
+    #     "inflamm_records": final_inflamm_records,
+    #     "lymph_records": final_lymph_records,
+    #     "mono_records": final_mono_records,
+    # }
     return {
-        "inflamm_records": final_inflamm_records,
-        "lymph_records": final_lymph_records,
-        "mono_records": final_mono_records,
-    }
+            "inflamm_records": normalize_detection_probs(final_inflamm_records),
+            "lymph_records": normalize_detection_probs(final_lymph_records),
+            "mono_records": normalize_detection_probs(final_mono_records),
+        }
