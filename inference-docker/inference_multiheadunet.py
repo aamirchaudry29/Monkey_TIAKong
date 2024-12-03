@@ -9,6 +9,7 @@ from monkey.data.data_utils import save_detection_records_monkey
 from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
 )
+from monkey.model.hovernext.model import get_custom_hovernext
 from prediction.multihead_unet_prediction import wsi_detection_in_mask
 
 INPUT_PATH = Path("/input")
@@ -20,15 +21,12 @@ MODEL_DIR = Path("/opt/ml/model")
 def load_detectors() -> list[torch.nn.Module]:
     detectors = []
     detector_weight_paths = [
-        os.path.join(MODEL_DIR, "1.pth"),
+        os.path.join(MODEL_DIR, "2.pth"),
+        os.path.join(MODEL_DIR, "4.pth"),
     ]
     for weight_path in detector_weight_paths:
-        detector = get_multihead_efficientunet(
-            [
-                2,
-                1,
-                1,
-            ],
+        detector = get_custom_hovernext(
+            enc="convnextv2_large.fcmae_ft_in22k_in1k",
             pretrained=False,
         )
         checkpoint = torch.load(weight_path)
@@ -70,14 +68,18 @@ def detect():
     print(f"wsi_name={wsi_name}")
     print(f"mask_name={mask_name}")
 
+    model_mpp = 0.24199951445730394
+    baseline_mpp = 0.24199951445730394
     config = PredictionIOConfig(
         wsi_dir=wsi_dir,
         mask_dir=mask_dir,
         output_dir=OUTPUT_PATH,
         patch_size=256,
-        resolution=0,
-        units="level",
-        stride=216,
+        resolution=model_mpp,
+        units="mpp",
+        stride=224,
+        thresholds=[0.5, 0.5, 0.5],
+        min_distances=[11, 7, 13],
     )
 
     detectors = load_detectors()
