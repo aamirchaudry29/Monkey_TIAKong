@@ -13,6 +13,7 @@ from tqdm import tqdm
 from monkey.model.loss_functions import (
     Loss_Function,
     inter_class_exclusion_loss,
+    jaccard_loss,
 )
 from monkey.model.mapde import model
 from monkey.model.utils import get_multiclass_patch_F1_score_batch
@@ -21,7 +22,6 @@ from monkey.train.utils import (
     compose_multitask_log_images,
 )
 from prediction.utils import post_process_batch
-from monkey.model.loss_functions import inter_class_exclusion_loss, jaccard_loss
 
 
 def train_one_epoch_mapde(
@@ -133,13 +133,17 @@ def train_one_epoch(
         pred_probs = activation(logits_pred)
         class_loss = loss_fn.compute_loss(pred_probs, true_labels)
         inter_class_loss = inter_class_exclusion_loss(
-            pred_probs[:,0,:,:], pred_probs[:,1,:,:]
+            pred_probs[:, 0, :, :], pred_probs[:, 1, :, :]
         )
-        overall_probs = pred_probs[:,0:1,:,:] + pred_probs[:,1:2,:,:]
+        overall_probs = (
+            pred_probs[:, 0:1, :, :] + pred_probs[:, 1:2, :, :]
+        )
         overall_loss = jaccard_loss(
             overall_probs, binary_true_masks, multiclass=False
         )
-        final_loss = 2 * overall_loss + 2 * class_loss + inter_class_loss
+        final_loss = (
+            2 * overall_loss + 2 * class_loss + inter_class_loss
+        )
         final_loss.backward()
         optimizer.step()
 
@@ -182,13 +186,17 @@ def validate_one_epoch(
                 pred_probs, class_masks
             ).item()
             inter_class_loss = inter_class_exclusion_loss(
-                pred_probs[:,0,:,:], pred_probs[:,1,:,:]
+                pred_probs[:, 0, :, :], pred_probs[:, 1, :, :]
             ).item()
-            overall_probs = pred_probs[:,0:1,:,:] + pred_probs[:,1:2,:,:]
+            overall_probs = (
+                pred_probs[:, 0:1, :, :] + pred_probs[:, 1:2, :, :]
+            )
             overall_loss = jaccard_loss(
                 overall_probs, binary_true_masks, multiclass=False
             ).item()
-            final_loss = 2 * overall_loss + 2 * class_loss + inter_class_loss
+            final_loss = (
+                2 * overall_loss + 2 * class_loss + inter_class_loss
+            )
 
         lymph_pred_binary = post_process_batch(
             pred_probs[:, 0:1, :, :],
