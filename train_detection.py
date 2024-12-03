@@ -10,23 +10,25 @@ from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
-from monkey.model.cellvit.cellvit import CellVit256_Unet
-from monkey.model.hovernext.model import get_convnext_unet
+from monkey.model.hovernext.model import (
+    get_convnext_unet,
+    get_custom_hovernext,
+    load_encoder_weights,
+)
 from monkey.model.loss_functions import get_loss_function
-from monkey.model.mapde.model import MapDe
 from monkey.model.utils import get_activation_function
 from monkey.train.train_cell_detection import train_det_net
 
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Detection_2_channel",
-    "model_name": "convnextunet_large_det",
-    "val_fold": 3,  # [1-5]
+    "project_name": "Monkey_Detection_2_decoder",
+    "model_name": "hovernext_large_lizzard_pretrained",
+    "val_fold": 1,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.0004,
-    "weight_decay": 0.001,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
     "epochs": 50,
     "loss_function": "Jaccard_Loss",
     "loss_pos_weight": 1.0,
@@ -50,11 +52,23 @@ if run_config["use_nuclick_masks"]:
 
 
 # Create model
-model = get_convnext_unet(pretrained=True, out_classes=2)
-# model = CellVit256_Unet()
-# model_path = "/home/u1910100/cloud_workspace/data/Monkey/HIPT_vit256_small_dino.pth"
-# model.load_pretrained_encoder(model_path)
+# model = get_convnext_unet(
+#     pretrained=True,
+#     out_classes=2,
+#     use_batchnorm=True,
+#     attention_type="scse",
+# )
+model = get_custom_hovernext(
+    pretrained=True,
+    num_heads=2,
+    decoders_out_channels=[1,1],
+    use_batchnorm=True,
+    attention_type='scse'
+)
+checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
 model.to("cuda")
+model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
+pprint("Lizzard encoder weights loaded")
 # -----------------------------------------------------------------------
 
 

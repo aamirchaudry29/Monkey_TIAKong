@@ -3,7 +3,7 @@
 #SBATCH --job-name=convnext_unet # Job name for tracking
 #SBATCH --partition=dgxa100  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=10      # Number of CPU threads used by your job
+#SBATCH --cpus-per-task=20      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
 #SBATCH --mem=20000             # Memory (mb) to use 
 #SBATCH --time=12:00:00      # Job time limit

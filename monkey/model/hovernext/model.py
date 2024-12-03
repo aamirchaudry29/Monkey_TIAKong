@@ -13,7 +13,11 @@ from segmentation_models_pytorch.base import modules as md
 
 def load_encoder_weights(model, checkpoint_path):
     checkpoint = torch.load(checkpoint_path)
-    encoder_weights = {k:v for k,v in checkpoint['model_state_dict'].items() if 'encoder' in k}
+    encoder_weights = {
+        k: v
+        for k, v in checkpoint["model_state_dict"].items()
+        if "encoder" in k
+    }
     model.load_state_dict(encoder_weights, strict=False)
     return model
 
