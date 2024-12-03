@@ -11,6 +11,13 @@ import torch.nn.functional as F
 from segmentation_models_pytorch.base import modules as md
 
 
+def load_encoder_weights(model, checkpoint_path):
+    checkpoint = torch.load(checkpoint_path)
+    encoder_weights = {k:v for k,v in checkpoint['model_state_dict'].items() if 'encoder' in k}
+    model.load_state_dict(encoder_weights, strict=False)
+    return model
+
+
 def load_checkpoint(model, cp_path, rank=0):
     cp = torch.load(cp_path, map_location=f"cuda:{rank}")
     step = cp["step"]
@@ -232,7 +239,7 @@ def get_convnext_unet(
 
 
 def get_custom_hovernext(
-    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+    enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
     num_heads=3,
     decoders_out_channels=[1, 1, 1],
