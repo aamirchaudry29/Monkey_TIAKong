@@ -138,6 +138,7 @@ def train_one_epoch(
         overall_probs = (
             pred_probs[:, 0:1, :, :] + pred_probs[:, 1:2, :, :]
         )
+        overall_probs = torch.clamp_max(overall_probs, max=1.0)
         overall_loss = jaccard_loss(
             overall_probs, binary_true_masks, multiclass=False
         )
@@ -191,6 +192,7 @@ def validate_one_epoch(
             overall_probs = (
                 pred_probs[:, 0:1, :, :] + pred_probs[:, 1:2, :, :]
             )
+            overall_probs = torch.clamp_max(overall_probs, max=1.0)
             overall_loss = jaccard_loss(
                 overall_probs, binary_true_masks, multiclass=False
             ).item()
@@ -201,17 +203,18 @@ def validate_one_epoch(
         lymph_pred_binary = post_process_batch(
             pred_probs[:, 0:1, :, :],
             threshold=0.5,
-            min_distance=9,
+            min_distance=7,
         )
         mono_pred_binary = post_process_batch(
             pred_probs[:, 1:2, :, :],
             threshold=0.5,
-            min_distance=13,
+            min_distance=7,
         )
-        inflamm_pred_probs = (
-            pred_probs[:, 0:1, :, :] + pred_probs[:, 1:2, :, :]
+        inflamm_pred_binary = post_process_batch(
+            overall_probs,
+            threshold=0.5,
+            min_distance=7
         )
-        inflamm_pred_binary = lymph_pred_binary + mono_pred_binary
 
         # Compute detection F1 score
         lymph_metrics = get_multiclass_patch_F1_score_batch(
@@ -230,7 +233,7 @@ def validate_one_epoch(
             inflamm_pred_binary[:, np.newaxis, :, :],
             binary_true_masks,
             [7.5],
-            inflamm_pred_probs,
+            overall_probs,
         )
 
         running_overall_score += (
@@ -247,7 +250,7 @@ def validate_one_epoch(
         lymph_true_masks,
         mono_true_masks,
         None,
-        overall_pred_probs=inflamm_pred_probs,
+        overall_pred_probs=overall_probs,
         lymph_pred_probs=pred_probs[:, 0:1, :, :],
         mono_pred_probs=pred_probs[:, 1:2, :, :],
         contour_pred_probs=None,

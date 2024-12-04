@@ -421,11 +421,6 @@ def wsi_detection_in_mask(
         overlap_thresh=0.5,
     )
 
-    # return {
-    #     "inflamm_records": final_inflamm_records,
-    #     "lymph_records": final_lymph_records,
-    #     "mono_records": final_mono_records,
-    # }
     return {
         "inflamm_records": normalize_detection_probs(
             final_inflamm_records

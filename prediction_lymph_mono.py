@@ -51,7 +51,7 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/Monkey_Detection_2_channel/{detector_model_name}/fold_1/epoch_6.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/Monkey_Detection_2_channel/{detector_model_name}/fold_{fold}/epoch_30.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
@@ -118,6 +118,6 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(1, 2):
+    for i in range(5,6):
         pprint(f"Fold {i}")
         cross_validation(i)

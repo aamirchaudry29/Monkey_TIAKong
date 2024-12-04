@@ -286,9 +286,9 @@ class Multitask_Dataset(Dataset):
                 augmented_data["image"],
                 augmented_data["masks"],
             )
-        binary_mask = masks[0]
-        class_mask[0] = masks[1]
-        class_mask[1] = masks[2]
+            binary_mask = masks[0]
+            class_mask[0] = masks[1]
+            class_mask[1] = masks[2]
 
         if self.include_background_channel:
             class_mask = add_background_channel(class_mask)

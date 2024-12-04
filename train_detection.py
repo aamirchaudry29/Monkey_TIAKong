@@ -23,18 +23,19 @@ from monkey.train.train_cell_detection import train_det_net
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Detection_2_channel",
-    "model_name": "hovernext_large_lizzard_pretrained",
-    "val_fold": 5,  # [1-5]
+    "model_name": "hovernext_large_lizzard_pretrained_v2",
+    "val_fold": 4,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.0004,
+    "learning_rate": 0.0001,
     "weight_decay": 0.0001,
     "epochs": 30,
     "loss_function": "Jaccard_Loss",
     "loss_pos_weight": 1.0,
     "do_augmentation": True,
     "activation_function": "sigmoid",
-    "use_nuclick_masks": False,
+    "disk_radius": 11,
+    "augmentation_prob": 0.5
 }
 pprint(run_config)
 
@@ -44,12 +45,6 @@ IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/{run_config['project_name']}/{run_config['model_name']}",
 )
-if run_config["use_nuclick_masks"]:
-    # Use NuClick masks
-    IOconfig.set_mask_dir(
-        "/mnt/lab-share/Monkey/nuclick_masks_processed"
-    )
-
 
 # Create model
 model = get_convnext_unet(
@@ -84,7 +79,9 @@ train_loader, val_loader = get_detection_dataloaders(
     dataset_name="multitask",
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
-    use_nuclick_masks=run_config["use_nuclick_masks"],
+    use_nuclick_masks=False,
+    disk_radius=run_config['disk_radius'],
+    augmentation_prob=run_config['augmentation_prob']
 )
 
 
