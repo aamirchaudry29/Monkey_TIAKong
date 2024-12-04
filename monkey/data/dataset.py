@@ -517,7 +517,7 @@ def get_detection_dataloaders(
 
     # if target_cell_type is None:
     train_sampler = get_detection_sampler_v2(
-        file_ids=train_file_ids, IOConfig=IOConfig
+        file_ids=train_file_ids, IOConfig=IOConfig, cell_radius=disk_radius
     )
     # else:
     #     train_sampler = get_detection_sampler_v2_binary(
@@ -660,7 +660,7 @@ def get_detection_dataloaders(
 #     return weighted_sampler
 
 
-def get_detection_sampler_v2(file_ids, IOConfig):
+def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=7):
     """
     Get Weighted Sampler.
     To balance positive and negative patches at pixel level.
@@ -679,7 +679,7 @@ def get_detection_sampler_v2(file_ids, IOConfig):
     ]  # [negatives, lymph, mono]
 
     patch_area = 256 * 256
-    cell_area = 16 * 16
+    cell_area = cell_radius * cell_radius
 
     for id in file_ids:
         stats = patch_stats[id]
@@ -738,7 +738,7 @@ def get_detection_sampler_v2_binary(
     ]  # [others, cell_type of interest]
 
     patch_area = 256 * 256
-    cell_area = 16 * 16
+    cell_area = 7 * 7
 
     for id in file_ids:
         stats = patch_stats[id]
