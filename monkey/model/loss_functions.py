@@ -46,7 +46,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Dice_Focal_Loss": Dice_Focal_Loss,
         "Weighted_CE_Dice": Weighted_CE_Dice_Loss,
         "MapDe_Loss": MapDe_Loss,
-        "Weighted_BCE_Jaccard": Weighted_BCE_Jaccard_Loss
+        "Weighted_BCE_Jaccard": Weighted_BCE_Jaccard_Loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -250,7 +250,10 @@ class Weighted_BCE_Loss(Loss_Function):
         weight_map = 1 + (self.pos_weight - 1) * target
         print(weight_map)
         loss = nn.functional.binary_cross_entropy(
-            input.float(), target.float(), weight=weight_map, reduction='mean'
+            input.float(),
+            target.float(),
+            weight=weight_map,
+            reduction="mean",
         )
         return loss
 
@@ -301,11 +304,12 @@ class Weighted_BCE_Dice_Loss(Loss_Function):
         self.bce_loss.set_weight(self.pos_weight)
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        bce =  self.bce_loss.compute_loss(input, target) 
+        bce = self.bce_loss.compute_loss(input, target)
         dice = dice_loss(
             input.float(), target.float(), multiclass=self.multiclass
         )
         return bce + dice
+
 
 class Weighted_BCE_Jaccard_Loss(Loss_Function):
     def __init__(self) -> None:
@@ -323,7 +327,7 @@ class Weighted_BCE_Jaccard_Loss(Loss_Function):
         self.bce_loss.set_weight(self.pos_weight)
 
     def compute_loss(self, input: Tensor, target: Tensor):
-        bce =  self.bce_loss.compute_loss(input, target) 
+        bce = self.bce_loss.compute_loss(input, target)
         dice = jaccard_loss(
             input.float(), target.float(), multiclass=self.multiclass
         )

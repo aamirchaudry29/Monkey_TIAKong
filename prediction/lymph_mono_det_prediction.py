@@ -18,8 +18,8 @@ from monkey.data.data_utils import (
     collate_fn,
     filter_detection_with_mask,
     imagenet_normalise_torch,
+    normalize_detection_probs,
     slide_nms,
-    normalize_detection_probs
 )
 from monkey.model.efficientunetb0.architecture import (
     EfficientUnet_MBConv_Multihead,
@@ -427,7 +427,11 @@ def wsi_detection_in_mask(
     #     "mono_records": final_mono_records,
     # }
     return {
-            "inflamm_records": normalize_detection_probs(final_inflamm_records),
-            "lymph_records": normalize_detection_probs(final_lymph_records),
-            "mono_records": normalize_detection_probs(final_mono_records),
-        }
+        "inflamm_records": normalize_detection_probs(
+            final_inflamm_records
+        ),
+        "lymph_records": normalize_detection_probs(
+            final_lymph_records
+        ),
+        "mono_records": normalize_detection_probs(final_mono_records),
+    }

@@ -72,19 +72,15 @@ def get_augmentation(
                 ),
                 alb.ShiftScaleRotate(
                     shift_limit=0.01,
-                    scale_limit=0.1,
+                    scale_limit=0.01,
                     rotate_limit=180,
-                    # border_mode=cv2.BORDER_CONSTANT,
+                    border_mode=cv2.BORDER_CONSTANT,
                     value=0,
                     p=0.8,
                 ),
                 alb.Flip(p=0.8),
             ],
             p=aug_prob,
-            additional_targets={
-                "class_mask": "mask",
-                "contour_mask": "mask",
-            },
         )
     elif module == "classification":
         aug = alb.Compose(

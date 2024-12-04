@@ -70,7 +70,7 @@ def cross_validation(fold_number: int = 1):
             pretrained=False,
             out_classes=2,
             use_batchnorm=True,
-            attention_type='scse'
+            attention_type="scse",
         )
         checkpoint = torch.load(weight_path)
         model.load_state_dict(checkpoint["model"])

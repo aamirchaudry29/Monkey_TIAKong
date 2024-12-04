@@ -612,23 +612,25 @@ def filter_detection_with_mask(
 
 
 def normalize_detection_probs(
-        detection_records: list[dict]
+    detection_records: list[dict],
 ) -> list[dict]:
     new_records = []
 
     detected_probs = []
     for record in detection_records:
-        prob = record['prob']
+        prob = record["prob"]
         detected_probs.append(prob)
-    
+
     max_detected_prob = max(detected_probs)
     min_detected_prob = min(detected_probs)
     eps = 0.1
-    
+
     for record in detection_records:
-        prob = record['prob']
-        normalized_prob = (prob - min_detected_prob + eps) / (max_detected_prob - min_detected_prob + eps)
-        record['prob'] = normalized_prob
+        prob = record["prob"]
+        normalized_prob = (prob - min_detected_prob + eps) / (
+            max_detected_prob - min_detected_prob + eps
+        )
+        record["prob"] = normalized_prob
         new_records.append(record)
     return new_records
 

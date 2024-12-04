@@ -243,9 +243,7 @@ def process_tile_detection_masks(
         lymph_labels, intensity_image=lymph_probs_map
     )
 
-    mono_labels = skimage.measure.label(
-        processed_masks["mono_mask"]
-    )
+    mono_labels = skimage.measure.label(processed_masks["mono_mask"])
     mono_stats = skimage.measure.regionprops(
         mono_labels, intensity_image=mono_probs_map
     )

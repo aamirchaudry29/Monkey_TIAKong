@@ -12,7 +12,7 @@ from monkey.model.cellvit.cellvit import CellVit256_Unet
 from monkey.model.hovernext.model import (
     get_convnext_unet,
     get_custom_hovernext,
-    load_encoder_weights
+    load_encoder_weights,
 )
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
@@ -66,7 +66,7 @@ model = get_custom_hovernext(
     enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
     use_batchnorm=True,
-    attention_type='scse'
+    attention_type="scse",
 )
 checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
 model.to("cuda")
