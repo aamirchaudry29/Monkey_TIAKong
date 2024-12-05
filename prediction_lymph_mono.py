@@ -3,6 +3,7 @@ from pprint import pprint
 
 import torch
 from tqdm.auto import tqdm
+import click
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
@@ -21,11 +22,12 @@ from monkey.model.hovernext.model import (
 )
 from prediction.lymph_mono_det_prediction import wsi_detection_in_mask
 
-
-def cross_validation(fold_number: int = 1):
+@click.command()
+@click.option('--fold', default=1)
+def cross_validation(fold: int = 1):
     detector_model_name = "hovernext_large_lizzard_pretrained"
-    fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
+    pprint(f"Fold {fold}")
     model_mpp = 0.24199951445730394
     baseline_mpp = 0.24199951445730394
     pprint(f"Detect at {model_mpp} mpp")
@@ -118,6 +120,4 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(5,6):
-        pprint(f"Fold {i}")
-        cross_validation(i)
+    cross_validation()

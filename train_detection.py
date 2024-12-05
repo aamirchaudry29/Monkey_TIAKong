@@ -22,10 +22,10 @@ from monkey.train.train_cell_detection import train_det_net
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Detection_2_channel",
+    "project_name": "Monkey_Detection_2_decoder",
     "model_name": "hovernext_large_lizzard_pretrained_v2",
-    "val_fold": 4,  # [1-5]
-    "batch_size": 64,
+    "val_fold": 5,  # [1-5]
+    "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0001,
     "weight_decay": 0.0001,
@@ -47,19 +47,19 @@ IOconfig = TrainingIOConfig(
 )
 
 # Create model
-model = get_convnext_unet(
-    pretrained=True,
-    out_classes=2,
-    use_batchnorm=True,
-    attention_type="scse",
-)
-# model = get_custom_hovernext(
+# model = get_convnext_unet(
 #     pretrained=True,
-#     num_heads=2,
-#     decoders_out_channels=[1, 1],
+#     out_classes=2,
 #     use_batchnorm=True,
 #     attention_type="scse",
 # )
+model = get_custom_hovernext(
+    pretrained=True,
+    num_heads=2,
+    decoders_out_channels=[1, 1],
+    use_batchnorm=True,
+    attention_type="scse",
+)
 checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
 model.to("cuda")
 model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
