@@ -243,6 +243,7 @@ class Multitask_Dataset(Dataset):
         include_background_channel: bool = False,
         disk_radius: int = 9,
         augmentation_prob: float = 0.9,
+        regression_map: bool = False,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -250,8 +251,9 @@ class Multitask_Dataset(Dataset):
         self.do_augment = do_augment
         self.use_nuclick_masks = False
         self.module = "multiclass_detection"
-        self.include_background_channel = include_background_channel
+        self.include_background_channel = False
         self.disk_radius = disk_radius
+        self.regression_map = regression_map
 
         if self.do_augment:
             self.augmentation = get_augmentation(
@@ -290,8 +292,22 @@ class Multitask_Dataset(Dataset):
             class_mask[0] = masks[1]
             class_mask[1] = masks[2]
 
-        if self.include_background_channel:
-            class_mask = add_background_channel(class_mask)
+        if self.regression_map:
+            binary_mask = generate_regression_map(
+                binary_mask, d_thresh=3, alpha=5, scale=1
+            )
+            class_mask[0] = generate_regression_map(
+                binary_mask=class_mask[0],
+                d_thresh=3,
+                alpha=5,
+                scale=1,
+            )
+            class_mask[1] = generate_regression_map(
+                binary_mask=class_mask[1],
+                d_thresh=3,
+                alpha=5,
+                scale=1,
+            )
 
         # HxW -> 1xHxW
         binary_mask = binary_mask[np.newaxis, :, :]
@@ -589,13 +605,13 @@ def get_detection_dataloaders(
         train_dataset,
         batch_size=batch_size,
         sampler=train_sampler,
-        num_workers=2,
+        num_workers=10,
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=2,
+        num_workers=10,
     )
     return train_loader, val_loader
 

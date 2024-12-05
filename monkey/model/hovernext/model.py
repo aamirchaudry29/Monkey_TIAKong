@@ -512,8 +512,10 @@ class MultiHeadModel(torch.nn.Module):
 def freeze_enc(model):
     for p in model.encoder.parameters():
         p.requires_grad = False
+    return model
 
 
 def unfreeze_enc(model):
     for p in model.encoder.parameters():
         p.requires_grad = True
+    return model

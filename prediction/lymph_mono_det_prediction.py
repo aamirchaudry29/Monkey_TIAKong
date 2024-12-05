@@ -110,7 +110,7 @@ def detection_in_tile(
                     head_2_logits
                 ).numpy(force=True)
                 _inflamm_prob = _lymph_prob + _mono_prob
-                # _inflamm_prob = np.clip(_inflamm_prob, 0, 0.99)
+                _inflamm_prob = np.clip(_inflamm_prob, 0, 1.0)
 
                 inflamm_prob += _inflamm_prob
                 lymph_prob += _lymph_prob
@@ -287,8 +287,6 @@ def wsi_detection_in_mask(
     mask_name: str,
     config: PredictionIOConfig,
     models: list[torch.nn.Module],
-    nms_boxes: list = [30, 16, 40],
-    nms_overlap_thresh: float = 0.5,
 ) -> dict:
     """
     Cell Detection and classification in WSI
@@ -424,11 +422,7 @@ def wsi_detection_in_mask(
     )
 
     return {
-        "inflamm_records": normalize_detection_probs(
-            final_inflamm_records
-        ),
-        "lymph_records": normalize_detection_probs(
-            final_lymph_records
-        ),
-        "mono_records": normalize_detection_probs(final_mono_records),
+        "inflamm_records": final_inflamm_records,
+        "lymph_records": final_lymph_records,
+        "mono_records": final_mono_records,
     }

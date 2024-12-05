@@ -130,6 +130,7 @@ def hovernext_validate_one_epoch(
                 inflamm_prob=pred_1,
                 lymph_prob=pred_2,
                 mono_prob=pred_3,
+                min_distances=[7, 7, 7],
             )
             overall_pred_binary = binary_masks["inflamm_mask"]
             lymph_pred_binary = binary_masks["lymph_mask"]
@@ -368,10 +369,14 @@ def multitask_train_loop(
     best_val_score = -np.inf
     epochs = run_config["epochs"]
 
+    model = freeze_enc(model)
     for epoch in tqdm(
         range(1, epochs + 1), desc="epochs", leave=True
     ):
         pprint(f"EPOCH {epoch}")
+        if epoch == run_config["unfreeze_epoch"]:
+            model = unfreeze_enc(model)
+            pprint("Unfreezing encoder")
 
         # avg_train_loss = train_one_epoch(
         #     model=model,
@@ -438,7 +443,7 @@ def multitask_train_loop(
                 "model": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-            model_name = f"epoch_{epoch}.pth"
+            model_name = f"best.pth"
             model_path = os.path.join(save_dir, model_name)
             torch.save(checkpoint, model_path)
 

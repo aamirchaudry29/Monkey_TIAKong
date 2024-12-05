@@ -203,21 +203,9 @@ class Dice_Loss(Loss_Function):
     def compute_loss(self, input: Tensor, target: Tensor):
         input = input.float()
         target = target.float()
-        if self.multiclass:
-            loss = dice_loss(
-                input, target, multiclass=self.multiclass
-            )
-            # Add loss for channel-wise exclusive predictions
-            # channel_similarity = non_zero_similarity_score(
-            #     target[:, 0, :, :],
-            #     target[:, 1, :, :],
-            # )
-            return loss
-            # return loss
-        else:
-            return dice_loss(
-                input, target, multiclass=self.multiclass
-            )
+        return dice_loss(
+            input, target, multiclass=self.multiclass
+        )
 
 
 # Binary cross entropy loss
@@ -238,7 +226,7 @@ class Weighted_BCE_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss", True)
         self.multiclass = False
-        self.pos_weight = 2.0
+        self.pos_weight = 1.0
 
     def set_multiclass(self, multiclass):
         self.multiclass = multiclass
@@ -248,7 +236,6 @@ class Weighted_BCE_Loss(Loss_Function):
 
     def compute_loss(self, input: Tensor, target: Tensor):
         weight_map = 1 + (self.pos_weight - 1) * target
-        print(weight_map)
         loss = nn.functional.binary_cross_entropy(
             input.float(),
             target.float(),
@@ -315,7 +302,7 @@ class Weighted_BCE_Jaccard_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss + Jaccard Loss", True)
         self.multiclass = False
-        self.pos_weight = 1000.0
+        self.pos_weight = 1.0
         self.bce_loss = Weighted_BCE_Loss()
         self.bce_loss.set_weight(self.pos_weight)
 
@@ -407,8 +394,7 @@ def multiclass_dice_coeff(
             epsilon,
         )
 
-    # return dice / input.shape[1]
-    return dice
+    return dice / input.shape[1]
 
 
 def dice_loss(

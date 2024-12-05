@@ -41,7 +41,7 @@ def cross_validation(fold: int = 1):
         resolution=model_mpp,
         units="mpp",
         stride=224,
-        thresholds=[0.5, 0.5, 0.5],
+        thresholds=[0.3, 0.3, 0.3],
         min_distances=[7, 7, 7],
         nms_boxes=[30, 16, 40],
         nms_overlap_thresh=0.5,
@@ -56,27 +56,27 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/Monkey_Detection_2_channel/{detector_model_name}/fold_{fold}/best.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/Monkey_Detection_2_decoder/{detector_model_name}/fold_{fold}/best.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
         # model = get_multihead_efficientunet(
         #     pretrained=False, out_channels=[1, 1, 1]
         # )
-        # model = get_custom_hovernext(
-        #     pretrained=False,
-        #     num_heads=2,
-        #     decoders_out_channels=[1,1],
-        #     use_batchnorm=True,
-        #     attention_type='scse'
-        # )
-        model = get_convnext_unet(
-            enc="convnextv2_large.fcmae_ft_in22k_in1k",
+        model = get_custom_hovernext(
             pretrained=False,
-            out_classes=2,
+            num_heads=2,
+            decoders_out_channels=[1,1],
             use_batchnorm=True,
-            attention_type="scse",
+            attention_type='scse'
         )
+        # model = get_convnext_unet(
+        #     enc="convnextv2_large.fcmae_ft_in22k_in1k",
+        #     pretrained=False,
+        #     out_classes=2,
+        #     use_batchnorm=True,
+        #     attention_type="scse",
+        # )
         checkpoint = torch.load(weight_path)
         model.load_state_dict(checkpoint["model"])
         model.eval()

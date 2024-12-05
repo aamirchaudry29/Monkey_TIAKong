@@ -24,17 +24,17 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "hovernext_3_head",
+    "model_name": "convnext_tiny_pannuke_512",
     "val_fold": 1,  # [1-5]
-    "batch_size": 64,
+    "batch_size": 24,
     "optimizer": "AdamW",
-    "learning_rate": 0.0001,
-    "weight_decay": 0.0001,
+    "learning_rate": 0.0004,
+    "weight_decay": 0.001,
     "epochs": 30,
     "loss_function": {
-        "head_1": "Jaccard_Loss",
-        "head_2": "Jaccard_Loss",
-        "head_3": "Jaccard_Loss",
+        "head_1": "Dice",
+        "head_2": "Dice",
+        "head_3": "Dice",
     },
     "loss_pos_weight": 1.0,
     "do_augmentation": True,
@@ -45,30 +45,28 @@ run_config = {
     },
     "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
     "include_background_channel": False,
+    "disk_radius": 9,
+    "augmentation_prob": 0.8,
+    "unfreeze_epoch": 5
 }
 pprint(run_config)
 
 # Specify IO config
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
-    dataset_dir="/mnt/lab-share/Monkey/patches_256/",
+    dataset_dir="/mnt/lab-share/Monkey/patches_512/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
-if run_config["use_nuclick_masks"]:
-    # Use NuClick masks
-    IOconfig.set_mask_dir(
-        "/mnt/lab-share/Monkey/nuclick_masks_processed"
-    )
 
 
 # Create model
 model = get_custom_hovernext(
-    enc="convnextv2_large.fcmae_ft_in22k_in1k",
+    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
     pretrained=True,
     use_batchnorm=True,
     attention_type="scse",
 )
-checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
+checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
 model.to("cuda")
 model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
 pprint("Lizzard encoder weights loaded")
@@ -91,6 +89,8 @@ train_loader, val_loader = get_detection_dataloaders(
     include_background_channel=run_config[
         "include_background_channel"
     ],
+    disk_radius=run_config["disk_radius"],
+    augmentation_prob=run_config["augmentation_prob"],
 )
 
 
