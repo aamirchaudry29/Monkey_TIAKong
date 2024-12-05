@@ -517,7 +517,9 @@ def get_detection_dataloaders(
 
     # if target_cell_type is None:
     train_sampler = get_detection_sampler_v2(
-        file_ids=train_file_ids, IOConfig=IOConfig, cell_radius=disk_radius
+        file_ids=train_file_ids,
+        IOConfig=IOConfig,
+        cell_radius=disk_radius,
     )
     # else:
     #     train_sampler = get_detection_sampler_v2_binary(

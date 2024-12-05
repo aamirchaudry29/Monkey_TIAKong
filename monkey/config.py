@@ -66,7 +66,27 @@ class PredictionIOConfig:
         min_size: int = 96,
         include_background: bool = False,
         min_distances: list = [5, 5, 5],
+        nms_boxes: list = [30, 16, 40],
+        nms_overlap_thresh: float = 0.5,
     ):
+        """Initalize Config
+
+        Args:
+            wsi_dir (str): path to wsi dir
+            mask_dir (str): path to mask dir
+            output_dir (str): path to output dir
+            patch_size (int, optional): patch extraction size. Defaults to 256.
+            resolution (float, optional): patch extraction resoltuion. Defaults to 0.
+            units (str, optional): patch extraction resolution. Defaults to "level".
+            stride (int, optional): patch extraction stride. Defaults to 256.
+            threshold (float, optional): for binary prediction. Defaults to 0.9.
+            thresholds (list, optional): for multiclass prediction. Defaults to [0.3, 0.3, 0.3].
+            min_size (int, optional): no used. Defaults to 96.
+            include_background (bool, optional): not used. Defaults to False.
+            min_distances (list, optional): min distance for peak local max. Defaults to [5, 5, 5].
+            nms_boxes (list, optional): box size for nms
+            nms_overlap_thresh: overlap thresh for nms
+        """
         self.wsi_dir = wsi_dir
         self.mask_dir = mask_dir
         self.output_dir = output_dir
@@ -82,8 +102,14 @@ class PredictionIOConfig:
         self.include_background = include_background
         self.thresholds = thresholds
         self.min_distances = min_distances
+        self.nms_boxes = nms_boxes
+        self.nms_overlap_thresh = nms_overlap_thresh
 
     def check_dirs_exist(self):
+        """Check of wsi dir, mask dir and output dir exist.
+        Raises:
+            ValueError: _description_
+        """
         for dir in [self.wsi_dir, self.mask_dir, self.output_dir]:
             if not os.path.exists(dir):
                 print(f"{dir} does not exist!")

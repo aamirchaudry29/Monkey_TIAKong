@@ -211,9 +211,7 @@ def validate_one_epoch(
             min_distance=7,
         )
         inflamm_pred_binary = post_process_batch(
-            overall_probs,
-            threshold=0.5,
-            min_distance=7
+            overall_probs, threshold=0.5, min_distance=7
         )
 
         # Compute detection F1 score

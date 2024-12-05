@@ -287,6 +287,8 @@ def wsi_detection_in_mask(
     mask_name: str,
     config: PredictionIOConfig,
     models: list[torch.nn.Module],
+    nms_boxes: list = [30, 16, 40],
+    nms_overlap_thresh: float = 0.5,
 ) -> dict:
     """
     Cell Detection and classification in WSI
@@ -399,8 +401,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_inflamm_records,
         tile_size=4096,
-        box_size=30,
-        overlap_thresh=0.5,
+        box_size=config.nms_boxes[0],
+        overlap_thresh=config.nms_overlap_thresh,
     )
 
     final_lymph_records = slide_nms(
@@ -408,8 +410,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_lymph_records,
         tile_size=4096,
-        box_size=16,
-        overlap_thresh=0.5,
+        box_size=config.nms_boxes[1],
+        overlap_thresh=config.nms_overlap_thresh,
     )
 
     final_mono_records = slide_nms(
@@ -417,8 +419,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_mono_records,
         tile_size=4096,
-        box_size=40,
-        overlap_thresh=0.5,
+        box_size=config.nms_boxes[2],
+        overlap_thresh=config.nms_overlap_thresh,
     )
 
     return {

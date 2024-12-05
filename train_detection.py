@@ -35,7 +35,7 @@ run_config = {
     "do_augmentation": True,
     "activation_function": "sigmoid",
     "disk_radius": 11,
-    "augmentation_prob": 0.5
+    "augmentation_prob": 0.5,
 }
 pprint(run_config)
 
@@ -80,8 +80,8 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=False,
-    disk_radius=run_config['disk_radius'],
-    augmentation_prob=run_config['augmentation_prob']
+    disk_radius=run_config["disk_radius"],
+    augmentation_prob=run_config["augmentation_prob"],
 )
 
 

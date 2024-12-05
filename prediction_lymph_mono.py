@@ -1,9 +1,9 @@
 import os
 from pprint import pprint
 
+import click
 import torch
 from tqdm.auto import tqdm
-import click
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
@@ -22,10 +22,11 @@ from monkey.model.hovernext.model import (
 )
 from prediction.lymph_mono_det_prediction import wsi_detection_in_mask
 
+
 @click.command()
-@click.option('--fold', default=1)
+@click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
-    detector_model_name = "hovernext_large_lizzard_pretrained"
+    detector_model_name = "hovernext_large_lizzard_pretrained_v2"
     pprint(f"Multiclass detection using {detector_model_name}")
     pprint(f"Fold {fold}")
     model_mpp = 0.24199951445730394
@@ -42,6 +43,8 @@ def cross_validation(fold: int = 1):
         stride=224,
         thresholds=[0.5, 0.5, 0.5],
         min_distances=[7, 7, 7],
+        nms_boxes=[30, 16, 40],
+        nms_overlap_thresh=0.5,
     )
 
     split_info = open_json_file(
@@ -53,7 +56,7 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/Monkey_Detection_2_channel/{detector_model_name}/fold_{fold}/epoch_30.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/Monkey_Detection_2_channel/{detector_model_name}/fold_{fold}/best.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
