@@ -107,13 +107,13 @@ def compute_FROC(fold: int = 1):
         inflamm_froc = get_froc_vals(
             gt_inf_cells,
             result_detected_inflamm,
-            radius=int(7.5 / SPACING_LEVEL0),
+            radius=int(5 / SPACING_LEVEL0),
         )
 
         inflamm_f1 = get_F1_scores(
             gt_inf_cells,
             result_detected_inflamm,
-            radius=int(7.5 / SPACING_LEVEL0),
+            radius=int(5 / SPACING_LEVEL0),
         )
 
         lymph_froc = get_froc_vals(
@@ -131,13 +131,13 @@ def compute_FROC(fold: int = 1):
         mono_froc = get_froc_vals(
             gt_monocytes,
             result_detected_monocytes,
-            radius=int(10 / SPACING_LEVEL0),
+            radius=int(5 / SPACING_LEVEL0),
         )
 
         mono_f1 = get_F1_scores(
             gt_monocytes,
             result_detected_monocytes,
-            radius=int(10 / SPACING_LEVEL0),
+            radius=int(5 / SPACING_LEVEL0),
         )
 
         inflamm_sum_score += inflamm_froc["froc_score_slide"]

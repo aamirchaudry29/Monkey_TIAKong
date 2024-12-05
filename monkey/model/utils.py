@@ -232,8 +232,6 @@ def evaluate_cell_predictions(
         int(margin / mpp),
     )
 
-    # print(f"tp:{tp}, fn:{fn}, fp:{fp}")
-
     return calculate_f1_metrics(tp, fn, fp)
 
 

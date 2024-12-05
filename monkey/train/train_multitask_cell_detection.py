@@ -140,7 +140,7 @@ def hovernext_validate_one_epoch(
             overall_metrics = get_multiclass_patch_F1_score_batch(
                 overall_pred_binary[:, np.newaxis, :, :],
                 binary_true_masks,
-                [7.5],
+                [5],
                 pred_1,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
@@ -152,7 +152,7 @@ def hovernext_validate_one_epoch(
             mono_metrics = get_multiclass_patch_F1_score_batch(
                 mono_pred_binary[:, np.newaxis, :, :],
                 mono_true_masks,
-                [10],
+                [5],
                 pred_3,
             )
 
@@ -308,14 +308,14 @@ def validate_one_epoch(
             overall_metrics = get_multiclass_patch_F1_score_batch(
                 inflamm_pred_binary,
                 binary_true_masks,
-                [7.5],
+                [5],
                 inflamm_probs,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
                 lymph_pred_binary, lymph_true_masks, [4], lymph_probs
             )
             mono_metrics = get_multiclass_patch_F1_score_batch(
-                mono_pred_binary, mono_true_masks, [10], mono_probs
+                mono_pred_binary, mono_true_masks, [5], mono_probs
             )
 
         running_overall_score += (

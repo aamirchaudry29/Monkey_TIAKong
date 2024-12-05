@@ -25,16 +25,16 @@ from monkey.train.train_multitask_cell_detection import (
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
     "model_name": "convnext_tiny_pannuke_512",
-    "val_fold": 1,  # [1-5]
+    "val_fold": 5,  # [1-5]
     "batch_size": 24,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.001,
-    "epochs": 30,
+    "epochs": 40,
     "loss_function": {
-        "head_1": "Dice",
-        "head_2": "Dice",
-        "head_3": "Dice",
+        "head_1": "Jaccard_Loss",
+        "head_2": "Jaccard_Loss",
+        "head_3": "Jaccard_Loss",
     },
     "loss_pos_weight": 1.0,
     "do_augmentation": True,
@@ -45,7 +45,7 @@ run_config = {
     },
     "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
     "include_background_channel": False,
-    "disk_radius": 9,
+    "disk_radius": 7,
     "augmentation_prob": 0.8,
     "unfreeze_epoch": 5
 }
