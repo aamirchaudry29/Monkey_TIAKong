@@ -604,10 +604,12 @@ def filter_detection_with_mask(
 
         try:
             if (
-                np.count_nonzero(mask[
-                    y_in_mask - margin : y_in_mask + margin,
-                    x_in_mask - margin : x_in_mask + margin,
-                ])
+                np.count_nonzero(
+                    mask[
+                        y_in_mask - margin : y_in_mask + margin,
+                        x_in_mask - margin : x_in_mask + margin,
+                    ]
+                )
                 > 0
             ):
                 filtered_records.append(record)

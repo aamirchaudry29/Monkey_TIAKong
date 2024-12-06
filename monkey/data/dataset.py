@@ -270,13 +270,18 @@ class Multitask_Dataset(Dataset):
         file_id = self.file_ids[idx]
         image = load_image(file_id, self.IOConfig)
         annotation_mask = load_mask(file_id, self.IOConfig)
-        class_mask = class_mask_to_multichannel_mask(annotation_mask)
-        binary_mask = class_mask_to_binary(annotation_mask)
+        class_mask = class_mask_to_multichannel_mask(
+            annotation_mask
+        ).astype(np.float32)
+        binary_mask = class_mask_to_binary(annotation_mask).astype(
+            np.float32
+        )
 
         # dialate masks
-        class_mask[0] = dilate_mask(class_mask[0], self.disk_radius)
-        class_mask[1] = dilate_mask(class_mask[1], self.disk_radius)
-        binary_mask = dilate_mask(binary_mask, self.disk_radius)
+        # if not self.regression_map:
+        #     class_mask[0] = dilate_mask(class_mask[0], self.disk_radius)
+        #     class_mask[1] = dilate_mask(class_mask[1], self.disk_radius)
+        #     binary_mask = dilate_mask(binary_mask, self.disk_radius)
 
         # augmentation
         if self.do_augment:
@@ -294,20 +299,31 @@ class Multitask_Dataset(Dataset):
 
         if self.regression_map:
             binary_mask = generate_regression_map(
-                binary_mask, d_thresh=3, alpha=5, scale=1
+                binary_mask,
+                d_thresh=self.disk_radius,
+                alpha=3,
+                scale=1,
             )
             class_mask[0] = generate_regression_map(
                 binary_mask=class_mask[0],
-                d_thresh=3,
-                alpha=5,
+                d_thresh=self.disk_radius,
+                alpha=3,
                 scale=1,
             )
             class_mask[1] = generate_regression_map(
                 binary_mask=class_mask[1],
-                d_thresh=3,
-                alpha=5,
+                d_thresh=self.disk_radius,
+                alpha=3,
                 scale=1,
             )
+        else:
+            class_mask[0] = dilate_mask(
+                class_mask[0], self.disk_radius
+            )
+            class_mask[1] = dilate_mask(
+                class_mask[1], self.disk_radius
+            )
+            binary_mask = dilate_mask(binary_mask, self.disk_radius)
 
         # HxW -> 1xHxW
         binary_mask = binary_mask[np.newaxis, :, :]
@@ -587,6 +603,7 @@ def get_detection_dataloaders(
             include_background_channel=include_background_channel,
             disk_radius=disk_radius,
             augmentation_prob=augmentation_prob,
+            regression_map=regression_map,
         )
         val_dataset = Multitask_Dataset(
             IOConfig=IOConfig,
@@ -597,6 +614,7 @@ def get_detection_dataloaders(
             include_background_channel=include_background_channel,
             disk_radius=disk_radius,
             augmentation_prob=augmentation_prob,
+            regression_map=regression_map,
         )
     else:
         raise ValueError("Invalid dataset name")
@@ -696,7 +714,7 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=7):
         0,
     ]  # [negatives, lymph, mono]
 
-    patch_area = 256 * 256
+    patch_area = 512 * 512
     cell_area = cell_radius * cell_radius
 
     for id in file_ids:
