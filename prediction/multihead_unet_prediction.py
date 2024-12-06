@@ -116,25 +116,18 @@ def detection_in_tile(
                 _mono_prob = activation_dict["head_3"](
                     head_3_logits
                 ).numpy(force=True)
-                # processed_outputs = EfficientUnet_MBConv_Multihead.multihead_unet_post_process(
-                #     logits,
-                #     activation_dict,
-                #     thresholds=[0.5, 0.5, 0.5, 0.5],
-                # )
+
                 inflamm_prob += _inflamm_prob
                 lymph_prob += _lymph_prob
                 mono_prob += _mono_prob
-                # contour_prob += processed_outputs["contour_prob"]
 
         inflamm_prob = inflamm_prob / len(models)
         lymph_prob = lymph_prob / len(models)
         mono_prob = mono_prob / len(models)
-        # contour_prob = contour_prob / len(models)
 
         predictions["inflamm_prob"].extend(list(inflamm_prob))
         predictions["lymph_prob"].extend(list(lymph_prob))
         predictions["mono_prob"].extend(list(mono_prob))
-        # predictions["contour_prob"].extend(list(contour_prob))
 
     return predictions, patch_extractor.coordinate_list
 
@@ -153,7 +146,7 @@ def process_tile_detection_masks(
     x_start and y_start are used to convert detected cells to WSI coordinates
 
     Args:
-        pred_masks: list of predicted probs[256x256x3]
+        pred_masks: list of predicted probs[HxWx3]
         coordinate_list: list of coordinates from patch extractor
         config: PredictionIOConfig
         x_start: starting x coordinate of this tile
@@ -262,8 +255,6 @@ def process_tile_detection_masks(
             centroid[0],
             region["mean_intensity"],
         )
-        # if confidence < 0.3:
-        #     continue
         c1 = c + x_start
         r1 = r + y_start
 
@@ -284,8 +275,6 @@ def process_tile_detection_masks(
             centroid[0],
             region["mean_intensity"],
         )
-        # if confidence < 0.3:
-        #     continue
         c1 = c + x_start
         r1 = r + y_start
 
@@ -306,8 +295,6 @@ def process_tile_detection_masks(
             centroid[0],
             region["mean_intensity"],
         )
-        # if confidence < 0.3:
-        #     continue
         c1 = c + x_start
         r1 = r + y_start
 
@@ -444,8 +431,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_inflamm_records,
         tile_size=4096,
-        box_size=40,
-        overlap_thresh=0.5,
+        box_size=config.nms_boxes[0],
+        overlap_thresh=config.nms_overlap_thresh,
     )
 
     final_lymph_records = slide_nms(
@@ -453,8 +440,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_lymph_records,
         tile_size=4096,
-        box_size=40,
-        overlap_thresh=0.5,
+        box_size=config.nms_boxes[1],
+        overlap_thresh=config.nms_overlap_thresh,
     )
 
     final_mono_records = slide_nms(
@@ -462,8 +449,8 @@ def wsi_detection_in_mask(
         binary_mask=binary_mask,
         detection_record=filtered_mono_records,
         tile_size=4096,
-        box_size=40,
-        overlap_thresh=0.5,
+        box_size=config.nms_boxes[2],
+        overlap_thresh=config.nms_overlap_thresh,
     )
 
     return {

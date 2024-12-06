@@ -66,9 +66,9 @@ def cross_validation(fold: int = 1):
         model = get_custom_hovernext(
             pretrained=False,
             num_heads=2,
-            decoders_out_channels=[1,1],
+            decoders_out_channels=[1, 1],
             use_batchnorm=True,
-            attention_type='scse'
+            attention_type="scse",
         )
         # model = get_convnext_unet(
         #     enc="convnextv2_large.fcmae_ft_in22k_in1k",

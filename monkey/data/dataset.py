@@ -755,7 +755,7 @@ def get_detection_sampler_v2_binary(
         0,
     ]  # [others, cell_type of interest]
 
-    patch_area = 256 * 256
+    patch_area = 512 * 512
     cell_area = 7 * 7
 
     for id in file_ids:

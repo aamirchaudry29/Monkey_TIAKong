@@ -203,9 +203,7 @@ class Dice_Loss(Loss_Function):
     def compute_loss(self, input: Tensor, target: Tensor):
         input = input.float()
         target = target.float()
-        return dice_loss(
-            input, target, multiclass=self.multiclass
-        )
+        return dice_loss(input, target, multiclass=self.multiclass)
 
 
 # Binary cross entropy loss

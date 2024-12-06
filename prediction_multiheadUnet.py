@@ -26,7 +26,7 @@ from prediction.multihead_unet_prediction import wsi_detection_in_mask
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "hovernext_det_large"
+    detector_model_name = "convnext_tiny_pannuke_512"
     fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
     model_mpp = 0.24199951445730394
@@ -37,12 +37,14 @@ def cross_validation(fold_number: int = 1):
         wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
         mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
         output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
-        patch_size=256,
+        patch_size=512,
         resolution=model_mpp,
         units="mpp",
-        stride=224,
-        thresholds=[0.3, 0.3, 0.3],
-        min_distances=[7, 7, 7],
+        stride=472,
+        thresholds=[0.5, 0.5, 0.5],
+        min_distances=[20, 16, 20],
+        nms_boxes=[20, 16, 20],
+        nms_overlap_thresh=0.5
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -66,13 +68,10 @@ def cross_validation(fold_number: int = 1):
     print(val_wsi_files)
 
     # Load models
-    # detector_weight_paths = [
-    #     f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_100.pth",
-    # ]
     detector_weight_paths = [
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
@@ -81,8 +80,10 @@ def cross_validation(fold_number: int = 1):
         # )
         # model = get_custom_hovernext(pretrained=False)
         model = get_custom_hovernext(
-            enc="convnextv2_large.fcmae_ft_in22k_in1k",
+            enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
             pretrained=False,
+            use_batchnorm=True,
+            attention_type="scse",
         )
         checkpoint = torch.load(weight_path)
         model.load_state_dict(checkpoint["model"])
@@ -130,6 +131,6 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(1, 2):
+    for i in range(1, 3):
         pprint(f"Fold {i}")
         cross_validation(i)

@@ -574,8 +574,9 @@ def save_detection_records_monkey(
 def filter_detection_with_mask(
     detection_records: list[dict],
     mask: np.ndarray,
-    points_mpp: float = 0.24,
+    points_mpp: float = 0.24199951445730394,
     mask_mpp: float = 8.0,
+    margin: int = 7,
 ) -> list[dict]:
     """
     Filter detected points: [{'x','y','type','prob'}]
@@ -587,6 +588,7 @@ def filter_detection_with_mask(
         mask: binary mask to for filtering
         points_mpp: resolution of the detected points in mpp
         mask_mpp: resolution of the binary mask in mpp
+        margin: margin in pixels to add around the mask
     Returns:
         fitlered_records: [{'x','y','type','prob'}]
     """
@@ -601,7 +603,13 @@ def filter_detection_with_mask(
         y_in_mask = int(np.round(y / scale_factor))
 
         try:
-            if mask[y_in_mask, x_in_mask] != 0:
+            if (
+                np.count_nonzero(mask[
+                    y_in_mask - margin : y_in_mask + margin,
+                    x_in_mask - margin : x_in_mask + margin,
+                ])
+                > 0
+            ):
                 filtered_records.append(record)
             else:
                 continue
