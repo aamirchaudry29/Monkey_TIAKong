@@ -154,7 +154,8 @@ class MSE_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("MSE", False)
         self.multiclass = False
-        self.pos_weight = 1000.0
+        self.pos_weight = 1.0
+        self.mse_ln = nn.MSELoss()
 
     def set_multiclass(self, multiclass):
         self.multiclass = multiclass
@@ -171,9 +172,9 @@ class MSE_Loss(Loss_Function):
             input.size() == target.size()
         )  # "Input size {} must be the same as target size {}".format(input.size(), target.size())
         target = target * self.pos_weight
-        return nn.MSELoss()(input, target)
+        input = torch.clamp_max(input, self.pos_weight)
+        return self.mse_ln(input, target)
 
-        ####
 
 
 # Jaccard loss

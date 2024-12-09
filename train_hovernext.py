@@ -24,30 +24,32 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "convnext_tiny_pannuke_512",
+    "model_name": "convnext_tiny_pannuke_512_regression",
     "val_fold": 1,  # [1-5]
     "batch_size": 24,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,
-    "weight_decay": 0.01,
-    "epochs": 30,
+    "weight_decay": 0.001,
+    "epochs": 75,
     "loss_function": {
-        "head_1": "Jaccard_Loss",
-        "head_2": "Jaccard_Loss",
-        "head_3": "Jaccard_Loss",
+        "head_1": "MSE",
+        "head_2": "MSE",
+        "head_3": "MSE",
     },
-    "loss_pos_weight": 1.0,
+    "loss_pos_weight": 1000.0,
+    "peak_thresholds": [75, 75, 75], # [inflamm, lymph, mono]
     "do_augmentation": True,
     "activation_function": {
-        "head_1": "sigmoid",
-        "head_2": "sigmoid",
-        "head_3": "sigmoid",
+        "head_1": "relu",
+        "head_2": "relu",
+        "head_3": "relu",
     },
     "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
     "include_background_channel": False,
-    "disk_radius": 7,
+    "disk_radius": 17,
+    "regression_map": True,
     "augmentation_prob": 0.8,
-    "unfreeze_epoch": 5,
+    "unfreeze_epoch": 20,
 }
 pprint(run_config)
 
@@ -91,6 +93,7 @@ train_loader, val_loader = get_detection_dataloaders(
     ],
     disk_radius=run_config["disk_radius"],
     augmentation_prob=run_config["augmentation_prob"],
+    regression_map=run_config['regression_map']
 )
 
 
@@ -107,9 +110,9 @@ loss_fn_dict = {
         run_config["loss_function"]["head_3"]
     ),
 }
-# loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
-# loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
-# loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
 
 activation_fn_dict = {
     "head_1": get_activation_function(
@@ -136,7 +139,7 @@ optimizer = torch.optim.AdamW(
 # )
 # scheduler = None
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, "max", factor=0.1, patience=5
+    optimizer, "min", factor=0.1, patience=5
 )
 # scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 

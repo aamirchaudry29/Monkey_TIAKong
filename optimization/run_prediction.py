@@ -1,5 +1,7 @@
 # Singular pipeline for lymphocyte and monocyte detection
 # Detect and classify cells using a single model
+import sys
+sys.path.insert(0, "/home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/")
 
 import os
 from pprint import pprint
@@ -22,13 +24,13 @@ from monkey.model.hovernext.model import (
     get_convnext_unet,
     get_custom_hovernext,
 )
-from prediction.multihead_unet_prediction import wsi_detection_in_mask
+from optimization.raw_prediction import wsi_raw_prediction
 
 
 def cross_validation(fold_number: int = 1):
     detector_model_name = "hovernext_det_large"
     fold = fold_number
-    pprint(f"Multiclass detection using {detector_model_name}")
+    pprint(f"Making raw prediction using {detector_model_name}")
     model_mpp = 0.24199951445730394
     baseline_mpp = 0.24199951445730394
     pprint(f"Detect at {model_mpp} mpp")
@@ -42,9 +44,9 @@ def cross_validation(fold_number: int = 1):
         units="mpp",
         stride=224,
         thresholds=[0.5, 0.5, 0.5],
-        min_distances=[11, 9, 13],
+        min_distances=[11, 7, 13],
         nms_boxes=[11, 9, 13],
-        nms_overlap_thresh=0.5,
+        nms_overlap_thresh=0.7,
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -92,45 +94,18 @@ def cross_validation(fold_number: int = 1):
         detectors.append(model)
 
     for wsi_name in tqdm(val_wsi_files):
-        wsi_name_without_ext = os.path.splitext(wsi_name)[0]
         wsi_id = extract_id(wsi_name)
         mask_name = f"{wsi_id}_mask.tif"
 
-        detection_records = wsi_detection_in_mask(
+        wsi_raw_prediction(
             wsi_name, mask_name, config, detectors
         )
 
-        inflamm_records = detection_records["inflamm_records"]
-        lymph_records = detection_records["lymph_records"]
-        mono_records = detection_records["mono_records"]
-        print(f"{len(inflamm_records)} final detected inflamm")
-        print(f"{len(lymph_records)} final detected lymph")
-        print(f"{len(mono_records)} final detected mono")
 
-        # Save to AnnotationStore for visualization
-        # If model if not running at baseline res:
-        # scale_factor = model_res / 0.24199951445730394
-        # annoation_store = detection_to_annotation_store(
-        #     lymph_records, scale_factor=1.0
-        # )
-        # store_save_path = os.path.join(
-        #     config.output_dir, f"{wsi_name_without_ext}_lymph.db"
-        # )
-        # annoation_store.dump(store_save_path)
-
-        # Save result in Monkey Challenge format
-        # L2 lymphocyte vs monocyte detection
-        save_detection_records_monkey(
-            config,
-            inflamm_records,
-            lymph_records,
-            mono_records,
-            wsi_id=wsi_id,
-        )
         print("finished")
 
 
 if __name__ == "__main__":
-    for i in range(3, 6):
+    for i in range(3,6):
         pprint(f"Fold {i}")
         cross_validation(i)

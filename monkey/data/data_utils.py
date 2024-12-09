@@ -603,16 +603,8 @@ def filter_detection_with_mask(
         y_in_mask = int(np.round(y / scale_factor))
 
         try:
-            if (
-                np.count_nonzero(
-                    mask[
-                        y_in_mask - margin : y_in_mask + margin,
-                        x_in_mask - margin : x_in_mask + margin,
-                    ]
-                )
-                > 0
-            ):
-                filtered_records.append(record)
+            if mask[y_in_mask, x_in_mask] != 0:
+                filtered_records.append(record)     
             else:
                 continue
         except IndexError:
@@ -623,6 +615,7 @@ def filter_detection_with_mask(
 
 def normalize_detection_probs(
     detection_records: list[dict],
+    min_prob: float = 0.5,
 ) -> list[dict]:
     new_records = []
 
@@ -633,14 +626,14 @@ def normalize_detection_probs(
 
     max_detected_prob = max(detected_probs)
     min_detected_prob = min(detected_probs)
-    eps = 0.1
 
     for record in detection_records:
         prob = record["prob"]
-        normalized_prob = (prob - min_detected_prob + eps) / (
-            max_detected_prob - min_detected_prob + eps
+        normalized_prob = (prob - min_detected_prob) / (
+            max_detected_prob - min_detected_prob
         )
-        record["prob"] = normalized_prob
+        final_prob = normalized_prob * 0.5 + min_prob
+        record["prob"] = final_prob
         new_records.append(record)
     return new_records
 

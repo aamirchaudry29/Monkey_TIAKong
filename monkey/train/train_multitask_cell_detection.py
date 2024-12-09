@@ -130,7 +130,8 @@ def hovernext_validate_one_epoch(
                 inflamm_prob=pred_1,
                 lymph_prob=pred_2,
                 mono_prob=pred_3,
-                min_distances=[7, 7, 7],
+                thresholds=run_config['peak_thresholds'],
+                min_distances=[20, 16, 20],
             )
             overall_pred_binary = binary_masks["inflamm_mask"]
             lymph_pred_binary = binary_masks["lymph_mask"]
@@ -366,7 +367,7 @@ def multitask_train_loop(
 ) -> torch.nn.Module:
     pprint("Starting training")
 
-    best_val_score = -np.inf
+    best_val_score = np.inf
     epochs = run_config["epochs"]
 
     model = freeze_enc(model)
@@ -418,7 +419,7 @@ def multitask_train_loop(
         )
 
         if scheduler is not None:
-            scheduler.step(sum_val_score)
+            scheduler.step(avg_scores["val_loss"])
             # scheduler.step()
 
         log_data = {
@@ -435,8 +436,8 @@ def multitask_train_loop(
             wandb_run.log(log_data)
         pprint(log_data)
 
-        if sum_val_score > best_val_score:
-            best_val_score = sum_val_score
+        if avg_scores["val_loss"] < best_val_score:
+            best_val_score = avg_scores["val_loss"]
             pprint(f"Check Point {epoch}")
             checkpoint = {
                 "epoch": epoch,

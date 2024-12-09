@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=20      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
 #SBATCH --mem=24000             # Memory (mb) to use 
-#SBATCH --time=12:00:00      # Job time limit
+#SBATCH --time=24:00:00      # Job time limit
 #
 #SBATCH --output=/home/u1910100/logs/train_%j.out # Standard out from your job
 #SBATCH --error=/home/u1910100/logs/train_%j.err  # Standard error from your job
