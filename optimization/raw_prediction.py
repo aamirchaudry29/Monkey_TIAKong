@@ -4,7 +4,6 @@ from typing import Tuple
 
 import numpy as np
 import torch
-
 from tiatoolbox.tools.patchextraction import get_patch_extractor
 from tiatoolbox.wsicore.wsireader import VirtualWSIReader, WSIReader
 from torch.utils.data import DataLoader
@@ -15,9 +14,7 @@ from monkey.data.data_utils import (
     collate_fn,
     imagenet_normalise_torch,
 )
-
 from monkey.model.utils import get_activation_function
-
 
 
 def detection_in_tile(
@@ -121,7 +118,6 @@ def detection_in_tile(
     return predictions, patch_extractor.coordinate_list
 
 
-
 def wsi_raw_prediction(
     wsi_name: str,
     mask_name: str,
@@ -140,7 +136,9 @@ def wsi_raw_prediction(
     """
     wsi_dir = config.wsi_dir
     mask_dir = config.mask_dir
-    raw_prediction_dir = os.path.join(config.output_dir, "raw_prob_maps")
+    raw_prediction_dir = os.path.join(
+        config.output_dir, "raw_prob_maps"
+    )
 
     wsi_without_ext = os.path.splitext(wsi_name)[0]
 
@@ -198,7 +196,9 @@ def wsi_raw_prediction(
         "tile_coordinates": tile_coordinates,
         "bounding_boxes": bounding_boxes,
     }
-    data_path = os.path.join(raw_prediction_dir, f"{wsi_without_ext}.pkl")
+    data_path = os.path.join(
+        raw_prediction_dir, f"{wsi_without_ext}.pkl"
+    )
     os.makedirs(raw_prediction_dir, exist_ok=True)
     with open(data_path, "wb") as f:
         pickle.dump(data, f)

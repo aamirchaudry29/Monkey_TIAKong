@@ -176,7 +176,6 @@ class MSE_Loss(Loss_Function):
         return self.mse_ln(input, target)
 
 
-
 # Jaccard loss
 class Jaccard_Loss(Loss_Function):
     def __init__(self) -> None:

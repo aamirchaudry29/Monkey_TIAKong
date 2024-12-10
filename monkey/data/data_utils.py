@@ -604,7 +604,7 @@ def filter_detection_with_mask(
 
         try:
             if mask[y_in_mask, x_in_mask] != 0:
-                filtered_records.append(record)     
+                filtered_records.append(record)
             else:
                 continue
         except IndexError:

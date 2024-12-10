@@ -1,6 +1,6 @@
 import os
-from typing import Tuple
 import pickle
+from typing import Tuple
 
 import numpy as np
 import skimage.measure
@@ -93,7 +93,6 @@ def process_tile_detection_masks(
             coordinate_list,
         )[:, :, 0]
         # inflamm_prediction[inflamm_probs_map > 0.5] = 1
-
 
     processed_masks = multihead_det_post_process(
         inflamm_probs_map,
@@ -242,8 +241,12 @@ def post_process_detection(
     detected_lymph_points = []
     detected_mono_points = []
 
-    raw_prediction_dir = os.path.join(config.output_dir, "raw_prob_maps")
-    data_path = os.path.join(raw_prediction_dir, f"{wsi_without_ext}.pkl")
+    raw_prediction_dir = os.path.join(
+        config.output_dir, "raw_prob_maps"
+    )
+    data_path = os.path.join(
+        raw_prediction_dir, f"{wsi_without_ext}.pkl"
+    )
     with open(data_path, "rb") as f:
         data = pickle.load(f)
     tile_predictions = data["tile_predictions"]

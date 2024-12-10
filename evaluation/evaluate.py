@@ -181,7 +181,9 @@ def get_froc_vals(gt_dict, result_dict, radius: int):
     # else:
     #     area_under_froc = 0
     #     froc_score = 0
-    sensitivity, fp_per_mm2_slide, froc_score = get_froc_score(fp_probs, tp_probs, total_pos, area_mm2)
+    sensitivity, fp_per_mm2_slide, froc_score = get_froc_score(
+        fp_probs, tp_probs, total_pos, area_mm2
+    )
     return {
         "sensitivity_slide": list(sensitivity),
         "fp_per_mm2_slide": list(fp_per_mm2_slide),
@@ -196,17 +198,23 @@ def get_froc_vals(gt_dict, result_dict, radius: int):
 def get_froc_score(fp_probs, tp_probs, total_pos, area_mm2):
     eval_thresholds = (10, 20, 50, 100, 200, 300)
 
-    fp_per_mm2, sensitivity = compute_froc_curve_data(fp_probs, tp_probs, total_pos, area_mm2)
+    fp_per_mm2, sensitivity = compute_froc_curve_data(
+        fp_probs, tp_probs, total_pos, area_mm2
+    )
     if len(fp_per_mm2) == 0 and len(sensitivity) == 0:
         return sensitivity, fp_per_mm2, 0
     if len(sensitivity) == 1:
         # we only have one true positive point, we have to compute the FROC values a bit differently
         sensitivity = [1]
-        fp_per_mm2 = [len(fp_probs)/area_mm2]
-        froc_score = np.mean([int(fp_per_mm2[0] < i) for i in eval_thresholds])
+        fp_per_mm2 = [len(fp_probs) / area_mm2]
+        froc_score = np.mean(
+            [int(fp_per_mm2[0] < i) for i in eval_thresholds]
+        )
     else:
         # area_under_froc = auc(fp_per_mm2, sensitivity)
-        froc_score = compute_froc_score(fp_per_mm2, sensitivity, eval_thresholds=eval_thresholds)
+        froc_score = compute_froc_score(
+            fp_per_mm2, sensitivity, eval_thresholds=eval_thresholds
+        )
 
     return sensitivity, fp_per_mm2, froc_score
 

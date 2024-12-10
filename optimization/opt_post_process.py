@@ -1,9 +1,13 @@
 # Singular pipeline for lymphocyte and monocyte detection
 # Detect and classify cells using a single model
 import sys
-sys.path.insert(0, "/home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/")
+
+sys.path.insert(
+    0, "/home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/"
+)
 
 import os
+from multiprocessing import Pool
 from pprint import pprint
 
 import torch
@@ -13,6 +17,7 @@ from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     detection_to_annotation_store,
     extract_id,
+    normalize_detection_probs,
     open_json_file,
     save_detection_records_monkey,
 )
@@ -25,13 +30,14 @@ from monkey.model.hovernext.model import (
     get_custom_hovernext,
 )
 from optimization.post_process import post_process_detection
-from multiprocessing import Pool
-from monkey.data.data_utils import normalize_detection_probs
+
 
 def cross_validation(fold_number: int = 1):
     detector_model_name = "hovernext_det_large"
     fold = fold_number
-    pprint(f"Post-processing raw prediction from {detector_model_name}")
+    pprint(
+        f"Post-processing raw prediction from {detector_model_name}"
+    )
     model_mpp = 0.24199951445730394
     baseline_mpp = 0.24199951445730394
     pprint(f"Detect at {model_mpp} mpp")
@@ -73,40 +79,49 @@ def cross_validation(fold_number: int = 1):
 
     print(val_wsi_files)
 
-
-
     detectors = []
 
     with Pool(20) as p:
-        p.starmap(process_one_wsi, [(config, detectors, wsi_name) for wsi_name in val_wsi_files])
+        p.starmap(
+            process_one_wsi,
+            [
+                (config, detectors, wsi_name)
+                for wsi_name in val_wsi_files
+            ],
+        )
 
 
 def process_one_wsi(config, detectors, wsi_name):
     wsi_id = extract_id(wsi_name)
     mask_name = f"{wsi_id}_mask.tif"
 
-    detection_records= post_process_detection(
-            wsi_name, mask_name, config, detectors
-        )
+    detection_records = post_process_detection(
+        wsi_name, mask_name, config, detectors
+    )
 
-
-    inflamm_records = normalize_detection_probs(detection_records["inflamm_records"], 0.5)
-    lymph_records = normalize_detection_probs(detection_records["lymph_records"], 0.5)
-    mono_records = normalize_detection_probs(detection_records["mono_records"],0.5)
+    inflamm_records = normalize_detection_probs(
+        detection_records["inflamm_records"], 0.5
+    )
+    lymph_records = normalize_detection_probs(
+        detection_records["lymph_records"], 0.5
+    )
+    mono_records = normalize_detection_probs(
+        detection_records["mono_records"], 0.5
+    )
     # inflamm_records = detection_records["inflamm_records"]
     # lymph_records = detection_records["lymph_records"]
     # mono_records = detection_records["mono_records"]
     print(f"{len(inflamm_records)} final detected inflamm")
     print(f"{len(lymph_records)} final detected lymph")
     print(f"{len(mono_records)} final detected mono")
-        
+
     save_detection_records_monkey(
-            config,
-            inflamm_records,
-            lymph_records,
-            mono_records,
-            wsi_id=wsi_id,
-        )
+        config,
+        inflamm_records,
+        lymph_records,
+        mono_records,
+        wsi_id=wsi_id,
+    )
 
     print("finished")
 

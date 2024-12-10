@@ -37,7 +37,7 @@ run_config = {
         "head_3": "MSE",
     },
     "loss_pos_weight": 1000.0,
-    "peak_thresholds": [75, 75, 75], # [inflamm, lymph, mono]
+    "peak_thresholds": [75, 75, 75],  # [inflamm, lymph, mono]
     "do_augmentation": True,
     "activation_function": {
         "head_1": "relu",
@@ -93,7 +93,7 @@ train_loader, val_loader = get_detection_dataloaders(
     ],
     disk_radius=run_config["disk_radius"],
     augmentation_prob=run_config["augmentation_prob"],
-    regression_map=run_config['regression_map']
+    regression_map=run_config["regression_map"],
 )
 
 
