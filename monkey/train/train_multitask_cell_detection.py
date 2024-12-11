@@ -367,7 +367,7 @@ def multitask_train_loop(
 ) -> torch.nn.Module:
     pprint("Starting training")
 
-    best_val_score = np.inf
+    best_val_score = 0.0
     epochs = run_config["epochs"]
 
     model = freeze_enc(model)
@@ -436,8 +436,8 @@ def multitask_train_loop(
             wandb_run.log(log_data)
         pprint(log_data)
 
-        if avg_scores["val_loss"] < best_val_score:
-            best_val_score = avg_scores["val_loss"]
+        if sum_val_score > best_val_score:
+            best_val_score = sum_val_score
             pprint(f"Check Point {epoch}")
             checkpoint = {
                 "epoch": epoch,

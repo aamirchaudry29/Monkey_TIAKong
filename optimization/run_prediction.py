@@ -28,24 +28,25 @@ from optimization.raw_prediction import wsi_raw_prediction
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "hovernext_det_large"
+    detector_model_name = "convnext_base_lizard_512"
     fold = fold_number
-    pprint(f"Making raw prediction using {detector_model_name}")
-    model_mpp = 0.24199951445730394
-    baseline_mpp = 0.24199951445730394
-    pprint(f"Detect at {model_mpp} mpp")
+    pprint(f"Making raw prediction using {detector_model_name} fold {fold}")
+    model_res = 0
+    units='level'
+
+    pprint(f"Detect at {model_res} {units}")
 
     config = PredictionIOConfig(
         wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
         mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
         output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
-        patch_size=256,
-        resolution=model_mpp,
-        units="mpp",
-        stride=224,
+        patch_size=512,
+        resolution=model_res,
+        units=units,
+        stride=480,
         thresholds=[0.5, 0.5, 0.5],
-        min_distances=[11, 7, 13],
-        nms_boxes=[11, 9, 13],
+        min_distances=[11, 11, 11],
+        nms_boxes=[11, 11, 11],
         nms_overlap_thresh=0.7,
     )
     # config = PredictionIOConfig(
@@ -82,12 +83,13 @@ def cross_validation(fold_number: int = 1):
         # )
         # model = get_custom_hovernext(pretrained=False)
         model = get_custom_hovernext(
-            enc="convnextv2_large.fcmae_ft_in22k_in1k",
+            enc="convnextv2_base.fcmae_ft_in22k_in1k",
             pretrained=False,
-            # use_batchnorm=True,
-            # attention_type="scse",
+            use_batchnorm=True,
+            attention_type="scse",
         )
         checkpoint = torch.load(weight_path)
+        print(f"epoch: {checkpoint['epoch']}")
         model.load_state_dict(checkpoint["model"])
         model.eval()
         model.to("cuda")

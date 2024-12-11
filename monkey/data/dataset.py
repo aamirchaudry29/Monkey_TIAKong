@@ -696,7 +696,7 @@ def get_detection_dataloaders(
 #     return weighted_sampler
 
 
-def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=7):
+def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
     """
     Get Weighted Sampler.
     To balance positive and negative patches at pixel level.
@@ -708,41 +708,58 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=7):
         patch_stats = json.load(file)
 
     class_instances = []
-    class_areas_total = [
-        0,
-        0,
-        0,
-    ]  # [negatives, lymph, mono]
+    total_class_pixels = np.array([0, 0, 0])  # [negatives, lymph, mono]
 
     patch_area = 512 * 512
     cell_area = cell_radius * cell_radius
 
+    # Calculate total pixel per class
     for id in file_ids:
         stats = patch_stats[id]
         lymph_count = stats["lymph_count"]
         lymph_area = lymph_count * cell_area
         mono_count = stats["mono_count"]
         mono_area = mono_count * cell_area
-
         background_area = patch_area - lymph_area - mono_area
-        class_instances.append(
-            [background_area, lymph_area, mono_area]
-        )
 
-    class_instances = np.array(class_instances)
-    pixel_class_sum = np.sum(class_instances, axis=0)
+        total_class_pixels += [background_area, lymph_area, mono_area]
+        # class_instances.append(
+        #     [background_area, lymph_area, mono_area]
+        # )
 
-    print(f"negative pixels: {pixel_class_sum[0]}")
-    print(f"lymph pixels: {pixel_class_sum[1]}")
-    print(f"mono pixels: {pixel_class_sum[2]}")
+    # Calculate class weights
+    total_pixels = np.sum(total_class_pixels)
+    class_weights = total_pixels / total_class_pixels
 
-    sample_weights = []
-    for i in range(class_instances.shape[0]):
-        weight_vector = class_instances[i] / pixel_class_sum
-        sample_weights.append(np.sum(weight_vector))
+    # class_instances = np.array(class_instances)
+    # pixel_class_sum = np.sum(class_instances, axis=0)
+
+    print(f"negative pixels: {total_class_pixels[0]}")
+    print(f"lymph pixels: {total_class_pixels[1]}")
+    print(f"mono pixels: {total_class_pixels[2]}")
+
+    # Calculate patch weights
+    patch_weights = []
+    for id in file_ids:
+        stats = patch_stats[id]
+        lymph_count = stats["lymph_count"]
+        mono_count = stats["mono_count"]
+        lymph_area = lymph_count * cell_area
+        mono_area = mono_count * cell_area
+        background_area = patch_area - lymph_area - mono_area
+
+        # Normalize patch class areas
+        patch_class_areas = np.array([background_area, lymph_area, mono_area])
+        patch_class_ratios = patch_class_areas / np.sum(patch_class_areas)
+        # Weighted sum of patch class contributions
+        patch_weight = np.sum(patch_class_ratios * class_weights)
+        patch_weights.append(patch_weight)
+
+        # weight_vector = class_instances[i] / pixel_class_sum
+        # patch_weights.append(np.sum(weight_vector))
 
     weighted_sampler = WeightedRandomSampler(
-        weights=sample_weights,
+        weights=patch_weights,
         num_samples=len(file_ids),
         replacement=True,
     )

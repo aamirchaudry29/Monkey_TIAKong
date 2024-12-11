@@ -47,6 +47,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Weighted_CE_Dice": Weighted_CE_Dice_Loss,
         "MapDe_Loss": MapDe_Loss,
         "Weighted_BCE_Jaccard": Weighted_BCE_Jaccard_Loss,
+        "Weighted_MSE": Weighted_MSE_Loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -175,6 +176,31 @@ class MSE_Loss(Loss_Function):
         input = torch.clamp_max(input, self.pos_weight)
         return self.mse_ln(input, target)
 
+
+class Weighted_MSE_Loss(Loss_Function):
+    def __init__(self) -> None:
+        super().__init__("Weighted_MSE", False)
+        self.multiclass = False
+        self.non_zero_weight = 1.0
+
+    def set_multiclass(self, multiclass):
+        self.multiclass = multiclass
+
+    def set_weight(self, weight):
+        self.non_zero_weight = weight
+
+    def compute_loss(
+        self,
+        input: Tensor,
+        target: Tensor,
+    ):
+        assert (
+            input.size() == target.size()
+        )  # "Input size {} must be the same as target size {}".format(input.size(), target.size())
+        weights = torch.where((target > 0), self.non_zero_weight, 1.0)
+        squared_diff = (input - target) ** 2
+        weighted_loss = squared_diff * weights
+        return weighted_loss.mean()
 
 
 # Jaccard loss

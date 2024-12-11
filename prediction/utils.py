@@ -13,11 +13,11 @@ def multihead_det_post_process(
     min_distances: list = [5, 5, 5],
 ):
     if torch.is_tensor(inflamm_prob):
-        inflamm_prob = inflamm_prob.numpy(force=True)
+        inflamm_prob = inflamm_prob.detach().cpu().numpy()
     if torch.is_tensor(lymph_prob):
-        lymph_prob = lymph_prob.numpy(force=True)
+        lymph_prob = lymph_prob.detach().cpu().numpy()
     if torch.is_tensor(mono_prob):
-        mono_prob = mono_prob.numpy(force=True)
+        mono_prob = mono_prob.detach().cpu().numpy()
 
     inflamm_output_mask = np.zeros(
         shape=inflamm_prob.shape, dtype=np.uint8
@@ -31,7 +31,7 @@ def multihead_det_post_process(
         inflamm_prob,
         min_distance=min_distances[0],
         threshold_abs=thresholds[0],
-        exclude_border=False,
+        exclude_border=True,
     )
     inflamm_output_mask[
         inflamm_coordinates[:, 0], inflamm_coordinates[:, 1]
@@ -41,7 +41,7 @@ def multihead_det_post_process(
         lymph_prob,
         min_distance=min_distances[1],
         threshold_abs=thresholds[1],
-        exclude_border=False,
+        exclude_border=True,
     )
     lymph_output_mask[
         lymph_coordinates[:, 0], lymph_coordinates[:, 1]
@@ -51,7 +51,7 @@ def multihead_det_post_process(
         mono_prob,
         min_distance=min_distances[2],
         threshold_abs=thresholds[2],
-        exclude_border=False,
+        exclude_border=True,
     )
     mono_output_mask[
         mono_coordinates[:, 0], mono_coordinates[:, 1]

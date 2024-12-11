@@ -57,7 +57,6 @@ def detection_in_tile(
         "inflamm_prob": [],
         "lymph_prob": [],
         "mono_prob": [],
-        # "contour_prob": [],
     }
     batch_size = 16
     dataloader = DataLoader(
@@ -98,13 +97,13 @@ def detection_in_tile(
 
                 _inflamm_prob = activation_dict["head_1"](
                     head_1_logits
-                ).numpy(force=True)
+                ).detach().cpu().numpy()
                 _lymph_prob = activation_dict["head_2"](
                     head_2_logits
-                ).numpy(force=True)
+                ).detach().cpu().numpy()
                 _mono_prob = activation_dict["head_3"](
                     head_3_logits
-                ).numpy(force=True)
+                ).detach().cpu().numpy()
 
                 inflamm_prob += _inflamm_prob
                 lymph_prob += _lymph_prob

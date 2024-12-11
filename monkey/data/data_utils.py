@@ -420,8 +420,8 @@ def detection_to_annotation_store(
     annotation_store = SQLiteStore()
 
     for record in detection_records:
-        x = int(record["x"] * scale_factor)
-        y = int(record["y"] * scale_factor)
+        x = record["x"] * scale_factor
+        y = record["y"] * scale_factor
 
         if type == "polygon":
             entry = Annotation(
@@ -453,6 +453,7 @@ def save_detection_records_monkey(
     lymph_detection_records: list[dict] = [],
     mono_detection_records: list[dict] = [],
     wsi_id: str | None = None,
+    save_mpp: float = 0.24199951445730394,
 ) -> None:
     """
     Save cell detection records into Monkey challenge format
@@ -488,8 +489,8 @@ def save_detection_records_monkey(
         prediction_record = {
             "name": "Point " + str(counter),
             "point": [
-                px_to_mm(x, 0.24199951445730394),
-                px_to_mm(y, 0.24199951445730394),
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
                 0.24199951445730394,
             ],
             "probability": confidence,
@@ -507,8 +508,8 @@ def save_detection_records_monkey(
         prediction_record = {
             "name": "Point " + str(counter),
             "point": [
-                px_to_mm(x, 0.24199951445730394),
-                px_to_mm(y, 0.24199951445730394),
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
                 0.24199951445730394,
             ],
             "probability": confidence,
@@ -525,8 +526,8 @@ def save_detection_records_monkey(
         prediction_record = {
             "name": "Point " + str(counter),
             "point": [
-                px_to_mm(x, 0.24199951445730394),
-                px_to_mm(y, 0.24199951445730394),
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
                 0.24199951445730394,
             ],
             "probability": confidence,
@@ -576,7 +577,7 @@ def filter_detection_with_mask(
     mask: np.ndarray,
     points_mpp: float = 0.24199951445730394,
     mask_mpp: float = 8.0,
-    margin: int = 7,
+    margin: int = 1,
 ) -> list[dict]:
     """
     Filter detected points: [{'x','y','type','prob'}]
@@ -601,14 +602,34 @@ def filter_detection_with_mask(
 
         x_in_mask = int(np.round(x / scale_factor))
         y_in_mask = int(np.round(y / scale_factor))
-
-        try:
-            if mask[y_in_mask, x_in_mask] != 0:
-                filtered_records.append(record)     
+        top_left = (x_in_mask - margin, y_in_mask - margin)
+        top_right = (x_in_mask + margin, y_in_mask - margin)
+        bottom_left = (x_in_mask - margin, y_in_mask + margin)
+        bottom_right = (x_in_mask + margin, y_in_mask + margin)
+        indices = [
+            (int(round(xi)), int(round(yi))) 
+            for xi, yi in [top_left, top_right, bottom_left, bottom_right]
+        ]
+        valid_indices = [
+            (xi, yi) for xi, yi in indices
+            if 0 <= xi < mask.shape[1] and 0 <= yi < mask.shape[0]
+        ]
+        ones_count = sum(mask[yi, xi] for xi, yi in valid_indices)
+        if len(valid_indices) == 0:
+            continue
+        else:
+            if ones_count / len(valid_indices) >= 0.5:
+                filtered_records.append(record)
             else:
                 continue
-        except IndexError:
-            continue
+        # try:
+        #     ones_count = sum(mask[])
+        #     if mask[y_in_mask, x_in_mask] != 0:
+        #         filtered_records.append(record)     
+        #     else:
+        #         continue
+        # except IndexError:
+        #     continue
 
     return filtered_records
 

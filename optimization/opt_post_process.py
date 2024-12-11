@@ -8,7 +8,7 @@ from pprint import pprint
 
 import torch
 from tqdm.auto import tqdm
-
+from tiatoolbox.wsicore.wsireader import WSIReader
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     detection_to_annotation_store,
@@ -29,25 +29,25 @@ from multiprocessing import Pool
 from monkey.data.data_utils import normalize_detection_probs
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "hovernext_det_large"
+    detector_model_name = "convnext_base_lizard_512"
     fold = fold_number
     pprint(f"Post-processing raw prediction from {detector_model_name}")
-    model_mpp = 0.24199951445730394
-    baseline_mpp = 0.24199951445730394
-    pprint(f"Detect at {model_mpp} mpp")
+    model_res = 0
+    units='level'
+    pprint(f"Detect at {model_res} {units}")
 
     config = PredictionIOConfig(
         wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
         mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
         output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
-        patch_size=256,
-        resolution=model_mpp,
-        units="mpp",
-        stride=224,
+        patch_size=512,
+        resolution=model_res,
+        units=units,
+        stride=480,
         thresholds=[0.3, 0.3, 0.3],
-        min_distances=[11, 9, 13],
-        nms_boxes=[20, 16, 20],
-        nms_overlap_thresh=0.75,
+        min_distances=[11, 11, 11],
+        nms_boxes=[20, 11, 20],
+        nms_overlap_thresh=0.5,
     )
     print(f"thresholds: {config.thresholds}")
     print(f"min_distances: {config.min_distances}")
@@ -84,18 +84,20 @@ def cross_validation(fold_number: int = 1):
 def process_one_wsi(config, detectors, wsi_name):
     wsi_id = extract_id(wsi_name)
     mask_name = f"{wsi_id}_mask.tif"
+    wsi_dir = config.wsi_dir
+    wsi_path = os.path.join(wsi_dir, wsi_name)
+    wsi_reader = WSIReader.open(wsi_path)
+    base_mpp = wsi_reader.convert_resolution_units(
+        input_res=0, input_unit="level", output_unit="mpp"
+    )[0]
 
     detection_records= post_process_detection(
             wsi_name, mask_name, config, detectors
         )
 
-
-    inflamm_records = normalize_detection_probs(detection_records["inflamm_records"], 0.5)
-    lymph_records = normalize_detection_probs(detection_records["lymph_records"], 0.5)
-    mono_records = normalize_detection_probs(detection_records["mono_records"],0.5)
-    # inflamm_records = detection_records["inflamm_records"]
-    # lymph_records = detection_records["lymph_records"]
-    # mono_records = detection_records["mono_records"]
+    inflamm_records = detection_records["inflamm_records"]
+    lymph_records = detection_records["lymph_records"]
+    mono_records = detection_records["mono_records"]
     print(f"{len(inflamm_records)} final detected inflamm")
     print(f"{len(lymph_records)} final detected lymph")
     print(f"{len(mono_records)} final detected mono")
@@ -106,15 +108,14 @@ def process_one_wsi(config, detectors, wsi_name):
             lymph_records,
             mono_records,
             wsi_id=wsi_id,
+            save_mpp=base_mpp,
         )
 
     print("finished")
 
 
 if __name__ == "__main__":
-    folds = [2]
-    # with Pool(20) as p:
-    #     results = p.map(cross_validation, folds)
+    folds = [1,2,3,4,5]
 
     for i in folds:
         pprint(f"Fold {i}")

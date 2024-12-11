@@ -3,7 +3,7 @@
 #SBATCH --job-name=post-process # Job name for tracking
 #SBATCH --partition=cpu  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20      # Number of CPU threads used by your job
+#SBATCH --cpus-per-task=32      # Number of CPU threads used by your job
 #SBATCH --mem=64000            # Memory (mb) to use 
 #SBATCH --time=2:00:00      # Job time limit
 #

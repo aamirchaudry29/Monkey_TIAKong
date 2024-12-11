@@ -53,19 +53,6 @@ def process_tile_detection_masks(
             A list of detection records: [{'x', 'y', 'type', 'probability'}]
 
     """
-    # inflamm_prediction = np.zeros(
-    #     shape=(tile_size, tile_size), dtype=np.uint8
-    # )
-    # contour_prediction = np.zeros(
-    #     shape=(tile_size, tile_size), dtype=np.uint8
-    # )
-    # lymph_prediction = np.zeros(
-    #     shape=(tile_size, tile_size), dtype=np.uint8
-    # )
-    # mono_prediction = np.zeros(
-    #     shape=(tile_size, tile_size), dtype=np.uint8
-    # )
-
     inflamm_probs_map = np.zeros(shape=(tile_size, tile_size))
     lymph_probs_map = np.zeros(shape=(tile_size, tile_size))
     mono_probs_map = np.zeros(shape=(tile_size, tile_size))
@@ -76,7 +63,6 @@ def process_tile_detection_masks(
             pred_results["lymph_prob"],
             coordinate_list,
         )[:, :, 0]
-        # lymph_prediction[lymph_probs_map > 0.5] = 1
 
     if len(pred_results["mono_prob"]) != 0:
         mono_probs_map = SemanticSegmentor.merge_prediction(
@@ -84,7 +70,6 @@ def process_tile_detection_masks(
             pred_results["mono_prob"],
             coordinate_list,
         )[:, :, 0]
-        # mono_prediction[mono_probs_map > 0.5] = 1
 
     if len(pred_results["inflamm_prob"]) != 0:
         inflamm_probs_map = SemanticSegmentor.merge_prediction(
@@ -92,9 +77,8 @@ def process_tile_detection_masks(
             pred_results["inflamm_prob"],
             coordinate_list,
         )[:, :, 0]
-        # inflamm_prediction[inflamm_probs_map > 0.5] = 1
 
-
+    processed_masks = {}
     processed_masks = multihead_det_post_process(
         inflamm_probs_map,
         lymph_probs_map,
@@ -125,8 +109,6 @@ def process_tile_detection_masks(
     inflamm_points = []
     lymph_points = []
     mono_points = []
-    baseline_mpp = 0.24199951445730394
-    scale_factor = 1.0
 
     for region in inflamm_stats:
         centroid = region["centroid"]
@@ -140,8 +122,8 @@ def process_tile_detection_masks(
         r1 = r + y_start
 
         prediction_record = {
-            "x": int(np.round(c1 * scale_factor)),
-            "y": int(np.round(r1 * scale_factor)),
+            "x":c1,
+            "y":r1,
             "type": "inflammatory",
             "prob": float(confidence),
         }
@@ -160,8 +142,8 @@ def process_tile_detection_masks(
         r1 = r + y_start
 
         prediction_record = {
-            "x": int(np.round(c1 * scale_factor)),
-            "y": int(np.round(r1 * scale_factor)),
+            "x": c1,
+            "y": r1,
             "type": "lymphocyte",
             "prob": float(confidence),
         }
@@ -180,8 +162,8 @@ def process_tile_detection_masks(
         r1 = r + y_start
 
         prediction_record = {
-            "x": int(np.round(c1 * scale_factor)),
-            "y": int(np.round(r1 * scale_factor)),
+            "x": c1,
+            "y": r1,
             "type": "monocyte",
             "prob": float(confidence),
         }
@@ -233,15 +215,13 @@ def post_process_detection(
         resolution=8.0, units="mpp"
     )
     binary_mask = mask_thumbnail[:, :, 0]
-    # Create tile extractor
-    resolution = config.resolution
-    units = config.units
 
-    # Detection in tile
+
     detected_inflamm_points: list[dict] = []
-    detected_lymph_points = []
-    detected_mono_points = []
+    detected_lymph_points: list[dict] = []
+    detected_mono_points: list[dict] = []
 
+    # Load tile detection results
     raw_prediction_dir = os.path.join(config.output_dir, "raw_prob_maps")
     data_path = os.path.join(raw_prediction_dir, f"{wsi_without_ext}.pkl")
     with open(data_path, "rb") as f:
