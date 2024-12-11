@@ -33,9 +33,11 @@ from optimization.raw_prediction import wsi_raw_prediction
 def cross_validation(fold_number: int = 1):
     detector_model_name = "convnext_base_lizard_512"
     fold = fold_number
-    pprint(f"Making raw prediction using {detector_model_name} fold {fold}")
+    pprint(
+        f"Making raw prediction using {detector_model_name} fold {fold}"
+    )
     model_res = 0
-    units='level'
+    units = "level"
 
     pprint(f"Detect at {model_res} {units}")
 

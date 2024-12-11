@@ -11,8 +11,9 @@ from multiprocessing import Pool
 from pprint import pprint
 
 import torch
-from tqdm.auto import tqdm
 from tiatoolbox.wsicore.wsireader import WSIReader
+from tqdm.auto import tqdm
+
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     detection_to_annotation_store,
@@ -35,9 +36,11 @@ from optimization.post_process import post_process_detection
 def cross_validation(fold_number: int = 1):
     detector_model_name = "convnext_base_lizard_512"
     fold = fold_number
-    pprint(f"Post-processing raw prediction from {detector_model_name}")
+    pprint(
+        f"Post-processing raw prediction from {detector_model_name}"
+    )
     model_res = 0
-    units='level'
+    units = "level"
     pprint(f"Detect at {model_res} {units}")
 
     config = PredictionIOConfig(
@@ -111,19 +114,19 @@ def process_one_wsi(config, detectors, wsi_name):
     print(f"{len(mono_records)} final detected mono")
 
     save_detection_records_monkey(
-            config,
-            inflamm_records,
-            lymph_records,
-            mono_records,
-            wsi_id=wsi_id,
-            save_mpp=base_mpp,
-        )
+        config,
+        inflamm_records,
+        lymph_records,
+        mono_records,
+        wsi_id=wsi_id,
+        save_mpp=base_mpp,
+    )
 
     print("finished")
 
 
 if __name__ == "__main__":
-    folds = [1,2,3,4,5]
+    folds = [1, 2, 3, 4, 5]
 
     for i in folds:
         pprint(f"Fold {i}")

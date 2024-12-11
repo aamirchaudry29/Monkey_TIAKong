@@ -607,11 +607,17 @@ def filter_detection_with_mask(
         bottom_left = (x_in_mask - margin, y_in_mask + margin)
         bottom_right = (x_in_mask + margin, y_in_mask + margin)
         indices = [
-            (int(round(xi)), int(round(yi))) 
-            for xi, yi in [top_left, top_right, bottom_left, bottom_right]
+            (int(round(xi)), int(round(yi)))
+            for xi, yi in [
+                top_left,
+                top_right,
+                bottom_left,
+                bottom_right,
+            ]
         ]
         valid_indices = [
-            (xi, yi) for xi, yi in indices
+            (xi, yi)
+            for xi, yi in indices
             if 0 <= xi < mask.shape[1] and 0 <= yi < mask.shape[0]
         ]
         ones_count = sum(mask[yi, xi] for xi, yi in valid_indices)
@@ -625,7 +631,7 @@ def filter_detection_with_mask(
         # try:
         #     ones_count = sum(mask[])
         #     if mask[y_in_mask, x_in_mask] != 0:
-        #         filtered_records.append(record)     
+        #         filtered_records.append(record)
         #     else:
         #         continue
         # except IndexError:

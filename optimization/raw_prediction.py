@@ -92,15 +92,24 @@ def detection_in_tile(
                 head_2_logits = logits_pred[:, 1, :, :]
                 head_3_logits = logits_pred[:, 2, :, :]
 
-                _inflamm_prob = activation_dict["head_1"](
-                    head_1_logits
-                ).detach().cpu().numpy()
-                _lymph_prob = activation_dict["head_2"](
-                    head_2_logits
-                ).detach().cpu().numpy()
-                _mono_prob = activation_dict["head_3"](
-                    head_3_logits
-                ).detach().cpu().numpy()
+                _inflamm_prob = (
+                    activation_dict["head_1"](head_1_logits)
+                    .detach()
+                    .cpu()
+                    .numpy()
+                )
+                _lymph_prob = (
+                    activation_dict["head_2"](head_2_logits)
+                    .detach()
+                    .cpu()
+                    .numpy()
+                )
+                _mono_prob = (
+                    activation_dict["head_3"](head_3_logits)
+                    .detach()
+                    .cpu()
+                    .numpy()
+                )
 
                 inflamm_prob += _inflamm_prob
                 lymph_prob += _lymph_prob

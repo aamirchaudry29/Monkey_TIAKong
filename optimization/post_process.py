@@ -122,8 +122,8 @@ def process_tile_detection_masks(
         r1 = r + y_start
 
         prediction_record = {
-            "x":c1,
-            "y":r1,
+            "x": c1,
+            "y": r1,
             "type": "inflammatory",
             "prob": float(confidence),
         }
@@ -216,14 +216,17 @@ def post_process_detection(
     )
     binary_mask = mask_thumbnail[:, :, 0]
 
-
     detected_inflamm_points: list[dict] = []
     detected_lymph_points: list[dict] = []
     detected_mono_points: list[dict] = []
 
     # Load tile detection results
-    raw_prediction_dir = os.path.join(config.output_dir, "raw_prob_maps")
-    data_path = os.path.join(raw_prediction_dir, f"{wsi_without_ext}.pkl")
+    raw_prediction_dir = os.path.join(
+        config.output_dir, "raw_prob_maps"
+    )
+    data_path = os.path.join(
+        raw_prediction_dir, f"{wsi_without_ext}.pkl"
+    )
     with open(data_path, "rb") as f:
         data = pickle.load(f)
     tile_predictions = data["tile_predictions"]

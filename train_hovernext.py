@@ -36,13 +36,8 @@ run_config = {
         "head_2": "Jaccard_Loss",
         "head_3": "Jaccard_Loss",
     },
-<<<<<<< HEAD
     "loss_pos_weight": 1.0,
-    "peak_thresholds": [0.5, 0.5, 0.5], # [inflamm, lymph, mono]
-=======
-    "loss_pos_weight": 1000.0,
-    "peak_thresholds": [75, 75, 75],  # [inflamm, lymph, mono]
->>>>>>> 80be0b96a2257486eb03b8edff47c9f32a73c7b5
+    "peak_thresholds": [0.5, 0.5, 0.5],  # [inflamm, lymph, mono]
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",

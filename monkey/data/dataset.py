@@ -708,7 +708,9 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
         patch_stats = json.load(file)
 
     class_instances = []
-    total_class_pixels = np.array([0, 0, 0])  # [negatives, lymph, mono]
+    total_class_pixels = np.array(
+        [0, 0, 0]
+    )  # [negatives, lymph, mono]
 
     patch_area = 512 * 512
     lymph_size = 16 * 16
@@ -750,8 +752,12 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
         background_area = patch_area - lymph_area - mono_area
 
         # Normalize patch class areas
-        patch_class_areas = np.array([background_area, lymph_area, mono_area])
-        patch_class_ratios = patch_class_areas / np.sum(patch_class_areas)
+        patch_class_areas = np.array(
+            [background_area, lymph_area, mono_area]
+        )
+        patch_class_ratios = patch_class_areas / np.sum(
+            patch_class_areas
+        )
         # Weighted sum of patch class contributions
         patch_weight = np.sum(patch_class_ratios * class_weights)
         patch_weights.append(patch_weight)
