@@ -25,16 +25,16 @@ from monkey.train.train_multitask_cell_detection import (
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
     "model_name": "convnext_base_lizard_512",
-    "val_fold": 3,  # [1-5]
+    "val_fold": 2,  # [1-5]
     "batch_size": 24,
     "optimizer": "AdamW",
-    "learning_rate": 0.0004,
+    "learning_rate": 0.0001,
     "weight_decay": 0.01,
-    "epochs": 30,
+    "epochs": 70,
     "loss_function": {
-        "head_1": "Jaccard_Loss",
-        "head_2": "Jaccard_Loss",
-        "head_3": "Jaccard_Loss",
+        "head_1": "Weighted_BCE_Jaccard",
+        "head_2": "Weighted_BCE_Jaccard",
+        "head_3": "Weighted_BCE_Jaccard",
     },
     "loss_pos_weight": 1.0,
     "peak_thresholds": [0.5, 0.5, 0.5],  # [inflamm, lymph, mono]
@@ -48,7 +48,7 @@ run_config = {
     "include_background_channel": False,
     "disk_radius": 11,
     "regression_map": False,
-    "augmentation_prob": 0.85,
+    "augmentation_prob": 0.9,
     "unfreeze_epoch": 20,
 }
 pprint(run_config)
@@ -110,9 +110,9 @@ loss_fn_dict = {
         run_config["loss_function"]["head_3"]
     ),
 }
-# loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
-# loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
-# loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
 
 activation_fn_dict = {
     "head_1": get_activation_function(

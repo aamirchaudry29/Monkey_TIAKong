@@ -34,7 +34,7 @@ from optimization.post_process import post_process_detection
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "convnext_base_lizard_512"
+    detector_model_name = "multihead_unet_512"
     fold = fold_number
     pprint(
         f"Post-processing raw prediction from {detector_model_name}"
@@ -50,10 +50,10 @@ def cross_validation(fold_number: int = 1):
         patch_size=512,
         resolution=model_res,
         units=units,
-        stride=480,
-        thresholds=[0.3, 0.3, 0.3],
+        stride=472,
+        thresholds=[0.75, 0.75, 0.75],
         min_distances=[11, 11, 11],
-        nms_boxes=[20, 11, 20],
+        nms_boxes=[20, 16, 20],
         nms_overlap_thresh=0.5,
     )
     print(f"thresholds: {config.thresholds}")

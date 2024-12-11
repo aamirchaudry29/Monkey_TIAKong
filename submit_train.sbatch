@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --job-name=convnext_unet # Job name for tracking
+#SBATCH --job-name=monkey_train # Job name for tracking
 #SBATCH --partition=dgxa100  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=20      # Number of CPU threads used by your job
@@ -23,6 +23,7 @@ echo "done"
 ## Run Python Program ##
 cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
 echo "starting training script"
+nvidia-smi
 
 # python3.11 train_detection.py
 # python3.11 train_multihead_unet.py

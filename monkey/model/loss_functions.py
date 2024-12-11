@@ -340,10 +340,10 @@ class Weighted_BCE_Jaccard_Loss(Loss_Function):
 
     def compute_loss(self, input: Tensor, target: Tensor):
         bce = self.bce_loss.compute_loss(input, target)
-        dice = jaccard_loss(
+        jaccard = jaccard_loss(
             input.float(), target.float(), multiclass=self.multiclass
         )
-        return bce + dice
+        return bce + jaccard
 
 
 class Weighted_CE_Dice_Loss(Loss_Function):

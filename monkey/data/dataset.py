@@ -765,7 +765,7 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
         # weight_vector = class_instances[i] / pixel_class_sum
         # patch_weights.append(np.sum(weight_vector))
 
-    print(patch_weights)
+    # print(patch_weights)
     weighted_sampler = WeightedRandomSampler(
         weights=patch_weights,
         num_samples=len(file_ids),

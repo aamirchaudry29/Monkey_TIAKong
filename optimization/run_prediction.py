@@ -31,7 +31,7 @@ from optimization.raw_prediction import wsi_raw_prediction
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "convnext_base_lizard_512"
+    detector_model_name = "multihead_unet_512"
     fold = fold_number
     pprint(
         f"Making raw prediction using {detector_model_name} fold {fold}"
@@ -48,10 +48,10 @@ def cross_validation(fold_number: int = 1):
         patch_size=512,
         resolution=model_res,
         units=units,
-        stride=480,
-        thresholds=[0.5, 0.5, 0.5],
+        stride=472,
+        thresholds=[0.75, 0.75, 0.75],
         min_distances=[11, 11, 11],
-        nms_boxes=[11, 11, 11],
+        nms_boxes=[20, 16, 20],
         nms_overlap_thresh=0.7,
     )
     # config = PredictionIOConfig(
@@ -77,22 +77,22 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_30.pth",
         # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
         # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
-        # model = get_multihead_efficientunet(
-        #     pretrained=False, out_channels=[1, 1, 1]
-        # )
-        # model = get_custom_hovernext(pretrained=False)
-        model = get_custom_hovernext(
-            enc="convnextv2_base.fcmae_ft_in22k_in1k",
-            pretrained=False,
-            use_batchnorm=True,
-            attention_type="scse",
+        model = get_multihead_efficientunet(
+            pretrained=False, out_channels=[1, 1, 1]
         )
+        # model = get_custom_hovernext(pretrained=False)
+        # model = get_custom_hovernext(
+        #     enc="convnextv2_base.fcmae_ft_in22k_in1k",
+        #     pretrained=False,
+        #     use_batchnorm=True,
+        #     attention_type="scse",
+        # )
         checkpoint = torch.load(weight_path)
         print(f"epoch: {checkpoint['epoch']}")
         model.load_state_dict(checkpoint["model"])

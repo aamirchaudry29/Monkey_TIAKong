@@ -22,20 +22,20 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "multihead_unet_det_20x",
-    "out_channels": [1, 1, 1],
-    "val_fold": 1,  # [1-5]
-    "batch_size": 64,
+    "model_name": "multihead_unet_512",
+    "val_fold": 2,  # [1-5]
+    "batch_size": 16,
     "optimizer": "AdamW",
     "learning_rate": 0.0004,
     "weight_decay": 0.01,
     "epochs": 30,
     "loss_function": {
-        "head_1": "BCE_Dice",
-        "head_2": "BCE_Dice",
-        "head_3": "BCE_Dice",
+        "head_1": "Weighted_BCE_Jaccard",
+        "head_2": "Weighted_BCE_Jaccard",
+        "head_3": "Weighted_BCE_Jaccard",
     },
     "loss_pos_weight": 1.0,
+    "peak_thresholds": [0.5, 0.5, 0.5],  # [inflamm, lymph, mono]
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
@@ -43,27 +43,31 @@ run_config = {
         "head_3": "sigmoid",
     },
     "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
+    "include_background_channel": False,
+    "disk_radius": 11,
+    "regression_map": False,
+    "augmentation_prob": 0.85,
+    "unfreeze_epoch": 5,
 }
 pprint(run_config)
 
 # Specify IO config
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
-    dataset_dir="/mnt/lab-share/Monkey/patches_256_20x/",
+    dataset_dir="/mnt/lab-share/Monkey/patches_512/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
-if run_config["use_nuclick_masks"]:
-    # Use NuClick masks
-    IOconfig.set_mask_dir(
-        "/mnt/lab-share/Monkey/nuclick_masks_processed"
-    )
+
 
 
 # Create model
 model = get_multihead_efficientunet(
-    out_channels=run_config["out_channels"], pretrained=True
+    out_channels=[1,1,1], pretrained=True
 )
 model.to("cuda")
+device = torch.device('cuda:0')
+free, total = torch.cuda.mem_get_info(device)
+print(f"GPU memory free: {free/1024**2:.2f} MB")
 # -----------------------------------------------------------------------
 
 
@@ -80,7 +84,12 @@ train_loader, val_loader = get_detection_dataloaders(
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
-    disk_radius=5,
+    include_background_channel=run_config[
+        "include_background_channel"
+    ],
+    disk_radius=run_config["disk_radius"],
+    augmentation_prob=run_config["augmentation_prob"],
+    regression_map=run_config["regression_map"],
 )
 
 
@@ -97,10 +106,9 @@ loss_fn_dict = {
         run_config["loss_function"]["head_3"]
     ),
 }
-# loss_fn_dict["head_1"].set_multiclass(True)
-# loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
-# loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
-# loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
+loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
 
 activation_fn_dict = {
     "head_1": get_activation_function(
@@ -121,7 +129,7 @@ optimizer = torch.optim.AdamW(
     weight_decay=run_config["weight_decay"],
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="min", factor=0.1, patience=10
+    optimizer, mode="min", factor=0.1, patience=5
 )
 
 
