@@ -711,15 +711,16 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
     total_class_pixels = np.array([0, 0, 0])  # [negatives, lymph, mono]
 
     patch_area = 512 * 512
-    cell_area = cell_radius * cell_radius
+    lymph_size = 16 * 16
+    mono_size = 20 * 20
 
     # Calculate total pixel per class
     for id in file_ids:
         stats = patch_stats[id]
         lymph_count = stats["lymph_count"]
-        lymph_area = lymph_count * cell_area
+        lymph_area = lymph_count * lymph_size
         mono_count = stats["mono_count"]
-        mono_area = mono_count * cell_area
+        mono_area = mono_count * mono_size
         background_area = patch_area - lymph_area - mono_area
 
         total_class_pixels += [background_area, lymph_area, mono_area]
@@ -729,7 +730,7 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
 
     # Calculate class weights
     total_pixels = np.sum(total_class_pixels)
-    class_weights = total_pixels / total_class_pixels
+    class_weights = np.log(total_pixels / total_class_pixels)
 
     # class_instances = np.array(class_instances)
     # pixel_class_sum = np.sum(class_instances, axis=0)
@@ -744,8 +745,8 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
         stats = patch_stats[id]
         lymph_count = stats["lymph_count"]
         mono_count = stats["mono_count"]
-        lymph_area = lymph_count * cell_area
-        mono_area = mono_count * cell_area
+        lymph_area = lymph_count * lymph_size
+        mono_area = mono_count * mono_size
         background_area = patch_area - lymph_area - mono_area
 
         # Normalize patch class areas
@@ -758,6 +759,7 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
         # weight_vector = class_instances[i] / pixel_class_sum
         # patch_weights.append(np.sum(weight_vector))
 
+    print(patch_weights)
     weighted_sampler = WeightedRandomSampler(
         weights=patch_weights,
         num_samples=len(file_ids),
