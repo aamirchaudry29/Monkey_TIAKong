@@ -1,9 +1,13 @@
 # Singular pipeline for lymphocyte and monocyte detection
 # Detect and classify cells using a single model
 import sys
-sys.path.insert(0, "/home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/")
+
+sys.path.insert(
+    0, "/home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/"
+)
 
 import os
+from multiprocessing import Pool
 from pprint import pprint
 
 import torch
@@ -13,6 +17,7 @@ from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     detection_to_annotation_store,
     extract_id,
+    normalize_detection_probs,
     open_json_file,
     save_detection_records_monkey,
 )
@@ -25,8 +30,7 @@ from monkey.model.hovernext.model import (
     get_custom_hovernext,
 )
 from optimization.post_process import post_process_detection
-from multiprocessing import Pool
-from monkey.data.data_utils import normalize_detection_probs
+
 
 def cross_validation(fold_number: int = 1):
     detector_model_name = "convnext_base_lizard_512"
@@ -73,12 +77,16 @@ def cross_validation(fold_number: int = 1):
 
     print(val_wsi_files)
 
-
-
     detectors = []
 
     with Pool(20) as p:
-        p.starmap(process_one_wsi, [(config, detectors, wsi_name) for wsi_name in val_wsi_files])
+        p.starmap(
+            process_one_wsi,
+            [
+                (config, detectors, wsi_name)
+                for wsi_name in val_wsi_files
+            ],
+        )
 
 
 def process_one_wsi(config, detectors, wsi_name):
@@ -91,9 +99,9 @@ def process_one_wsi(config, detectors, wsi_name):
         input_res=0, input_unit="level", output_unit="mpp"
     )[0]
 
-    detection_records= post_process_detection(
-            wsi_name, mask_name, config, detectors
-        )
+    detection_records = post_process_detection(
+        wsi_name, mask_name, config, detectors
+    )
 
     inflamm_records = detection_records["inflamm_records"]
     lymph_records = detection_records["lymph_records"]
@@ -101,7 +109,7 @@ def process_one_wsi(config, detectors, wsi_name):
     print(f"{len(inflamm_records)} final detected inflamm")
     print(f"{len(lymph_records)} final detected lymph")
     print(f"{len(mono_records)} final detected mono")
-        
+
     save_detection_records_monkey(
             config,
             inflamm_records,

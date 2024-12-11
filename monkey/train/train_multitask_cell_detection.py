@@ -130,7 +130,7 @@ def hovernext_validate_one_epoch(
                 inflamm_prob=pred_1,
                 lymph_prob=pred_2,
                 mono_prob=pred_3,
-                thresholds=run_config['peak_thresholds'],
+                thresholds=run_config["peak_thresholds"],
                 min_distances=[20, 16, 20],
             )
             overall_pred_binary = binary_masks["inflamm_mask"]

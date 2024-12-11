@@ -1,7 +1,10 @@
 # Singular pipeline for lymphocyte and monocyte detection
 # Detect and classify cells using a single model
 import sys
-sys.path.insert(0, "/home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/")
+
+sys.path.insert(
+    0, "/home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong/"
+)
 
 import os
 from pprint import pprint
@@ -99,15 +102,12 @@ def cross_validation(fold_number: int = 1):
         wsi_id = extract_id(wsi_name)
         mask_name = f"{wsi_id}_mask.tif"
 
-        wsi_raw_prediction(
-            wsi_name, mask_name, config, detectors
-        )
-
+        wsi_raw_prediction(wsi_name, mask_name, config, detectors)
 
         print("finished")
 
 
 if __name__ == "__main__":
-    for i in range(3,6):
+    for i in range(3, 6):
         pprint(f"Fold {i}")
         cross_validation(i)

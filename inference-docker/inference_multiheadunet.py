@@ -21,8 +21,7 @@ MODEL_DIR = Path("/opt/ml/model")
 def load_detectors() -> list[torch.nn.Module]:
     detectors = []
     detector_weight_paths = [
-        os.path.join(MODEL_DIR, "2.pth"),
-        os.path.join(MODEL_DIR, "4.pth"),
+        os.path.join(MODEL_DIR, "best.pth"),
     ]
     for weight_path in detector_weight_paths:
         detector = get_custom_hovernext(
@@ -78,8 +77,10 @@ def detect():
         resolution=model_mpp,
         units="mpp",
         stride=224,
-        thresholds=[0.5, 0.5, 0.5],
-        min_distances=[11, 7, 13],
+        thresholds=[0.3, 0.3, 0.3],
+        min_distances=[11, 9, 13],
+        nms_boxes=[20, 16, 20],
+        nms_overlap_thresh=0.75,
     )
 
     detectors = load_detectors()

@@ -36,8 +36,13 @@ run_config = {
         "head_2": "Jaccard_Loss",
         "head_3": "Jaccard_Loss",
     },
+<<<<<<< HEAD
     "loss_pos_weight": 1.0,
     "peak_thresholds": [0.5, 0.5, 0.5], # [inflamm, lymph, mono]
+=======
+    "loss_pos_weight": 1000.0,
+    "peak_thresholds": [75, 75, 75],  # [inflamm, lymph, mono]
+>>>>>>> 80be0b96a2257486eb03b8edff47c9f32a73c7b5
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
@@ -93,7 +98,7 @@ train_loader, val_loader = get_detection_dataloaders(
     ],
     disk_radius=run_config["disk_radius"],
     augmentation_prob=run_config["augmentation_prob"],
-    regression_map=run_config['regression_map']
+    regression_map=run_config["regression_map"],
 )
 
 
