@@ -712,7 +712,7 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
         [0, 0, 0]
     )  # [negatives, lymph, mono]
 
-    patch_area = 512 * 512
+    patch_area = 256 * 256
     lymph_size = 16 * 16
     mono_size = 20 * 20
 

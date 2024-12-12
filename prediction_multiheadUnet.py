@@ -7,6 +7,7 @@ from pprint import pprint
 import torch
 from tqdm.auto import tqdm
 
+from tiatoolbox.wsicore.wsireader import WSIReader
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     detection_to_annotation_store,
@@ -26,25 +27,25 @@ from prediction.multihead_unet_prediction import wsi_detection_in_mask
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "hovernext_det_large"
+    detector_model_name = "multihead_unet_512"
     fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
-    model_mpp = 0.24199951445730394
-    baseline_mpp = 0.24199951445730394
-    pprint(f"Detect at {model_mpp} mpp")
+    model_res = 0
+    units = "level"
+    pprint(f"Detect at {model_res} {units}")
 
     config = PredictionIOConfig(
         wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
         mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
         output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
-        patch_size=256,
-        resolution=model_mpp,
-        units="mpp",
-        stride=224,
+        patch_size=512,
+        resolution=model_res,
+        units=units,
+        stride=472,
         thresholds=[0.5, 0.5, 0.5],
-        min_distances=[11, 9, 13],
-        nms_boxes=[11, 9, 13],
-        nms_overlap_thresh=0.5,
+        min_distances=[11, 11, 11],
+        nms_boxes=[11, 11, 11],
+        nms_overlap_thresh=0.75,
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -69,22 +70,22 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_30.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_30.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_30.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
-        # model = get_multihead_efficientunet(
-        #     pretrained=False, out_channels=[1, 1, 1]
-        # )
-        # model = get_custom_hovernext(pretrained=False)
-        model = get_custom_hovernext(
-            enc="convnextv2_large.fcmae_ft_in22k_in1k",
-            pretrained=False,
-            # use_batchnorm=True,
-            # attention_type="scse",
+        model = get_multihead_efficientunet(
+            pretrained=False, out_channels=[1, 1, 1]
         )
+        # model = get_custom_hovernext(pretrained=False)
+        # model = get_custom_hovernext(
+        #     enc="convnextv2_large.fcmae_ft_in22k_in1k",
+        #     pretrained=False,
+        #     # use_batchnorm=True,
+        #     # attention_type="scse",
+        # )
         checkpoint = torch.load(weight_path)
         model.load_state_dict(checkpoint["model"])
         model.eval()
@@ -120,12 +121,20 @@ def cross_validation(fold_number: int = 1):
 
         # Save result in Monkey Challenge format
         # L2 lymphocyte vs monocyte detection
+
+        wsi_dir = config.wsi_dir
+        wsi_path = os.path.join(wsi_dir, wsi_name)
+        wsi_reader = WSIReader.open(wsi_path)
+        base_mpp = wsi_reader.convert_resolution_units(
+            input_res=0, input_unit="level", output_unit="mpp"
+        )[0]
         save_detection_records_monkey(
             config,
             inflamm_records,
             lymph_records,
             mono_records,
             wsi_id=wsi_id,
+            save_mpp=base_mpp,
         )
         print("finished")
 

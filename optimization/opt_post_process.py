@@ -34,7 +34,7 @@ from optimization.post_process import post_process_detection
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "multihead_unet_512"
+    detector_model_name = "hovernext_det_large"
     fold = fold_number
     pprint(
         f"Post-processing raw prediction from {detector_model_name}"
@@ -47,11 +47,11 @@ def cross_validation(fold_number: int = 1):
         wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
         mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
         output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
-        patch_size=512,
+        patch_size=256,
         resolution=model_res,
         units=units,
-        stride=472,
-        thresholds=[0.75, 0.75, 0.75],
+        stride=224,
+        thresholds=[0.3, 0.3, 0.3],
         min_distances=[11, 11, 11],
         nms_boxes=[20, 16, 20],
         nms_overlap_thresh=0.5,

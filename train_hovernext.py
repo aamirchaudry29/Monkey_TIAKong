@@ -24,13 +24,13 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "convnext_base_lizard_512",
-    "val_fold": 2,  # [1-5]
-    "batch_size": 24,
+    "model_name": "convnext_base_lizard_256",
+    "val_fold": 5,  # [1-5]
+    "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0001,
     "weight_decay": 0.01,
-    "epochs": 70,
+    "epochs": 50,
     "loss_function": {
         "head_1": "Weighted_BCE_Jaccard",
         "head_2": "Weighted_BCE_Jaccard",
@@ -56,7 +56,7 @@ pprint(run_config)
 # Specify IO config
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
-    dataset_dir="/mnt/lab-share/Monkey/patches_512/",
+    dataset_dir="/mnt/lab-share/Monkey/patches_256/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
 

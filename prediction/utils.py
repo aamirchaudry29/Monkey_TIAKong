@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from skimage.feature import peak_local_max
 
-from monkey.data.data_utils import morphological_post_processing
+from monkey.data.data_utils import morphological_post_processing, dilate_mask
 
 
 def multihead_det_post_process(
@@ -31,7 +31,7 @@ def multihead_det_post_process(
         inflamm_prob,
         min_distance=min_distances[0],
         threshold_abs=thresholds[0],
-        exclude_border=True,
+        exclude_border=False,
     )
     inflamm_output_mask[
         inflamm_coordinates[:, 0], inflamm_coordinates[:, 1]
@@ -41,7 +41,7 @@ def multihead_det_post_process(
         lymph_prob,
         min_distance=min_distances[1],
         threshold_abs=thresholds[1],
-        exclude_border=True,
+        exclude_border=False,
     )
     lymph_output_mask[
         lymph_coordinates[:, 0], lymph_coordinates[:, 1]
@@ -51,16 +51,21 @@ def multihead_det_post_process(
         mono_prob,
         min_distance=min_distances[2],
         threshold_abs=thresholds[2],
-        exclude_border=True,
+        exclude_border=False,
     )
     mono_output_mask[
         mono_coordinates[:, 0], mono_coordinates[:, 1]
     ] = 1
 
+    # return {
+    #     "inflamm_mask": inflamm_output_mask,
+    #     "lymph_mask": lymph_output_mask,
+    #     "mono_mask": mono_output_mask,
+    # }
     return {
-        "inflamm_mask": inflamm_output_mask,
-        "lymph_mask": lymph_output_mask,
-        "mono_mask": mono_output_mask,
+        "inflamm_mask": dilate_mask(inflamm_output_mask, 3),
+        "lymph_mask": dilate_mask(lymph_output_mask, 3),
+        "mono_mask": dilate_mask(mono_output_mask, 3),
     }
 
 
