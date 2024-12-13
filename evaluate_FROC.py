@@ -19,7 +19,7 @@ def compute_FROC(fold: int = 1):
     # )
 
     FOLD = fold
-    model_name = "hovernext_det_large"
+    model_name = "convnext_tiny_pannuke_256_experiment"
     PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     # PREDICT_DIR = f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{FOLD}"
     SPACING_LEVEL0 = 0.24199951445730394
@@ -179,8 +179,8 @@ def compute_FROC(fold: int = 1):
 
 
 if __name__ == "__main__":
-    folds = [1, 2, 3, 4, 5]
-    # folds = [1]
+    # folds = [1, 2, 3, 4, 5]
+    folds = [1]
     with Pool(5) as p:
         results = p.map(compute_FROC, folds)
 
@@ -188,12 +188,22 @@ if __name__ == "__main__":
     inflamm_froc_sum = 0.0
     lymph_froc_sum = 0.0
     mono_froc_sum = 0.0
+    # Sum F1 scores across folds
+    inflamm_f1_sum = 0.0
+    lymph_f1_sum = 0.0
+    mono_f1_sum = 0.0
     for result in results:
         pprint(result)
         inflamm_froc_sum += result["Inflamm FROC"]
         lymph_froc_sum += result["Lymphocytes FROC"]
         mono_froc_sum += result["Monocytes FROC"]
+        inflamm_f1_sum += result["Inflamm F1"]
+        lymph_f1_sum += result["Lymphocytes F1"]
+        mono_f1_sum += result["Monocytes F1"]
 
     pprint(f"Avg inflamm FROC {inflamm_froc_sum /  len(folds)}")
     pprint(f"Avg lymph FROC {lymph_froc_sum /  len(folds)}")
     pprint(f"Avg mono FROC {mono_froc_sum /  len(folds)}")
+    pprint(f"Avg inflamm F1 {inflamm_f1_sum /  len(folds)}")
+    pprint(f"Avg lymph F1 {lymph_f1_sum /  len(folds)}")
+    pprint(f"Avg mono F1 {mono_f1_sum /  len(folds)}")

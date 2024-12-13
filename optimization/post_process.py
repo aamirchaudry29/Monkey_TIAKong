@@ -212,7 +212,7 @@ def post_process_detection(
     print(f"baseline mpp = {base_mpp}")
     # Get ROI mask
     mask_thumbnail = mask_reader.slide_thumbnail(
-        resolution=8.0, units="mpp"
+        resolution=2.0, units="mpp"
     )
     binary_mask = mask_thumbnail[:, :, 0]
 
@@ -262,19 +262,19 @@ def post_process_detection(
         detected_inflamm_points,
         binary_mask,
         points_mpp=base_mpp,
-        mask_mpp=8,
+        mask_mpp=2,
     )
     filtered_lymph_records = filter_detection_with_mask(
         detected_lymph_points,
         binary_mask,
         points_mpp=base_mpp,
-        mask_mpp=8,
+        mask_mpp=2,
     )
     filtered_mono_records = filter_detection_with_mask(
         detected_mono_points,
         binary_mask,
         points_mpp=base_mpp,
-        mask_mpp=8,
+        mask_mpp=2,
     )
 
     print(f"Inflamm before nms: {len(filtered_inflamm_records)}")

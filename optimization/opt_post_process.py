@@ -34,7 +34,7 @@ from optimization.post_process import post_process_detection
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "hovernext_det_large"
+    detector_model_name = "convnext_tiny_pannuke_256"
     fold = fold_number
     pprint(
         f"Post-processing raw prediction from {detector_model_name}"

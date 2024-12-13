@@ -163,7 +163,7 @@ def wsi_raw_prediction(
     print(f"baseline mpp = {base_mpp}")
     # Get ROI mask
     mask_thumbnail = mask_reader.slide_thumbnail(
-        resolution=8.0, units="mpp"
+        resolution=2.0, units="mpp"
     )
     binary_mask = mask_thumbnail[:, :, 0]
     # Create tile extractor

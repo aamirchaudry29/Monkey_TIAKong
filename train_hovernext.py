@@ -24,7 +24,7 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "convnext_base_lizard_256",
+    "model_name": "convnext_tiny_pannuke_256_experiment",
     "val_fold": 5,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
@@ -48,8 +48,9 @@ run_config = {
     "include_background_channel": False,
     "disk_radius": 11,
     "regression_map": False,
-    "augmentation_prob": 0.9,
-    "unfreeze_epoch": 20,
+    "augmentation_prob": 0.95,
+    "unfreeze_epoch": 1,
+    "strong_augmentation": True
 }
 pprint(run_config)
 
@@ -63,12 +64,12 @@ IOconfig = TrainingIOConfig(
 
 # Create model
 model = get_custom_hovernext(
-    enc="convnextv2_base.fcmae_ft_in22k_in1k",
+    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
     pretrained=True,
     use_batchnorm=True,
     attention_type="scse",
 )
-checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_base_lizard"
+checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
 model.to("cuda")
 model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
 pprint("Encoder weights loaded")
@@ -94,6 +95,7 @@ train_loader, val_loader = get_detection_dataloaders(
     disk_radius=run_config["disk_radius"],
     augmentation_prob=run_config["augmentation_prob"],
     regression_map=run_config["regression_map"],
+    strong_augmentation=run_config["strong_augmentation"],
 )
 
 
@@ -149,6 +151,7 @@ run = wandb.init(
     project=f"{run_config['project_name']}_{run_config['model_name']}",
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
+    notes="Strong augmentation"
 )
 
 # Start training

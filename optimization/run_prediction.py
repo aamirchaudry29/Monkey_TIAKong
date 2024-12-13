@@ -31,7 +31,7 @@ from optimization.raw_prediction import wsi_raw_prediction
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "hovernext_det_large"
+    detector_model_name = "convnext_tiny_pannuke_256"
     fold = fold_number
     pprint(
         f"Making raw prediction using {detector_model_name} fold {fold}"
@@ -48,7 +48,7 @@ def cross_validation(fold_number: int = 1):
         patch_size=256,
         resolution=model_res,
         units=units,
-        stride=224,
+        stride=216,
         thresholds=[0.75, 0.75, 0.75],
         min_distances=[11, 11, 11],
         nms_boxes=[20, 16, 20],
@@ -77,9 +77,9 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_50.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_50.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
@@ -88,10 +88,10 @@ def cross_validation(fold_number: int = 1):
         # )
         # model = get_custom_hovernext(pretrained=False)
         model = get_custom_hovernext(
-            enc="convnextv2_large.fcmae_ft_in22k_in1k",
+            enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
             pretrained=False,
-            # use_batchnorm=True,
-            # attention_type="scse",
+            use_batchnorm=True,
+            attention_type="scse",
         )
         checkpoint = torch.load(weight_path)
         print(f"epoch: {checkpoint['epoch']}")
@@ -110,6 +110,6 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(1, 3):
+    for i in range(5, 6):
         pprint(f"Fold {i}")
         cross_validation(i)

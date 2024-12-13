@@ -264,7 +264,7 @@ def get_custom_hovernext(
         weights=pretrained,
         output_stride=32,
         drop_rate=0.5,
-        drop_path_rate=0.25,
+        drop_path_rate=0.5,
     )
     decoder_channels = (256, 128, 64, 32, 16)[:depth]
 
