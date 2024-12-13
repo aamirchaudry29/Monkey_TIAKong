@@ -24,45 +24,50 @@ from monkey.model.hovernext.model import (
     get_custom_hovernext,
 )
 from prediction.multihead_unet_prediction import wsi_detection_in_mask
+from prediction.multihead_unet_prediction_v2 import wsi_detection_in_mask_v2
 
 
 def cross_validation(fold_number: int = 1):
-    detector_model_name = "multihead_unet_512"
+    detector_model_name = "convnext_tiny_pannuke_256"
     fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
     model_res = 0
     units = "level"
     pprint(f"Detect at {model_res} {units}")
 
+    # config = PredictionIOConfig(
+    #     wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
+    #     mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
+    #     output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
+    #     patch_size=256,
+    #     resolution=model_res,
+    #     units=units,
+    #     stride=224,
+    #     thresholds=[0.3, 0.3, 0.3],
+    #     min_distances=[11, 11, 11],
+    #     nms_boxes=[11, 11, 11],
+    #     nms_overlap_thresh=0.5,
+    # )
     config = PredictionIOConfig(
-        wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
-        mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
-        output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
-        patch_size=512,
+        wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
+        mask_dir="/home/u1910100/Downloads/Monkey/images/tissue-masks",
+        output_dir=f"/home/u1910100/Documents/Monkey/local_output/{detector_model_name}/Fold_{fold}",
+        patch_size=256,
         resolution=model_res,
         units=units,
-        stride=472,
-        thresholds=[0.5, 0.5, 0.5],
+        stride=224,
+        thresholds=[0.3, 0.3, 0.3],
         min_distances=[11, 11, 11],
         nms_boxes=[11, 11, 11],
-        nms_overlap_thresh=0.75,
+        nms_overlap_thresh=0.3,
     )
-    # config = PredictionIOConfig(
-    #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
-    #     mask_dir="/home/u1910100/Downloads/Monkey/images/tissue-masks",
-    #     output_dir=f"/home/u1910100/Documents/Monkey/local_output/{detector_model_name}/Fold_{fold}",
-    #     patch_size=256,
-    #     resolution=0,
-    #     units="level",
-    #     stride=216,
-    # )
 
-    split_info = open_json_file(
-        "/mnt/lab-share/Monkey/patches_256/wsi_level_split.json"
-    )
     # split_info = open_json_file(
-    #     "/home/u1910100/Documents/Monkey/patches_256/wsi_level_split.json"
+    #     "/mnt/lab-share/Monkey/patches_256/wsi_level_split.json"
     # )
+    split_info = open_json_file(
+        "/home/u1910100/Documents/Monkey/patches_256/wsi_level_split.json"
+    )
 
     val_wsi_files = split_info[f"Fold_{fold}"]["test_files"]
 
@@ -70,22 +75,22 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_30.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_30.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_30.pth",
+        f"/home/u1910100/Documents/Monkey/runs/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_50.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_30.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_30.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
-        model = get_multihead_efficientunet(
-            pretrained=False, out_channels=[1, 1, 1]
-        )
-        # model = get_custom_hovernext(pretrained=False)
-        # model = get_custom_hovernext(
-        #     enc="convnextv2_large.fcmae_ft_in22k_in1k",
-        #     pretrained=False,
-        #     # use_batchnorm=True,
-        #     # attention_type="scse",
+        # model = get_multihead_efficientunet(
+        #     pretrained=False, out_channels=[1, 1, 1]
         # )
+        # model = get_custom_hovernext(pretrained=False)
+        model = get_custom_hovernext(
+            enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+            pretrained=False,
+            use_batchnorm=True,
+            attention_type="scse",
+        )
         checkpoint = torch.load(weight_path)
         model.load_state_dict(checkpoint["model"])
         model.eval()
@@ -97,7 +102,7 @@ def cross_validation(fold_number: int = 1):
         wsi_id = extract_id(wsi_name)
         mask_name = f"{wsi_id}_mask.tif"
 
-        detection_records = wsi_detection_in_mask(
+        detection_records = wsi_detection_in_mask_v2(
             wsi_name, mask_name, config, detectors
         )
 
@@ -140,6 +145,6 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(3, 6):
+    for i in range(1, 2):
         pprint(f"Fold {i}")
         cross_validation(i)
