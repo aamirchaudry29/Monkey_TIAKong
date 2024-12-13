@@ -182,7 +182,6 @@ def process_tile_detection_masks(
             coordinate_list,
         )[:, :, 0]
 
-
     processed_masks = multihead_det_post_process(
         inflamm_probs_map,
         lymph_probs_map,
@@ -316,7 +315,7 @@ def wsi_detection_in_mask(
     print(f"baseline mpp = {base_mpp}")
     # Get ROI mask
     mask_thumbnail = mask_reader.slide_thumbnail(
-        resolution=8.0, units="mpp"
+        resolution=2.0, units="mpp"
     )
     binary_mask = mask_thumbnail[:, :, 0]
     # Create tile extractor
@@ -373,19 +372,19 @@ def wsi_detection_in_mask(
         detected_inflamm_points,
         binary_mask,
         points_mpp=base_mpp,
-        mask_mpp=8,
+        mask_mpp=2,
     )
     filtered_lymph_records = filter_detection_with_mask(
         detected_lymph_points,
         binary_mask,
         points_mpp=base_mpp,
-        mask_mpp=8,
+        mask_mpp=2,
     )
     filtered_mono_records = filter_detection_with_mask(
         detected_mono_points,
         binary_mask,
         points_mpp=base_mpp,
-        mask_mpp=8,
+        mask_mpp=2,
     )
 
     print(f"Inflamm before nms: {len(filtered_inflamm_records)}")

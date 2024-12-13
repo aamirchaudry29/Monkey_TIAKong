@@ -59,13 +59,12 @@ IOconfig = TrainingIOConfig(
 )
 
 
-
 # Create model
 model = get_multihead_efficientunet(
-    out_channels=[1,1,1], pretrained=True
+    out_channels=[1, 1, 1], pretrained=True
 )
 model.to("cuda")
-device = torch.device('cuda:0')
+device = torch.device("cuda:0")
 free, total = torch.cuda.mem_get_info(device)
 print(f"GPU memory free: {free/1024**2:.2f} MB")
 # -----------------------------------------------------------------------

@@ -2,7 +2,10 @@ import numpy as np
 import torch
 from skimage.feature import peak_local_max
 
-from monkey.data.data_utils import morphological_post_processing, dilate_mask
+from monkey.data.data_utils import (
+    dilate_mask,
+    morphological_post_processing,
+)
 
 
 def multihead_det_post_process(

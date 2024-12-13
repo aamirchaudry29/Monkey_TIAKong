@@ -5,9 +5,9 @@ import os
 from pprint import pprint
 
 import torch
+from tiatoolbox.wsicore.wsireader import WSIReader
 from tqdm.auto import tqdm
 
-from tiatoolbox.wsicore.wsireader import WSIReader
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     detection_to_annotation_store,

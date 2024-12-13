@@ -2,7 +2,9 @@ import json
 import os
 
 import numpy as np
+import torchvision.transforms as T
 import torchvision.transforms.v2 as transforms
+from strong_augment import StrongAugment
 from torch.utils.data import (
     DataLoader,
     Dataset,
@@ -244,6 +246,7 @@ class Multitask_Dataset(Dataset):
         disk_radius: int = 9,
         augmentation_prob: float = 0.9,
         regression_map: bool = False,
+        strong_augmentation: bool = False,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -254,6 +257,7 @@ class Multitask_Dataset(Dataset):
         self.include_background_channel = False
         self.disk_radius = disk_radius
         self.regression_map = regression_map
+        self.strong_augmentation = strong_augmentation
 
         if self.do_augment:
             self.augmentation = get_augmentation(
@@ -261,6 +265,15 @@ class Multitask_Dataset(Dataset):
                 gt_type="mask",
                 aug_prob=augmentation_prob,
             )
+            if self.strong_augmentation:
+                self.trnsf = T.Compose(
+                    [
+                        StrongAugment(
+                            operations=[2, 3, 4],
+                            probabilites=[0.5, 0.3, 0.2],
+                        )
+                    ]
+                )
 
     def __len__(self) -> int:
         return len(self.file_ids)
@@ -296,6 +309,8 @@ class Multitask_Dataset(Dataset):
             binary_mask = masks[0]
             class_mask[0] = masks[1]
             class_mask[1] = masks[2]
+            if self.strong_augmentation:
+                image = self.trnsf(image)
 
         if self.regression_map:
             binary_mask = generate_regression_map(
@@ -525,6 +540,7 @@ def get_detection_dataloaders(
     train_full_dataset: bool = False,
     target_cell_type: str | None = None,
     augmentation_prob: float = 0.8,
+    strong_augmentation: bool = False,
 ):
     """
     Get training and validation dataloaders
@@ -604,6 +620,7 @@ def get_detection_dataloaders(
             disk_radius=disk_radius,
             augmentation_prob=augmentation_prob,
             regression_map=regression_map,
+            strong_augmentation=strong_augmentation,
         )
         val_dataset = Multitask_Dataset(
             IOConfig=IOConfig,
@@ -613,7 +630,6 @@ def get_detection_dataloaders(
             use_nuclick_masks=use_nuclick_masks,
             include_background_channel=include_background_channel,
             disk_radius=disk_radius,
-            augmentation_prob=augmentation_prob,
             regression_map=regression_map,
         )
     else:

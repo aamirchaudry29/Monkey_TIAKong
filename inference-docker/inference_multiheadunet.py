@@ -3,6 +3,7 @@ from glob import glob
 from pathlib import Path
 
 import torch
+from tiatoolbox.wsicore.wsireader import WSIReader
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import save_detection_records_monkey
@@ -21,7 +22,9 @@ MODEL_DIR = Path("/opt/ml/model")
 def load_detectors() -> list[torch.nn.Module]:
     detectors = []
     detector_weight_paths = [
-        os.path.join(MODEL_DIR, "best.pth"),
+        os.path.join(MODEL_DIR, "1.pth"),
+        os.path.join(MODEL_DIR, "2.pth"),
+        os.path.join(MODEL_DIR, "4.pth"),
     ]
     for weight_path in detector_weight_paths:
         detector = get_custom_hovernext(
@@ -67,20 +70,22 @@ def detect():
     print(f"wsi_name={wsi_name}")
     print(f"mask_name={mask_name}")
 
-    model_mpp = 0.24199951445730394
-    baseline_mpp = 0.24199951445730394
+    model_res = 0
+    units = "level"
+
+    print(f"Detect at {model_res} {units}")
     config = PredictionIOConfig(
         wsi_dir=wsi_dir,
         mask_dir=mask_dir,
         output_dir=OUTPUT_PATH,
         patch_size=256,
-        resolution=model_mpp,
-        units="mpp",
+        resolution=model_res,
+        units=units,
         stride=224,
         thresholds=[0.3, 0.3, 0.3],
-        min_distances=[11, 9, 13],
-        nms_boxes=[20, 16, 20],
-        nms_overlap_thresh=0.75,
+        min_distances=[11, 11, 11],
+        nms_boxes=[11, 11, 11],
+        nms_overlap_thresh=0.5,
     )
 
     detectors = load_detectors()
@@ -98,12 +103,18 @@ def detect():
     print(f"{len(mono_records)} final detected mono")
 
     # Save result in Monkey Challenge format
+    wsi_reader = WSIReader.open(wsi_path)
+    base_mpp = wsi_reader.convert_resolution_units(
+        input_res=0, input_unit="level", output_unit="mpp"
+    )[0]
+    print(f"Base mpp {base_mpp}")
     save_detection_records_monkey(
         config,
         inflamm_records,
         lymph_records,
         mono_records,
         wsi_id=None,
+        save_mpp=base_mpp,
     )
     print("finished")
 
