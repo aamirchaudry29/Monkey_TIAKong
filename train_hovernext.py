@@ -24,8 +24,8 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "convnext_tiny_pannuke_256_experiment",
-    "val_fold": 5,  # [1-5]
+    "model_name": "efficientnetv2_s",
+    "val_fold": 1,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0001,
@@ -50,7 +50,7 @@ run_config = {
     "regression_map": False,
     "augmentation_prob": 0.95,
     "unfreeze_epoch": 1,
-    "strong_augmentation": True
+    "strong_augmentation": True,
 }
 pprint(run_config)
 
@@ -64,15 +64,15 @@ IOconfig = TrainingIOConfig(
 
 # Create model
 model = get_custom_hovernext(
-    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+    enc="tf_efficientnetv2_s.in21k",
     pretrained=True,
     use_batchnorm=True,
     attention_type="scse",
 )
-checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
+# checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
+# model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
+# pprint("Encoder weights loaded")
 model.to("cuda")
-model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
-pprint("Encoder weights loaded")
 # -----------------------------------------------------------------------
 
 
@@ -151,7 +151,7 @@ run = wandb.init(
     project=f"{run_config['project_name']}_{run_config['model_name']}",
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
-    notes="Strong augmentation"
+    notes="Strong augmentation, tf_efficientnetv2_s.in21k encoder",
 )
 
 # Start training

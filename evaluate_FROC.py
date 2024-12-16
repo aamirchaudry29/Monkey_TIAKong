@@ -179,8 +179,8 @@ def compute_FROC(fold: int = 1):
 
 
 if __name__ == "__main__":
-    # folds = [1, 2, 3, 4, 5]
-    folds = [1]
+    folds = [1, 2, 3, 4, 5]
+    # folds = [1]
     with Pool(5) as p:
         results = p.map(compute_FROC, folds)
 

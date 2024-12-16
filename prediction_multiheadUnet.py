@@ -3,6 +3,7 @@
 
 import os
 from pprint import pprint
+import click
 
 import torch
 from tiatoolbox.wsicore.wsireader import WSIReader
@@ -23,14 +24,16 @@ from monkey.model.hovernext.model import (
     get_convnext_unet,
     get_custom_hovernext,
 )
-from prediction.multihead_unet_prediction import wsi_detection_in_mask
-from prediction.multihead_unet_prediction_v2 import wsi_detection_in_mask_v2
+from prediction.multihead_unet_prediction_v2 import (
+    wsi_detection_in_mask_v2,
+)
 
-
-def cross_validation(fold_number: int = 1):
+@click.command()
+@click.option("--fold", default=1)
+def cross_validation(fold: int = 1):
     detector_model_name = "convnext_tiny_pannuke_256_experiment"
-    fold = fold_number
     pprint(f"Multiclass detection using {detector_model_name}")
+    pprint(f"Fold {fold}")
     model_res = 0
     units = "level"
     pprint(f"Detect at {model_res} {units}")
@@ -75,9 +78,9 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_50.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_30.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_30.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
     ]
     detectors = []
     for weight_path in detector_weight_paths:
@@ -145,6 +148,4 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(1, 2):
-        pprint(f"Fold {i}")
-        cross_validation(i)
+    cross_validation()

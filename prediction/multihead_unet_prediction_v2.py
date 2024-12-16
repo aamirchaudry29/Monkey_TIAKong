@@ -187,7 +187,6 @@ def process_tile_detection_masks(
     lymph_probs_map = lymph_probs_map * mask_tile
     mono_probs_map = mono_probs_map * mask_tile
 
-
     processed_masks = multihead_det_post_process(
         inflamm_probs_map,
         lymph_probs_map,
@@ -352,17 +351,16 @@ def wsi_detection_in_mask_v2(
             i
         ]  # (x_start, y_start, x_end, y_end)
 
-
         predictions, coordinates = detection_in_tile(
             tile, models, config
         )
 
         mask_tile = mask_reader.read_rect(
-            location=(bounding_box[0],bounding_box[1]),
+            location=(bounding_box[0], bounding_box[1]),
             size=(2048, 2048),
             resolution=0,
             units="level",
-        )[:,:,0].astype(np.uint8)
+        )[:, :, 0].astype(np.uint8)
         mask_tile[mask_tile > 0] = 1
         output_points_tile = process_tile_detection_masks(
             predictions,
@@ -380,7 +378,6 @@ def wsi_detection_in_mask_v2(
             output_points_tile["lymph_points"]
         )
         detected_mono_points.extend(output_points_tile["mono_points"])
-
 
     print(f"Inflamm before nms: {len(detected_inflamm_points)}")
     print(f"Lymph before nms: {len(detected_lymph_points)}")
