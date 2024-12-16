@@ -1,7 +1,7 @@
 import os
 from glob import glob
 from pathlib import Path
-
+import ttach as tta
 import torch
 from tiatoolbox.wsicore.wsireader import WSIReader
 
@@ -11,7 +11,7 @@ from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
 )
 from monkey.model.hovernext.model import get_custom_hovernext
-from prediction.multihead_unet_prediction import wsi_detection_in_mask
+from prediction.multihead_unet_prediction_v2 import wsi_detection_in_mask_v2
 
 INPUT_PATH = Path("/input")
 OUTPUT_PATH = Path("/output")
@@ -20,6 +20,11 @@ MODEL_DIR = Path("/opt/ml/model")
 
 
 def load_detectors() -> list[torch.nn.Module]:
+    transforms = tta.Compose([
+        tta.HorizontalFlip(),
+        tta.VerticalFlip(),
+        tta.Rotate90(angles=[0, 180, 90, 270]),
+    ])
     detectors = []
     detector_weight_paths = [
         os.path.join(MODEL_DIR, "1.pth"),
@@ -28,13 +33,16 @@ def load_detectors() -> list[torch.nn.Module]:
     ]
     for weight_path in detector_weight_paths:
         detector = get_custom_hovernext(
-            enc="convnextv2_large.fcmae_ft_in22k_in1k",
+            enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
             pretrained=False,
+            use_batchnorm=True,
+            attention_type="scse",
         )
         checkpoint = torch.load(weight_path)
         detector.load_state_dict(checkpoint["model"])
         detector.eval()
         detector.to("cuda")
+        detector = tta.SegmentationTTAWrapper(detector, transforms)
         detectors.append(detector)
     return detectors
 
@@ -82,7 +90,7 @@ def detect():
         resolution=model_res,
         units=units,
         stride=224,
-        thresholds=[0.3, 0.3, 0.3],
+        thresholds=[0.5, 0.5, 0.5],
         min_distances=[11, 11, 11],
         nms_boxes=[11, 11, 11],
         nms_overlap_thresh=0.5,
@@ -91,7 +99,7 @@ def detect():
     detectors = load_detectors()
 
     print("start detection")
-    detection_records = wsi_detection_in_mask(
+    detection_records = wsi_detection_in_mask_v2(
         wsi_name, mask_name, config, detectors
     )
 

@@ -39,6 +39,7 @@ RUN pip install monai==1.4.0
 RUN pip install --no-deps segmentation-models-pytorch==0.3.4
 RUN pip install --no-deps pretrainedmodels==0.7.4
 RUN pip install --no-deps efficientnet-pytorch==0.7.1
+RUN pip install ttach==0.0.3
 
 # Ensures that Python output to stdout/stderr is not buffered: prevents missing information when terminating
 ENV PYTHONUNBUFFERED=1

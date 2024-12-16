@@ -7,3 +7,4 @@ segmentation-models-pytorch
 pretrainedmodels
 efficientnet-pytorch
 strong-augment
+ttach
