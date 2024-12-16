@@ -60,16 +60,16 @@ def multihead_det_post_process(
         mono_coordinates[:, 0], mono_coordinates[:, 1]
     ] = 1
 
-    # return {
-    #     "inflamm_mask": inflamm_output_mask,
-    #     "lymph_mask": lymph_output_mask,
-    #     "mono_mask": mono_output_mask,
-    # }
     return {
-        "inflamm_mask": dilate_mask(inflamm_output_mask, 3),
-        "lymph_mask": dilate_mask(lymph_output_mask, 3),
-        "mono_mask": dilate_mask(mono_output_mask, 3),
+        "inflamm_mask": inflamm_output_mask,
+        "lymph_mask": lymph_output_mask,
+        "mono_mask": mono_output_mask,
     }
+    # return {
+    #     "inflamm_mask": dilate_mask(inflamm_output_mask, 3),
+    #     "lymph_mask": dilate_mask(lymph_output_mask, 3),
+    #     "mono_mask": dilate_mask(mono_output_mask, 3),
+    # }
 
 
 def multihead_det_post_process_batch(

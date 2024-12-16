@@ -4,6 +4,7 @@
 import os
 from pprint import pprint
 import click
+import ttach as tta
 
 import torch
 from tiatoolbox.wsicore.wsireader import WSIReader
@@ -78,11 +79,16 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_50.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_50.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
     ]
     detectors = []
+    transforms = tta.Compose([
+        tta.HorizontalFlip(),
+        tta.VerticalFlip(),
+        tta.Rotate90(angles=[0, 180, 90, 270]),
+    ])
     for weight_path in detector_weight_paths:
         # model = get_multihead_efficientunet(
         #     pretrained=False, out_channels=[1, 1, 1]
@@ -98,6 +104,7 @@ def cross_validation(fold: int = 1):
         model.load_state_dict(checkpoint["model"])
         model.eval()
         model.to("cuda")
+        model = tta.SegmentationTTAWrapper(model, transforms)
         detectors.append(model)
 
     for wsi_name in tqdm(val_wsi_files):
