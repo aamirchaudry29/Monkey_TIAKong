@@ -27,6 +27,30 @@ from monkey.data.data_utils import (
     load_nuclick_annotation,
 )
 
+# Strong augmentation
+AUGMENT_SPACE = {
+        "red": (0.0, 2.0),
+        "green": (0.0, 2.0),
+        "blue": (0.0, 2.0),
+        "hue": (-0.5, 0.5),
+        "saturation": (0.0, 2.0),
+        "brightness": (0.1, 2.0),
+        "contrast": (0.1, 2.0),
+        "gamma": (0.1, 2.0),
+        # "solarize": (0, 255),
+        # "posterize": (1, 8),
+        "sharpen": (0.0, 1.0),
+        # "emboss": (0.0, 1.0),
+        "blur": (0.0, 3.0),
+        "noise": (0.0, 0.2),
+        "jpeg": (0, 100),
+        "tone": (0.0, 1.0),
+        "autocontrast": (True, True),
+        "equalize": (True, True),
+        "grayscale": (True, True),
+    }
+
+
 
 def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
     """Converts cell class mask to binary mask
@@ -355,6 +379,98 @@ class Multitask_Dataset(Dataset):
             "class_mask": class_mask,
         }
         return data
+    
+
+class Segmentation_Dataset(Dataset):
+    """
+    Dataset for multihead unet
+    NuClick Segmentation masks only
+    """
+
+    def __init__(
+        self,
+        IOConfig: TrainingIOConfig,
+        file_ids: list,
+        phase: str = "train",
+        do_augment: bool = True,
+        augmentation_prob: float = 0.9,
+        strong_augmentation: bool = False,
+    ):
+        self.IOConfig = IOConfig
+        self.file_ids = file_ids
+        self.phase = phase
+        self.do_augment = do_augment
+
+        self.module = "multiclass_detection"
+        self.strong_augmentation = strong_augmentation
+
+        if self.do_augment:
+            self.augmentation = get_augmentation(
+                module=self.module,
+                gt_type="mask",
+                aug_prob=augmentation_prob,
+            )
+            if self.strong_augmentation:
+                self.trnsf = T.Compose(
+                    [
+                        StrongAugment(
+                            operations=[1, 2, 3],
+                            probabilites=[0.5, 0.3, 0.2],
+                            augment_space=AUGMENT_SPACE
+                        )
+                    ]
+                )
+
+    def __len__(self) -> int:
+        return len(self.file_ids)
+
+    def __getitem__(self, idx: int) -> dict:
+        # Load image and mask
+        file_id = self.file_ids[idx]
+        image = load_image(file_id, self.IOConfig)
+
+        annotation_mask = load_nuclick_annotation(file_id, self.IOConfig)
+        binary_mask = annotation_mask['binary_mask']
+        class_mask = annotation_mask['class_mask']
+        class_mask = class_mask_to_multichannel_mask(
+            class_mask
+        )
+        contour_mask = annotation_mask['contour_mask']
+
+        # augmentation
+        if self.do_augment:
+            augmented_data = self.augmentation(
+                image=image,
+                masks=[binary_mask, class_mask[0], class_mask[1], contour_mask],
+            )
+            image, masks = (
+                augmented_data["image"],
+                augmented_data["masks"],
+            )
+            binary_mask = masks[0]
+            class_mask[0] = masks[1]
+            class_mask[1] = masks[2]
+            contour_mask = masks[3]
+            if self.strong_augmentation:
+                image = self.trnsf(image)
+
+        # HxW -> 1xHxW
+        binary_mask = binary_mask[np.newaxis, :, :]
+        contour_mask = contour_mask[np.newaxis, :, :]
+
+        # HxWx3 -> 3xHxW
+        image = image / 255
+        image = imagenet_normalise(image)
+        image = np.moveaxis(image, -1, 0)
+
+        data = {
+            "id": file_id,
+            "image": image,
+            "binary_mask": binary_mask,
+            "class_mask": class_mask,
+            "contour_mask": contour_mask,
+        }
+        return data
 
 
 class ClassificationDataset(Dataset):
@@ -546,7 +662,7 @@ def get_detection_dataloaders(
     Get training and validation dataloaders
     """
 
-    if dataset_name not in ["detection", "multitask"]:
+    if dataset_name not in ["detection", "multitask", "segmentation"]:
         raise ValueError(f"Dataset Name {dataset_name} is in invalid")
 
     if module not in ["detection", "multiclass_detection"]:
@@ -632,6 +748,23 @@ def get_detection_dataloaders(
             disk_radius=disk_radius,
             regression_map=regression_map,
         )
+    elif dataset_name == "segmentation":
+        train_dataset = Segmentation_Dataset(
+            IOConfig=IOConfig,
+            file_ids=train_file_ids,
+            phase="Train",
+            do_augment=do_augmentation,
+            augmentation_prob=augmentation_prob,
+            strong_augmentation=strong_augmentation,
+        )
+        val_dataset = Segmentation_Dataset(
+            IOConfig=IOConfig,
+            file_ids=test_file_ids,
+            phase="Test",
+            do_augment=False,
+            augmentation_prob=augmentation_prob,
+            strong_augmentation=strong_augmentation,
+        )
     else:
         raise ValueError("Invalid dataset name")
 
@@ -639,13 +772,13 @@ def get_detection_dataloaders(
         train_dataset,
         batch_size=batch_size,
         sampler=train_sampler,
-        num_workers=10,
+        num_workers=0,
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=10,
+        num_workers=0,
     )
     return train_loader, val_loader
 
