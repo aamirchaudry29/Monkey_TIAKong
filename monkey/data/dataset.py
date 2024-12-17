@@ -293,8 +293,9 @@ class Multitask_Dataset(Dataset):
                 self.trnsf = T.Compose(
                     [
                         StrongAugment(
-                            operations=[2, 3, 4],
+                            operations=[1, 2, 3],
                             probabilites=[0.5, 0.3, 0.2],
+                            augment_space=AUGMENT_SPACE
                         )
                     ]
                 )
