@@ -867,8 +867,8 @@ def get_detection_sampler_v2(file_ids, IOConfig, cell_radius=11):
     )  # [negatives, lymph, mono]
 
     patch_area = 256 * 256
-    lymph_size = 11 * 11
-    mono_size = 11 * 11
+    lymph_size = 16 * 16
+    mono_size = 20 * 20
 
     # Calculate total pixel per class
     for id in file_ids:

@@ -10,6 +10,12 @@ class TrainingIOConfig:
         dataset_dir: str = DEFAULT_DATA_DIR,
         save_dir: str = "./",
     ):
+        """IO config for training
+
+        Args:
+            dataset_dir (str, optional): Defaults to DEFAULT_DATA_DIR.
+            save_dir (str, optional): Defaults to "./".
+        """
         self.dataset_dir = dataset_dir
         self.save_dir = save_dir
         if not os.path.exists(self.save_dir):
@@ -29,22 +35,47 @@ class TrainingIOConfig:
         self.set_mask_dir(mask_dir)
         self.set_json_dir(json_dir)
 
-    def set_image_dir(self, image_dir):
+    def set_image_dir(self, image_dir:str):
+        """Set patches directory
+
+        Args:
+            image_dir (str): path to patches
+        """
         self.image_dir = image_dir
 
-    def set_mask_dir(self, mask_dir):
+    def set_mask_dir(self, mask_dir:str):
+        """Set mask directory
+
+        Args:
+            mask_dir (str): path to masks
+        """
         self.mask_dir = mask_dir
 
-    def set_json_dir(self, json_dir):
+    def set_json_dir(self, json_dir:str):
+        """Set json directory
+
+        Args:
+            json_dir (str): path to json annotations
+        """
         self.json_dir = json_dir
 
     def set_checkpoint_save_dir(self, run_name: str):
+        """Set checkpoint save directory
+
+        Args:
+            run_name (str): path to save checkpoints
+        """
         dir = os.path.join(self.save_dir, run_name)
         if not os.path.exists(dir):
             os.makedirs(dir, exist_ok=True)
         self.checkpoint_save_dir = dir
 
     def check_dirs_exist(self):
+        """Check of image dir, mask dir and save dir exist.
+
+        Raises:
+            ValueError
+        """
         for dir in [self.image_dir, self.mask_dir, self.save_dir]:
             if not os.path.exists(dir):
                 print(f"{dir} does not exist!")

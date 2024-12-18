@@ -65,11 +65,6 @@ def multihead_det_post_process(
         "lymph_mask": lymph_output_mask,
         "mono_mask": mono_output_mask,
     }
-    # return {
-    #     "inflamm_mask": dilate_mask(inflamm_output_mask, 3),
-    #     "lymph_mask": dilate_mask(lymph_output_mask, 3),
-    #     "mono_mask": dilate_mask(mono_output_mask, 3),
-    # }
 
 
 def multihead_det_post_process_batch(
@@ -130,3 +125,50 @@ def post_process_batch(
         output_mask[i][coordinates[:, 0], coordinates[:, 1]] = 1
 
     return output_mask
+
+
+def multihead_seg_post_process(
+    inflamm_probs: torch.Tensor,
+    lymph_probs: torch.Tensor,
+    mono_probs: torch.Tensor,
+    contour_probs: torch.Tensor,
+    thresholds: list = [0.5, 0.5, 0.5, 0.3],
+) -> dict[str, np.ndarray]:
+    """
+    Args:
+        Thresholds: [overall, lymph, mono, contour]
+    """
+    contour_pred_binary = (
+        (contour_probs > thresholds[3]).float().numpy(force=True)
+    )
+
+    overall_pred_binary = (
+        (inflamm_probs > thresholds[0]).float().numpy(force=True)
+    )
+    lymph_pred_binary = (
+        (lymph_probs > thresholds[1]).float().numpy(force=True)
+    )
+    mono_pred_binary = (
+        (mono_probs > thresholds[2]).float().numpy(force=True)
+    )
+
+    overall_pred_binary[contour_pred_binary > 0] = 0
+    lymph_pred_binary[contour_pred_binary > 0] = 0
+    mono_pred_binary[contour_pred_binary > 0] = 0
+
+    # Post processing
+    overall_pred_binary = morphological_post_processing(
+        overall_pred_binary
+    )
+    lymph_pred_binary = morphological_post_processing(
+        lymph_pred_binary
+    )
+    mono_pred_binary = morphological_post_processing(mono_pred_binary)
+
+    processed_masks = {
+        "inflamm_mask": overall_pred_binary[:, 0, :, :],
+        "contour_mask": contour_pred_binary[:, 0, :, :],
+        "lymph_mask": lymph_pred_binary[:, 0, :, :],
+        "mono_mask": mono_pred_binary[:, 0, :, :],
+    }
+    return processed_masks

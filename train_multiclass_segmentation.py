@@ -14,39 +14,37 @@ from monkey.model.efficientunetb0.architecture import (
 )
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
-from monkey.train.train_multitask_cell_detection import (
+from monkey.train.train_multitask_segmentation import (
     multitask_train_loop,
 )
 
 # -----------------------------------------------------------------------
 # Specify training config and hyperparameters
 run_config = {
-    "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "multihead_unet_512",
-    "val_fold": 2,  # [1-5]
-    "batch_size": 16,
+    "project_name": "Monkey_Multiclass_Segmentation",
+    "model_name": "multihead_efficientunetb0_seg",
+    "val_fold": 1,  # [1-5]
+    "batch_size": 64,
     "optimizer": "AdamW",
-    "learning_rate": 0.0004,
+    "learning_rate": 0.0001,
     "weight_decay": 0.01,
-    "epochs": 30,
+    "epochs": 75,
     "loss_function": {
         "head_1": "Weighted_BCE_Jaccard",
         "head_2": "Weighted_BCE_Jaccard",
         "head_3": "Weighted_BCE_Jaccard",
     },
     "loss_pos_weight": 1.0,
-    "peak_thresholds": [0.5, 0.5, 0.5],  # [inflamm, lymph, mono]
+    "peak_thresholds": [0.3, 0.3, 0.3, 0.3],  # [inflamm, lymph, mono, contour]
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
         "head_2": "sigmoid",
         "head_3": "sigmoid",
     },
-    "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
-    "include_background_channel": False,
-    "disk_radius": 11,
-    "regression_map": False,
-    "augmentation_prob": 0.85,
+    "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
+    "augmentation_prob": 0.8,
+    "strong_augmentation": True,
     "unfreeze_epoch": 5,
 }
 pprint(run_config)
@@ -54,19 +52,20 @@ pprint(run_config)
 # Specify IO config
 # ***Change save_dir
 IOconfig = TrainingIOConfig(
-    dataset_dir="/mnt/lab-share/Monkey/patches_512/",
+    dataset_dir="/mnt/lab-share/Monkey/patches_256/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
+)
+IOconfig.set_mask_dir(
+    mask_dir="/mnt/lab-share/Monkey/nuclick_masks_processed"
 )
 
 
 # Create model
 model = get_multihead_efficientunet(
-    out_channels=[1, 1, 1], pretrained=True
+    out_channels=[2, 1, 1], pretrained=True
 )
 model.to("cuda")
-device = torch.device("cuda:0")
-free, total = torch.cuda.mem_get_info(device)
-print(f"GPU memory free: {free/1024**2:.2f} MB")
+device = torch.device("cuda")
 # -----------------------------------------------------------------------
 
 
@@ -79,21 +78,16 @@ os.environ["WANDB_DIR"] = IOconfig.save_dir
 train_loader, val_loader = get_detection_dataloaders(
     IOconfig,
     val_fold=run_config["val_fold"],
-    dataset_name="multitask",
+    dataset_name="segmentation",
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
     use_nuclick_masks=run_config["use_nuclick_masks"],
-    include_background_channel=run_config[
-        "include_background_channel"
-    ],
-    disk_radius=run_config["disk_radius"],
+    strong_augmentation=run_config["strong_augmentation"],
     augmentation_prob=run_config["augmentation_prob"],
-    regression_map=run_config["regression_map"],
 )
 
 
 # Create loss function, optimizer and scheduler
-
 loss_fn_dict = {
     "head_1": get_loss_function(
         run_config["loss_function"]["head_1"]
