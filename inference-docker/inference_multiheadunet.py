@@ -1,8 +1,9 @@
 import os
 from glob import glob
 from pathlib import Path
-import ttach as tta
+
 import torch
+import ttach as tta
 from tiatoolbox.wsicore.wsireader import WSIReader
 
 from monkey.config import PredictionIOConfig
@@ -11,7 +12,9 @@ from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
 )
 from monkey.model.hovernext.model import get_custom_hovernext
-from prediction.multihead_unet_prediction_v2 import wsi_detection_in_mask_v2
+from prediction.multihead_unet_prediction_v2 import (
+    wsi_detection_in_mask_v2,
+)
 
 INPUT_PATH = Path("/input")
 OUTPUT_PATH = Path("/output")
@@ -20,11 +23,13 @@ MODEL_DIR = Path("/opt/ml/model")
 
 
 def load_detectors() -> list[torch.nn.Module]:
-    transforms = tta.Compose([
-        tta.HorizontalFlip(),
-        tta.VerticalFlip(),
-        tta.Rotate90(angles=[0, 180, 90, 270]),
-    ])
+    transforms = tta.Compose(
+        [
+            tta.HorizontalFlip(),
+            tta.VerticalFlip(),
+            tta.Rotate90(angles=[0, 180, 90, 270]),
+        ]
+    )
     detectors = []
     detector_weight_paths = [
         os.path.join(MODEL_DIR, "1.pth"),

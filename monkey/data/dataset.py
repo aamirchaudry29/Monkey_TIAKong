@@ -29,27 +29,26 @@ from monkey.data.data_utils import (
 
 # Strong augmentation
 AUGMENT_SPACE = {
-        "red": (0.0, 2.0),
-        "green": (0.0, 2.0),
-        "blue": (0.0, 2.0),
-        "hue": (-0.5, 0.5),
-        "saturation": (0.0, 2.0),
-        "brightness": (0.1, 2.0),
-        "contrast": (0.1, 2.0),
-        "gamma": (0.1, 2.0),
-        # "solarize": (0, 255),
-        # "posterize": (1, 8),
-        "sharpen": (0.0, 1.0),
-        # "emboss": (0.0, 1.0),
-        "blur": (0.0, 3.0),
-        "noise": (0.0, 0.2),
-        "jpeg": (0, 100),
-        "tone": (0.0, 1.0),
-        "autocontrast": (True, True),
-        "equalize": (True, True),
-        "grayscale": (True, True),
-    }
-
+    "red": (0.0, 2.0),
+    "green": (0.0, 2.0),
+    "blue": (0.0, 2.0),
+    "hue": (-0.5, 0.5),
+    "saturation": (0.0, 2.0),
+    "brightness": (0.1, 2.0),
+    "contrast": (0.1, 2.0),
+    "gamma": (0.1, 2.0),
+    # "solarize": (0, 255),
+    # "posterize": (1, 8),
+    "sharpen": (0.0, 1.0),
+    # "emboss": (0.0, 1.0),
+    "blur": (0.0, 3.0),
+    "noise": (0.0, 0.2),
+    "jpeg": (0, 100),
+    "tone": (0.0, 1.0),
+    "autocontrast": (True, True),
+    "equalize": (True, True),
+    "grayscale": (True, True),
+}
 
 
 def class_mask_to_binary(class_mask: np.ndarray) -> np.ndarray:
@@ -295,7 +294,7 @@ class Multitask_Dataset(Dataset):
                         StrongAugment(
                             operations=[1, 2, 3],
                             probabilites=[0.5, 0.3, 0.2],
-                            augment_space=AUGMENT_SPACE
+                            augment_space=AUGMENT_SPACE,
                         )
                     ]
                 )
@@ -380,7 +379,7 @@ class Multitask_Dataset(Dataset):
             "class_mask": class_mask,
         }
         return data
-    
+
 
 class Segmentation_Dataset(Dataset):
     """
@@ -417,7 +416,7 @@ class Segmentation_Dataset(Dataset):
                         StrongAugment(
                             operations=[1, 2, 3],
                             probabilites=[0.5, 0.3, 0.2],
-                            augment_space=AUGMENT_SPACE
+                            augment_space=AUGMENT_SPACE,
                         )
                     ]
                 )
@@ -430,19 +429,24 @@ class Segmentation_Dataset(Dataset):
         file_id = self.file_ids[idx]
         image = load_image(file_id, self.IOConfig)
 
-        annotation_mask = load_nuclick_annotation(file_id, self.IOConfig)
-        binary_mask = annotation_mask['binary_mask']
-        class_mask = annotation_mask['class_mask']
-        class_mask = class_mask_to_multichannel_mask(
-            class_mask
+        annotation_mask = load_nuclick_annotation(
+            file_id, self.IOConfig
         )
-        contour_mask = annotation_mask['contour_mask']
+        binary_mask = annotation_mask["binary_mask"]
+        class_mask = annotation_mask["class_mask"]
+        class_mask = class_mask_to_multichannel_mask(class_mask)
+        contour_mask = annotation_mask["contour_mask"]
 
         # augmentation
         if self.do_augment:
             augmented_data = self.augmentation(
                 image=image,
-                masks=[binary_mask, class_mask[0], class_mask[1], contour_mask],
+                masks=[
+                    binary_mask,
+                    class_mask[0],
+                    class_mask[1],
+                    contour_mask,
+                ],
             )
             image, masks = (
                 augmented_data["image"],

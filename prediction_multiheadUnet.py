@@ -3,10 +3,10 @@
 
 import os
 from pprint import pprint
-import click
-import ttach as tta
 
+import click
 import torch
+import ttach as tta
 from tiatoolbox.wsicore.wsireader import WSIReader
 from tqdm.auto import tqdm
 
@@ -28,6 +28,7 @@ from monkey.model.hovernext.model import (
 from prediction.multihead_unet_prediction_v2 import (
     wsi_detection_in_mask_v2,
 )
+
 
 @click.command()
 @click.option("--fold", default=1)
@@ -84,11 +85,13 @@ def cross_validation(fold: int = 1):
         # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
     ]
     detectors = []
-    transforms = tta.Compose([
-        tta.HorizontalFlip(),
-        tta.VerticalFlip(),
-        tta.Rotate90(angles=[0, 180, 90, 270]),
-    ])
+    transforms = tta.Compose(
+        [
+            tta.HorizontalFlip(),
+            tta.VerticalFlip(),
+            tta.Rotate90(angles=[0, 180, 90, 270]),
+        ]
+    )
     for weight_path in detector_weight_paths:
         # model = get_multihead_efficientunet(
         #     pretrained=False, out_channels=[1, 1, 1]

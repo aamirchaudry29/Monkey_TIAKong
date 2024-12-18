@@ -115,6 +115,7 @@ def get_timm_encoder(
     )
     return encoder
 
+
 def get_model(
     enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
@@ -186,11 +187,11 @@ def get_model(
 
 
 class ModifiedSelfAttention(nn.Module):
-    def __init__(self, in_channels=64*3, out_channels=3):
+    def __init__(self, in_channels=64 * 3, out_channels=3):
         super(ModifiedSelfAttention, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        
+
         # Query, key, value projections
         self.query_conv = nn.Conv2d(in_channels, out_channels, 1)
         self.key_conv = nn.Conv2d(in_channels, out_channels, 1)
@@ -198,22 +199,31 @@ class ModifiedSelfAttention(nn.Module):
 
     def forward(self, x):
         batch, channels, height, width = x.size()
-        
+
         # Projecting Query, Key, Value
         # (batch_size, out_channels, height*width)
-        proj_query = self.query_conv(x).view(batch, self.out_channels, height*width)
-        proj_key = self.key_conv(x).view(batch, self.out_channels, height*width)
-        proj_value = self.value_conv(x).view(batch, self.out_channels, height*width)
+        proj_query = self.query_conv(x).view(
+            batch, self.out_channels, height * width
+        )
+        proj_key = self.key_conv(x).view(
+            batch, self.out_channels, height * width
+        )
+        proj_value = self.value_conv(x).view(
+            batch, self.out_channels, height * width
+        )
 
-        
         # Calculating attention scores
-        energy = (proj_query * proj_key).sum(dim=2)  # (batch_size, out_channels, height*width)
+        energy = (proj_query * proj_key).sum(
+            dim=2
+        )  # (batch_size, out_channels, height*width)
         attention = F.softmax(energy, dim=1)
 
         # Getting the weighted sum of values
         # (batch_size, height*width, out_channels)
-        out = (attention * proj_value)
-        out = out.permute(0, 2, 1).view(batch, self.out_channels, height, width)
+        out = attention * proj_value
+        out = out.permute(0, 2, 1).view(
+            batch, self.out_channels, height, width
+        )
 
         out = out + x
         return out
