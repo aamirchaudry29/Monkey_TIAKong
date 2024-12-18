@@ -70,6 +70,38 @@ def load_nuclick_annotation(file_id: str, IOConfig: TrainingIOConfig):
     return annotation
 
 
+def load_nuclick_annotation_v2(file_id: str, IOConfig: TrainingIOConfig):
+    """
+    Load a single NuClick annotation mask
+    Nuclick file format: 8 channel .np file
+    channel 1-3: RGB image
+    channel 4: inflamm segmentation mask
+    channel 5: inflamm contour mask
+    channel 6: lymph segmentation mask
+    channel 7: lymph contour mask
+    channel 8: mono segmentation mask
+    channel 9: mono contour mask
+
+    Returns:
+        annotation: {'inflamm_mask', 'inflamm_contour_mask', 'lymph_mask', 'lymph_contour_mask', 'mono_mask', 'mono_contour_mask'}
+    """
+    file_name = f"{file_id}.npy"
+    file_path = os.path.join(IOConfig.mask_dir, file_name)
+    data = np.load(file_path)
+    data = data.astype(np.uint8)
+
+    annotation = {
+        "inflamm_mask": data[:, :, 3],
+        "inflamm_contour_mask": data[:, :, 4],
+        "lymph_mask": data[:, :, 5],
+        "lymph_contour_mask": data[:, :, 6],
+        "mono_mask": data[:, :, 7],
+        "mono_contour_mask": data[:, :, 8],
+    }
+
+    return annotation
+
+
 def get_label_from_class_id(file_id: str):
     """
     Get cell type from classification file_id
