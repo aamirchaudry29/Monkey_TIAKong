@@ -25,6 +25,7 @@ from monkey.data.data_utils import (
     load_json_annotation,
     load_mask,
     load_nuclick_annotation,
+    load_nuclick_annotation_v2
 )
 
 # Strong augmentation
@@ -395,7 +396,13 @@ class Segmentation_Dataset(Dataset):
         do_augment: bool = True,
         augmentation_prob: float = 0.9,
         strong_augmentation: bool = False,
+        version: int = 1,
     ):
+        if version not in [1, 2]:
+            raise ValueError("Invalid version")
+        else:
+            self.version = version
+        
         self.IOConfig = IOConfig
         self.file_ids = file_ids
         self.phase = phase
@@ -423,15 +430,16 @@ class Segmentation_Dataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.file_ids)
+    
 
-    def __getitem__(self, idx: int) -> dict:
+    def get_item_v1(self, idx: int) -> dict:
         # Load image and mask
         file_id = self.file_ids[idx]
         image = load_image(file_id, self.IOConfig)
-
         annotation_mask = load_nuclick_annotation(
             file_id, self.IOConfig
         )
+
         binary_mask = annotation_mask["binary_mask"]
         class_mask = annotation_mask["class_mask"]
         class_mask = class_mask_to_multichannel_mask(class_mask)
@@ -476,6 +484,79 @@ class Segmentation_Dataset(Dataset):
             "contour_mask": contour_mask,
         }
         return data
+    
+    def get_item_v2(self, idx: int) -> dict:
+        # Load image and mask
+        file_id = self.file_ids[idx]
+        image = load_image(file_id, self.IOConfig)
+        annotation_mask = load_nuclick_annotation_v2(
+            file_id, self.IOConfig
+        )
+
+        inflamm_mask = annotation_mask["inflamm_mask"]
+        inflamm_contour_mask = annotation_mask["inflamm_contour_mask"]
+        lymph_mask = annotation_mask["lymph_mask"]
+        lymph_contour_mask = annotation_mask["lymph_contour_mask"]
+        mono_mask = annotation_mask["mono_mask"]
+        mono_contour_mask = annotation_mask["mono_contour_mask"]
+
+        # augmentation
+        if self.do_augment:
+            augmented_data = self.augmentation(
+                image=image,
+                masks=[
+                    inflamm_mask,
+                    lymph_mask,
+                    mono_mask,
+                    inflamm_contour_mask,
+                    lymph_contour_mask,
+                    mono_contour_mask,
+                ],
+            )
+            image, masks = (
+                augmented_data["image"],
+                augmented_data["masks"],
+            )
+            inflamm_mask = masks[0]
+            lymph_mask = masks[1]
+            mono_mask = masks[2]
+            inflamm_contour_mask = masks[3]
+            lymph_contour_mask = masks[4]
+            mono_contour_mask = masks[5]
+            if self.strong_augmentation:
+                image = self.trnsf(image)
+
+        # HxW -> 1xHxW
+        inflamm_mask = inflamm_mask[np.newaxis, :, :]
+        lymph_mask = lymph_mask[np.newaxis, :, :]
+        mono_mask = mono_mask[np.newaxis, :, :]
+        inflamm_contour_mask = inflamm_contour_mask[np.newaxis, :, :]
+        lymph_contour_mask = lymph_contour_mask[np.newaxis, :, :]
+        mono_contour_mask = mono_contour_mask[np.newaxis, :, :]
+
+        # HxWx3 -> 3xHxW
+        image = image / 255
+        image = imagenet_normalise(image)
+        image = np.moveaxis(image, -1, 0)
+
+        data = {
+            "id": file_id,
+            "image": image,
+            "inflamm_mask": inflamm_mask,
+            "lymph_mask": lymph_mask,
+            "mono_mask": mono_mask,
+            "inflamm_contour_mask": inflamm_contour_mask,
+            "lymph_contour_mask": lymph_contour_mask,
+            "mono_contour_mask": mono_contour_mask,
+        }
+        return data
+    
+
+    def __getitem__(self, idx: int) -> dict:
+        if self.version == 1:
+            return self.get_item_v1(idx)
+        else:
+            return self.get_item_v2(idx)
 
 
 class ClassificationDataset(Dataset):
@@ -662,6 +743,7 @@ def get_detection_dataloaders(
     target_cell_type: str | None = None,
     augmentation_prob: float = 0.8,
     strong_augmentation: bool = False,
+    version: int = 1,
 ):
     """
     Get training and validation dataloaders
@@ -761,6 +843,7 @@ def get_detection_dataloaders(
             do_augment=do_augmentation,
             augmentation_prob=augmentation_prob,
             strong_augmentation=strong_augmentation,
+            version=version,
         )
         val_dataset = Segmentation_Dataset(
             IOConfig=IOConfig,
@@ -769,6 +852,7 @@ def get_detection_dataloaders(
             do_augment=False,
             augmentation_prob=augmentation_prob,
             strong_augmentation=strong_augmentation,
+            version=version,
         )
     else:
         raise ValueError("Invalid dataset name")
