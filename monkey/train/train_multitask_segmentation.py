@@ -139,10 +139,10 @@ def validate_one_epoch(
             running_loss += sum_loss * images.size(0)
 
             binary_masks = multihead_seg_post_process(
-                inflamm_probs=inflamm_probs,
-                lymph_probs=lymph_probs,
-                mono_probs=mono_probs,
-                contour_probs=contour_probs,
+                inflamm_prob=inflamm_probs,
+                lymph_prob=lymph_probs,
+                mono_prob=mono_probs,
+                contour_prob=contour_probs,
                 thresholds=run_config["peak_thresholds"],
             )
             overall_pred_binary = binary_masks["inflamm_mask"]
@@ -151,19 +151,19 @@ def validate_one_epoch(
 
             # Compute detection F1 score
             overall_metrics = get_multiclass_patch_F1_score_batch(
-                overall_pred_binary[:, np.newaxis, :, :],
+                overall_pred_binary,
                 binary_true_masks,
                 [5],
                 inflamm_probs,
             )
             lymph_metrics = get_multiclass_patch_F1_score_batch(
-                lymph_pred_binary[:, np.newaxis, :, :],
+                lymph_pred_binary,
                 lymph_true_masks,
                 [4],
                 lymph_probs,
             )
             mono_metrics = get_multiclass_patch_F1_score_batch(
-                mono_pred_binary[:, np.newaxis, :, :],
+                mono_pred_binary,
                 mono_true_masks,
                 [5],
                 mono_probs,

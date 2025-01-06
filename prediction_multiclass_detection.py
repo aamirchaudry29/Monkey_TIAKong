@@ -25,7 +25,7 @@ from monkey.model.hovernext.model import (
     get_convnext_unet,
     get_custom_hovernext,
 )
-from prediction.multihead_unet_prediction_v2 import (
+from Github.Monkey_TIAKong.prediction.multiclass_detection import (
     wsi_detection_in_mask_v2,
 )
 

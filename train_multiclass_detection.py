@@ -24,8 +24,8 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "efficientnetv2_s",
-    "val_fold": 1,  # [1-5]
+    "model_name": "convnextv2_large_lizard_det",
+    "val_fold": 5,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0001,
@@ -49,7 +49,7 @@ run_config = {
     "disk_radius": 11,
     "regression_map": False,
     "augmentation_prob": 0.95,
-    "unfreeze_epoch": 1,
+    "unfreeze_epoch": 2,
     "strong_augmentation": True,
 }
 pprint(run_config)
@@ -64,14 +64,14 @@ IOconfig = TrainingIOConfig(
 
 # Create model
 model = get_custom_hovernext(
-    enc="tf_efficientnetv2_s.in21k",
+    enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
     use_batchnorm=True,
     attention_type="scse",
 )
-# checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
-# model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
-# pprint("Encoder weights loaded")
+checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
+model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
+pprint("Encoder weights loaded")
 model.to("cuda")
 # -----------------------------------------------------------------------
 

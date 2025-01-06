@@ -12,6 +12,11 @@ from monkey.data.dataset import get_detection_dataloaders
 from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
 )
+from monkey.model.hovernext.model import (
+    get_convnext_unet,
+    get_custom_hovernext,
+    load_encoder_weights,
+)
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
 from monkey.train.train_multitask_segmentation import (
@@ -22,7 +27,7 @@ from monkey.train.train_multitask_segmentation import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Segmentation",
-    "model_name": "multihead_efficientunetb0_seg",
+    "model_name": "convnextv2_tiny_pannuke_seg",
     "val_fold": 1,  # [1-5]
     "batch_size": 64,
     "optimizer": "AdamW",
@@ -35,7 +40,7 @@ run_config = {
         "head_3": "Weighted_BCE_Jaccard",
     },
     "loss_pos_weight": 1.0,
-    "peak_thresholds": [0.3, 0.3, 0.3, 0.3],  # [inflamm, lymph, mono, contour]
+    "peak_thresholds": [0.5, 0.5, 0.5, 0.3],  # [inflamm, lymph, mono, contour]
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
@@ -61,9 +66,20 @@ IOconfig.set_mask_dir(
 
 
 # Create model
-model = get_multihead_efficientunet(
-    out_channels=[2, 1, 1], pretrained=True
+# model = get_multihead_efficientunet(
+#     out_channels=[2, 1, 1], pretrained=True
+# )
+model = get_custom_hovernext(
+    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+    pretrained=True,
+    num_heads=3,
+    decoders_out_channels=[2,1,1],
+    use_batchnorm=True,
+    attention_type="scse",
 )
+checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
+model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
+pprint("Encoder weights loaded")
 model.to("cuda")
 device = torch.device("cuda")
 # -----------------------------------------------------------------------

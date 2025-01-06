@@ -10,9 +10,9 @@ from multiprocessing import Pool
 import numpy as np
 from scipy import ndimage
 
-NUCLICK_DIR = "/home/u1910100/Documents/Monkey/patches_256/annotations/nuclick_hovernext"
+NUCLICK_DIR = "/mnt/lab-share/Monkey/nuclick_hovernext"
 
-SAVE_DIR = "/home/u1910100/Documents/Monkey/patches_256/annotations/nuclick_masks_processed_v2"
+SAVE_DIR = "/mnt/lab-share/Monkey/nuclick_masks_processed_v2"
 
 
 def process_instance_and_class_map(instance_map, class_map):
@@ -145,5 +145,5 @@ def process_nuclick_data_file_v2(file_name):
 if __name__ == "__main__":
 
     files = os.listdir(NUCLICK_DIR)
-    with Pool(10) as p:
+    with Pool(32) as p:
         p.map(process_nuclick_data_file_v2, files)
