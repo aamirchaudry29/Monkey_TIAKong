@@ -13,7 +13,7 @@ from monkey.model.efficientunetb0.architecture import (
 )
 from monkey.model.hovernext.model import get_custom_hovernext
 from prediction.multiclass_segmentation import (
-    wsi_segmentation_in_mask
+    wsi_segmentation_in_mask,
 )
 
 INPUT_PATH = Path("/input")
@@ -40,7 +40,7 @@ def load_detectors() -> list[torch.nn.Module]:
         detector = get_custom_hovernext(
             enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
             pretrained=False,
-            decoders_out_channels=[2,1,1],
+            decoders_out_channels=[2, 1, 1],
             use_batchnorm=True,
             attention_type="scse",
         )

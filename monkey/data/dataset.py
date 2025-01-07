@@ -25,7 +25,7 @@ from monkey.data.data_utils import (
     load_json_annotation,
     load_mask,
     load_nuclick_annotation,
-    load_nuclick_annotation_v2
+    load_nuclick_annotation_v2,
 )
 
 # Strong augmentation
@@ -402,7 +402,7 @@ class Segmentation_Dataset(Dataset):
             raise ValueError("Invalid version")
         else:
             self.version = version
-        
+
         self.IOConfig = IOConfig
         self.file_ids = file_ids
         self.phase = phase
@@ -430,7 +430,6 @@ class Segmentation_Dataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.file_ids)
-    
 
     def get_item_v1(self, idx: int) -> dict:
         # Load image and mask
@@ -484,7 +483,7 @@ class Segmentation_Dataset(Dataset):
             "contour_mask": contour_mask,
         }
         return data
-    
+
     def get_item_v2(self, idx: int) -> dict:
         # Load image and mask
         file_id = self.file_ids[idx]
@@ -550,7 +549,6 @@ class Segmentation_Dataset(Dataset):
             "mono_contour_mask": mono_contour_mask,
         }
         return data
-    
 
     def __getitem__(self, idx: int) -> dict:
         if self.version == 1:

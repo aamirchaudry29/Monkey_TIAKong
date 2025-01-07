@@ -1,5 +1,5 @@
-from math import inf
 import os
+from math import inf
 from pdb import run
 from pprint import pprint
 from typing import Optional
@@ -14,9 +14,15 @@ from tqdm import tqdm
 
 from monkey.model.hovernext.model import freeze_enc, unfreeze_enc
 from monkey.model.loss_functions import Loss_Function
-from monkey.model.utils import get_multiclass_patch_F1_score_batch, get_patch_F1_score_batch
+from monkey.model.utils import (
+    get_multiclass_patch_F1_score_batch,
+    get_patch_F1_score_batch,
+)
 from monkey.train.utils import compose_multitask_log_images
-from prediction.utils import multihead_seg_post_process, multihead_seg_post_process_v2
+from prediction.utils import (
+    multihead_seg_post_process,
+    multihead_seg_post_process_v2,
+)
 
 
 def train_one_epoch_v2(
@@ -35,15 +41,17 @@ def train_one_epoch_v2(
         images = data["image"].cuda().float()
 
         inflamm_true_masks = data["inflamm_mask"].cuda().float()
-        inflamm_contour_true_masks = data["inflamm_contour_mask"].cuda().float()
-        lymph_true_masks = (
-            data["lymph_mask"].cuda().float()
+        inflamm_contour_true_masks = (
+            data["inflamm_contour_mask"].cuda().float()
         )
-        lymph_contour_true_masks = data["lymph_contour_mask"].cuda().float()
-        mono_true_masks = (
-            data["mono_mask"].cuda().float()
+        lymph_true_masks = data["lymph_mask"].cuda().float()
+        lymph_contour_true_masks = (
+            data["lymph_contour_mask"].cuda().float()
         )
-        mono_contour_true_masks = data["mono_contour_mask"].cuda().float()
+        mono_true_masks = data["mono_mask"].cuda().float()
+        mono_contour_true_masks = (
+            data["mono_contour_mask"].cuda().float()
+        )
 
         optimizer.zero_grad()
 
@@ -57,11 +65,17 @@ def train_one_epoch_v2(
         mono_contour_logits = logits_pred[:, 5:6, :, :]
 
         inflamm_probs = activation_dict["head_1"](inflamm_logits)
-        inflamm_contour_probs = activation_dict["head_1"](inflamm_contour_logits)
+        inflamm_contour_probs = activation_dict["head_1"](
+            inflamm_contour_logits
+        )
         lymph_probs = activation_dict["head_2"](lymph_logits)
-        lymph_contour_probs = activation_dict["head_2"](lymph_contour_logits)
+        lymph_contour_probs = activation_dict["head_2"](
+            lymph_contour_logits
+        )
         mono_probs = activation_dict["head_3"](mono_logits)
-        mono_contour_probs = activation_dict["head_3"](mono_contour_logits)
+        mono_contour_probs = activation_dict["head_3"](
+            mono_contour_logits
+        )
 
         inflamm_loss = loss_fn_dict["head_1"].compute_loss(
             inflamm_probs, inflamm_true_masks
@@ -82,14 +96,20 @@ def train_one_epoch_v2(
             mono_contour_probs, mono_contour_true_masks
         )
 
-        sum_loss = inflamm_loss + lymph_loss + mono_loss + inflamm_contour_loss + lymph_contour_loss + mono_contour_loss
+        sum_loss = (
+            inflamm_loss
+            + lymph_loss
+            + mono_loss
+            + inflamm_contour_loss
+            + lymph_contour_loss
+            + mono_contour_loss
+        )
         sum_loss.backward()
         optimizer.step()
 
         epoch_loss += sum_loss.item() * images.size(0)
 
     return epoch_loss / len(training_loader.sampler)
-
 
 
 def validate_one_epoch_v2(
@@ -112,15 +132,17 @@ def validate_one_epoch_v2(
         images = data["image"].cuda().float()
 
         inflamm_true_masks = data["inflamm_mask"].cuda().float()
-        inflamm_contour_true_masks = data["inflamm_contour_mask"].cuda().float()
-        lymph_true_masks = (
-            data["lymph_mask"].cuda().float()
+        inflamm_contour_true_masks = (
+            data["inflamm_contour_mask"].cuda().float()
         )
-        lymph_contour_true_masks = data["lymph_contour_mask"].cuda().float()
-        mono_true_masks = (
-            data["mono_mask"].cuda().float()
+        lymph_true_masks = data["lymph_mask"].cuda().float()
+        lymph_contour_true_masks = (
+            data["lymph_contour_mask"].cuda().float()
         )
-        mono_contour_true_masks = data["mono_contour_mask"].cuda().float()
+        mono_true_masks = data["mono_mask"].cuda().float()
+        mono_contour_true_masks = (
+            data["mono_contour_mask"].cuda().float()
+        )
 
         with torch.no_grad():
             logits_pred = model(images)
@@ -132,14 +154,20 @@ def validate_one_epoch_v2(
             mono_contour_logits = logits_pred[:, 5:6, :, :]
 
             inflamm_probs = activation_dict["head_1"](inflamm_logits)
-            inflamm_contour_probs = activation_dict["head_1"](inflamm_contour_logits)
+            inflamm_contour_probs = activation_dict["head_1"](
+                inflamm_contour_logits
+            )
             lymph_probs = activation_dict["head_2"](lymph_logits)
-            lymph_contour_probs = activation_dict["head_2"](lymph_contour_logits)
+            lymph_contour_probs = activation_dict["head_2"](
+                lymph_contour_logits
+            )
             mono_probs = activation_dict["head_3"](mono_logits)
-            mono_contour_probs = activation_dict["head_3"](mono_contour_logits)
+            mono_contour_probs = activation_dict["head_3"](
+                mono_contour_logits
+            )
 
             inflamm_loss = loss_fn_dict["head_1"].compute_loss(
-            inflamm_probs, inflamm_true_masks
+                inflamm_probs, inflamm_true_masks
             )
             lymph_loss = loss_fn_dict["head_2"].compute_loss(
                 lymph_probs, lymph_true_masks
@@ -147,7 +175,9 @@ def validate_one_epoch_v2(
             mono_loss = loss_fn_dict["head_3"].compute_loss(
                 mono_probs, mono_true_masks
             )
-            inflamm_contour_loss = loss_fn_dict["head_1"].compute_loss(
+            inflamm_contour_loss = loss_fn_dict[
+                "head_1"
+            ].compute_loss(
                 inflamm_contour_probs, inflamm_contour_true_masks
             )
             lymph_contour_loss = loss_fn_dict["head_2"].compute_loss(
@@ -157,7 +187,14 @@ def validate_one_epoch_v2(
                 mono_contour_probs, mono_contour_true_masks
             )
 
-            sum_loss = inflamm_loss + lymph_loss + mono_loss + inflamm_contour_loss + lymph_contour_loss + mono_contour_loss
+            sum_loss = (
+                inflamm_loss
+                + lymph_loss
+                + mono_loss
+                + inflamm_contour_loss
+                + lymph_contour_loss
+                + mono_contour_loss
+            )
             running_loss += sum_loss * images.size(0)
 
             binary_masks = multihead_seg_post_process_v2(
@@ -279,7 +316,9 @@ def train_one_epoch(
             mono_probs, mono_true_masks
         )
 
-        sum_loss = inflamm_loss + contour_loss + lymph_loss + mono_loss
+        sum_loss = (
+            inflamm_loss + contour_loss + lymph_loss + mono_loss
+        )
         sum_loss.backward()
         optimizer.step()
 
@@ -341,7 +380,9 @@ def validate_one_epoch(
                 mono_probs, mono_true_masks
             )
 
-            sum_loss = inflamm_loss + contour_loss + lymph_loss + mono_loss
+            sum_loss = (
+                inflamm_loss + contour_loss + lymph_loss + mono_loss
+            )
             running_loss += sum_loss * images.size(0)
 
             binary_masks = multihead_seg_post_process(
@@ -404,7 +445,6 @@ def validate_one_epoch(
         / len(validation_loader.sampler),
         "val_loss": running_loss / len(validation_loader.sampler),
     }
-
 
 
 def multitask_train_loop(

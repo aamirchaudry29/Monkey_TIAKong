@@ -40,7 +40,12 @@ run_config = {
         "head_3": "Weighted_BCE_Jaccard",
     },
     "loss_pos_weight": 1.0,
-    "peak_thresholds": [0.5, 0.5, 0.5, 0.3],  # [inflamm, lymph, mono, contour]
+    "peak_thresholds": [
+        0.5,
+        0.5,
+        0.5,
+        0.3,
+    ],  # [inflamm, lymph, mono, contour]
     "do_augmentation": True,
     "activation_function": {
         "head_1": "sigmoid",
@@ -64,10 +69,10 @@ IOconfig = TrainingIOConfig(
 IOconfig.set_mask_dir(
     mask_dir="/mnt/lab-share/Monkey/nuclick_masks_processed"
 )
-if run_config['dataset_version'] == 2:
+if run_config["dataset_version"] == 2:
     IOconfig.set_mask_dir(
-    mask_dir="/mnt/lab-share/Monkey/nuclick_masks_processed_v2"
-)
+        mask_dir="/mnt/lab-share/Monkey/nuclick_masks_processed_v2"
+    )
 
 
 # Create model
@@ -78,7 +83,7 @@ model = get_custom_hovernext(
     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
     pretrained=True,
     num_heads=3,
-    decoders_out_channels=[2,2,2],
+    decoders_out_channels=[2, 2, 2],
     use_batchnorm=True,
     attention_type="scse",
 )
@@ -105,7 +110,7 @@ train_loader, val_loader = get_detection_dataloaders(
     use_nuclick_masks=run_config["use_nuclick_masks"],
     strong_augmentation=run_config["strong_augmentation"],
     augmentation_prob=run_config["augmentation_prob"],
-    version=run_config['dataset_version'],
+    version=run_config["dataset_version"],
 )
 
 

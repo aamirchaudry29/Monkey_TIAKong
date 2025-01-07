@@ -35,7 +35,7 @@ class TrainingIOConfig:
         self.set_mask_dir(mask_dir)
         self.set_json_dir(json_dir)
 
-    def set_image_dir(self, image_dir:str):
+    def set_image_dir(self, image_dir: str):
         """Set patches directory
 
         Args:
@@ -43,7 +43,7 @@ class TrainingIOConfig:
         """
         self.image_dir = image_dir
 
-    def set_mask_dir(self, mask_dir:str):
+    def set_mask_dir(self, mask_dir: str):
         """Set mask directory
 
         Args:
@@ -51,7 +51,7 @@ class TrainingIOConfig:
         """
         self.mask_dir = mask_dir
 
-    def set_json_dir(self, json_dir:str):
+    def set_json_dir(self, json_dir: str):
         """Set json directory
 
         Args:

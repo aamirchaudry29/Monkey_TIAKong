@@ -187,7 +187,16 @@ def get_model(
 
 
 class ModifiedSelfAttention(nn.Module):
-    def __init__(self, in_channels=64, out_channels=1, embed_dim=1, kernel_size=3, num_heads=1, patch_size=16, img_size=256): 
+    def __init__(
+        self,
+        in_channels=64,
+        out_channels=1,
+        embed_dim=1,
+        kernel_size=3,
+        num_heads=1,
+        patch_size=16,
+        img_size=256,
+    ):
         super(ModifiedSelfAttention, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -195,13 +204,25 @@ class ModifiedSelfAttention(nn.Module):
 
         self.number_of_patches = (img_size // patch_size) ** 2
 
-        self.patch_embedding = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
-        self.pos_embedding = nn.Parameter(torch.randn(1, self.number_of_patches, embed_dim))
-        
+        self.patch_embedding = nn.Conv2d(
+            in_channels,
+            embed_dim,
+            kernel_size=patch_size,
+            stride=patch_size,
+        )
+        self.pos_embedding = nn.Parameter(
+            torch.randn(1, self.number_of_patches, embed_dim)
+        )
+
         # Query, key, value projections
         self.to_qkv = nn.Linear(embed_dim, embed_dim * 3, bias=False)
 
-        self.out_projection = nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, padding=kernel_size//2)
+        self.out_projection = nn.Conv2d(
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=kernel_size // 2,
+        )
 
     def forward(self, feature_map1, feature_map2):
         """

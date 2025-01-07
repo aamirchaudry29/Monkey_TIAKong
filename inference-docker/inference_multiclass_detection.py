@@ -12,9 +12,7 @@ from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
 )
 from monkey.model.hovernext.model import get_custom_hovernext
-from prediction.multiclass_detection import (
-    wsi_detection_in_mask_v2,
-)
+from prediction.multiclass_detection import wsi_detection_in_mask_v2
 
 INPUT_PATH = Path("/input")
 OUTPUT_PATH = Path("/output")

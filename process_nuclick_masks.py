@@ -66,7 +66,6 @@ def process_nuclick_data_file(file_name):
     np.save(save_path, new_data)
 
 
-
 def process_instance_and_class_map_v2(instance_map, class_map):
     # get initial binary mask from instance map
     binary_mask = np.zeros(shape=(instance_map.shape), dtype=np.uint8)
@@ -121,7 +120,6 @@ def process_nuclick_data_file_v2(file_name):
 
     instance_map = data[:, :, 3]
     class_map = data[:, :, 4]
-
 
     processed_masks = process_instance_and_class_map_v2(
         instance_map, class_map

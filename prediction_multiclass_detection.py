@@ -7,6 +7,9 @@ from pprint import pprint
 import click
 import torch
 import ttach as tta
+from Github.Monkey_TIAKong.prediction.multiclass_detection import (
+    wsi_detection_in_mask_v2,
+)
 from tiatoolbox.wsicore.wsireader import WSIReader
 from tqdm.auto import tqdm
 
@@ -24,9 +27,6 @@ from monkey.model.efficientunetb0.architecture import (
 from monkey.model.hovernext.model import (
     get_convnext_unet,
     get_custom_hovernext,
-)
-from Github.Monkey_TIAKong.prediction.multiclass_detection import (
-    wsi_detection_in_mask_v2,
 )
 
 

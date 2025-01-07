@@ -1,11 +1,11 @@
 import os
 from typing import Tuple
 
-from matplotlib import contour
 import numpy as np
 import skimage.measure
 import skimage.morphology
 import torch
+from matplotlib import contour
 from tiatoolbox.models.engine.semantic_segmentor import (
     SemanticSegmentor,
 )
@@ -16,11 +16,11 @@ from tqdm.auto import tqdm
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
+    check_image_mask_shape,
     collate_fn,
     filter_detection_with_mask,
     imagenet_normalise_torch,
     slide_nms,
-    check_image_mask_shape
 )
 from monkey.model.efficientunetb0.architecture import (
     EfficientUnet_MBConv_Multihead,
