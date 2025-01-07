@@ -988,3 +988,17 @@ def add_background_channel(input_mask: np.ndarray):
     output_mask[0, :, :] = np.logical_not(mask_union)
 
     return output_mask
+
+
+def check_image_mask_shape(wsi_path:str, mask_path:str) -> None:
+    """
+    Check if the image and mask have the same shape
+    """
+    wsi_reader = WSIReader.open(wsi_path)
+    wsi_shape = wsi_reader.slide_dimensions(resolution=0, units="level")
+    mask_reader = WSIReader.open(mask_path)
+    mask_shape = mask_reader.slide_dimensions(resolution=0, units="level")
+
+    if (wsi_shape[0] != mask_shape[0]) or (wsi_shape[1] != mask_shape[1]):
+        message = f"Image and mask have different shapes: {wsi_shape} vs {mask_shape}"
+        raise ValueError(message)

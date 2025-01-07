@@ -79,9 +79,9 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_75.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_75.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_75.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_75.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_75.pth",
     ]
     detectors = []
     transforms = tta.Compose(
@@ -107,7 +107,7 @@ def cross_validation(fold: int = 1):
         model.load_state_dict(checkpoint["model"])
         model.eval()
         model.to("cuda")
-        model = tta.SegmentationTTAWrapper(model, transforms)
+        # model = tta.SegmentationTTAWrapper(model, transforms)
         detectors.append(model)
 
     for wsi_name in tqdm(val_wsi_files):

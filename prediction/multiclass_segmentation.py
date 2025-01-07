@@ -20,6 +20,7 @@ from monkey.data.data_utils import (
     filter_detection_with_mask,
     imagenet_normalise_torch,
     slide_nms,
+    check_image_mask_shape
 )
 from monkey.model.efficientunetb0.architecture import (
     EfficientUnet_MBConv_Multihead,
@@ -326,6 +327,9 @@ def wsi_segmentation_in_mask(
 
     wsi_path = os.path.join(wsi_dir, wsi_name)
     mask_path = os.path.join(mask_dir, mask_name)
+
+    # Raise exception if wsi shape != mask shape
+    check_image_mask_shape(wsi_path, mask_path)
 
     wsi_reader = WSIReader.open(wsi_path)
     mask_reader = WSIReader.open(mask_path)
