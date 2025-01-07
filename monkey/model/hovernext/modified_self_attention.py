@@ -187,21 +187,30 @@ def get_model(
 
 
 class ModifiedSelfAttention(nn.Module):
-    def __init__(self, in_channels=64 * 3, out_channels=3):
+    def __init__(self, in_channels=64, out_channels=1, embed_dim=1, kernel_size=3, num_heads=1, patch_size=16, img_size=256): 
         super(ModifiedSelfAttention, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.patch_size = patch_size
 
+        self.number_of_patches = (img_size // patch_size) ** 2
+
+        self.patch_embedding = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
+        self.pos_embedding = nn.Parameter(torch.randn(1, self.number_of_patches, embed_dim))
+        
         # Query, key, value projections
-        self.query_conv = nn.Conv2d(in_channels, out_channels, 1)
-        self.key_conv = nn.Conv2d(in_channels, out_channels, 1)
-        self.value_conv = nn.Conv2d(in_channels, out_channels, 1)
+        self.to_qkv = nn.Linear(embed_dim, embed_dim * 3, bias=False)
 
-    def forward(self, x):
-        batch, channels, height, width = x.size()
+        self.out_projection = nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, padding=kernel_size//2)
 
-        # Projecting Query, Key, Value
-        # (batch_size, out_channels, height*width)
+    def forward(self, feature_map1, feature_map2):
+        """
+        feature_map1: (batch_size, in_channels, height, width)
+        feature_map2: (batch_size, in_channels, height, width)
+        """
+        B, C, H, W = feature_map1.size()
+
+        # Compute Query, Key, Value for feature_map1
         proj_query = self.query_conv(x).view(
             batch, self.out_channels, height * width
         )
@@ -215,11 +224,13 @@ class ModifiedSelfAttention(nn.Module):
         # Calculating attention scores
         energy = (proj_query * proj_key).sum(
             dim=2
-        )  # (batch_size, out_channels, height*width)
+        )  # (batch_size, out_channels)
+        print(energy.size())
         attention = F.softmax(energy, dim=1)
 
         # Getting the weighted sum of values
         # (batch_size, height*width, out_channels)
+        print(proj_value.size(), attention.size())
         out = attention * proj_value
         out = out.permute(0, 2, 1).view(
             batch, self.out_channels, height, width

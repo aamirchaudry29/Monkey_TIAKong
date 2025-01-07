@@ -58,7 +58,8 @@ COPY --chown=user:user monkey /opt/app/monkey
 COPY --chown=user:user prediction /opt/app/prediction
 COPY --chown=user:user evaluation /opt/app/evaluation
 COPY --chown=user:user --chmod=0755 inference-docker/inference.py /opt/app/
-COPY --chown=user:user --chmod=0755 inference-docker/inference_multiheadunet.py /opt/app/
+COPY --chown=user:user --chmod=0755 inference-docker/inference_multiclass_detection.py /opt/app/
+COPY --chown=user:user --chmod=0755 inference-docker/inference_multiclass_segmentation.py /opt/app/
 COPY --chown=user:user --chmod=0755 inference-docker/commands.sh /opt/app/
 
 WORKDIR /opt/app/

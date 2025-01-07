@@ -12,7 +12,7 @@ from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
 )
 from monkey.model.hovernext.model import get_custom_hovernext
-from Github.Monkey_TIAKong.prediction.multiclass_detection import (
+from prediction.multiclass_detection import (
     wsi_detection_in_mask_v2,
 )
 
