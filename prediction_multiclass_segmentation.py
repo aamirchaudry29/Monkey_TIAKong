@@ -33,7 +33,7 @@ from prediction.multiclass_segmentation import (
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
-    detector_model_name = "multihead_efficientunetb0_seg"
+    detector_model_name = "convnextv2_tiny_pannuke_seg"
     pprint(f"Multiclass segmentation using {detector_model_name}")
     pprint(f"Fold {fold}")
     model_res = 0
@@ -47,7 +47,7 @@ def cross_validation(fold: int = 1):
         patch_size=256,
         resolution=model_res,
         units=units,
-        stride=224,
+        stride=216,
         thresholds=[0.5, 0.5, 0.5, 0.3],
         nms_boxes=[11, 11, 11],
         nms_overlap_thresh=0.5,
@@ -79,29 +79,30 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_75.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_75.pth",
     ]
     detectors = []
     transforms = tta.Compose(
         [
-            # tta.HorizontalFlip(),
-            # tta.VerticalFlip(),
+            tta.HorizontalFlip(),
+            tta.VerticalFlip(),
             tta.Rotate90(angles=[0, 180, 90, 270]),
         ]
     )
     for weight_path in detector_weight_paths:
-        model = get_multihead_efficientunet(
-            pretrained=False, out_channels=[2, 1, 1]
-        )
-        # model = get_custom_hovernext(pretrained=False)
-        # model = get_custom_hovernext(
-        #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
-        #     pretrained=False,
-        #     use_batchnorm=True,
-        #     attention_type="scse",
+        # model = get_multihead_efficientunet(
+        #     pretrained=False, out_channels=[2, 1, 1]
         # )
+        # model = get_custom_hovernext(pretrained=False)
+        model = get_custom_hovernext(
+            enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+            pretrained=False,
+            decoders_out_channels=[2,1,1],
+            use_batchnorm=True,
+            attention_type="scse",
+        )
         checkpoint = torch.load(weight_path)
         model.load_state_dict(checkpoint["model"])
         model.eval()

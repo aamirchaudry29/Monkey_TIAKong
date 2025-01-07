@@ -3,9 +3,9 @@
 #SBATCH --job-name=monkey_train # Job name for tracking
 #SBATCH --partition=dgxa100  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20      # Number of CPU threads used by your job
+#SBATCH --cpus-per-task=32      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
-#SBATCH --mem=24000             # Memory (mb) to use 
+#SBATCH --mem=32000             # Memory (mb) to use 
 #SBATCH --time=24:00:00      # Job time limit
 #
 #SBATCH --output=/home/u1910100/logs/train_%j.out # Standard out from your job
@@ -25,7 +25,7 @@ cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
 echo "starting training script"
 nvidia-smi
 
-# python3.11 train_multiclass_segmentation.py
-python3.11 train_multiclass_detection.py
+python3.11 train_multiclass_segmentation.py
+# python3.11 train_multiclass_detection.py
 
 echo "finished"

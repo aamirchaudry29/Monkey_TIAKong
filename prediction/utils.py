@@ -181,3 +181,72 @@ def multihead_seg_post_process(
         "mono_mask": mono_pred_binary,
     }
     return processed_masks
+
+
+
+def multihead_seg_post_process_v2(
+    inflamm_prob: torch.Tensor,
+    lymph_prob: torch.Tensor,
+    mono_prob: torch.Tensor,
+    inflamm_contour_prob: torch.Tensor,
+    lymph_contour_prob: torch.Tensor,
+    mono_contour_prob: torch.Tensor,
+    thresholds: list = [0.5, 0.5, 0.5, 0.3],
+) -> dict[str, np.ndarray]:
+    """
+    Args:
+        Thresholds: [overall, lymph, mono, contour]
+    """
+    if torch.is_tensor(inflamm_prob):
+        inflamm_prob = inflamm_prob.detach().cpu().numpy()
+    if torch.is_tensor(lymph_prob):
+        lymph_prob = lymph_prob.detach().cpu().numpy()
+    if torch.is_tensor(mono_prob):
+        mono_prob = mono_prob.detach().cpu().numpy()
+    if torch.is_tensor(inflamm_contour_prob):
+        inflamm_contour_prob = inflamm_contour_prob.detach().cpu().numpy()
+    if torch.is_tensor(lymph_contour_prob):
+        lymph_contour_prob = lymph_contour_prob.detach().cpu().numpy()
+    if torch.is_tensor(mono_contour_prob):
+        mono_contour_prob = mono_contour_prob.detach().cpu().numpy()
+
+    inflamm_contour_pred_binary = (
+        (inflamm_contour_prob > thresholds[3]).astype(np.uint8)
+    )
+    lymph_contour_pred_binary = (
+        (lymph_contour_prob > thresholds[3]).astype(np.uint8)
+    )
+    mono_contour_pred_binary = (
+        (mono_contour_prob > thresholds[3]).astype(np.uint8)
+    )
+
+    inflamm_pred_binary = (
+        (inflamm_prob > thresholds[0]).astype(np.uint8)
+    )
+    lymph_pred_binary = (
+        (lymph_prob > thresholds[1]).astype(np.uint8)
+    )
+    mono_pred_binary = (
+        (mono_prob > thresholds[2]).astype(np.uint8)
+    )
+
+    inflamm_pred_binary[inflamm_contour_pred_binary > 0] = 0
+    lymph_pred_binary[lymph_contour_pred_binary > 0] = 0
+    mono_pred_binary[mono_contour_pred_binary > 0] = 0
+
+    # Post processing
+    inflamm_pred_binary = morphological_post_processing(
+        inflamm_pred_binary
+    )
+    lymph_pred_binary = morphological_post_processing(
+        lymph_pred_binary
+    )
+    mono_pred_binary = morphological_post_processing(mono_pred_binary)
+
+    processed_masks = {
+        "inflamm_mask": inflamm_pred_binary,
+        "contour_mask": inflamm_contour_pred_binary,
+        "lymph_mask": lymph_pred_binary,
+        "mono_mask": mono_pred_binary,
+    }
+    return processed_masks

@@ -27,9 +27,9 @@ from monkey.train.train_multitask_segmentation import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Segmentation",
-    "model_name": "convnextv2_tiny_pannuke_seg",
+    "model_name": "convnextv2_tiny_pannuke_seg_v2",
     "val_fold": 1,  # [1-5]
-    "batch_size": 64,
+    "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0001,
     "weight_decay": 0.01,
@@ -48,9 +48,10 @@ run_config = {
         "head_3": "sigmoid",
     },
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
-    "augmentation_prob": 0.8,
+    "augmentation_prob": 0.9,
     "strong_augmentation": True,
-    "unfreeze_epoch": 5,
+    "unfreeze_epoch": 1,
+    "dataset_version": 2,
 }
 pprint(run_config)
 
@@ -63,6 +64,10 @@ IOconfig = TrainingIOConfig(
 IOconfig.set_mask_dir(
     mask_dir="/mnt/lab-share/Monkey/nuclick_masks_processed"
 )
+if run_config['dataset_version'] == 2:
+    IOconfig.set_mask_dir(
+    mask_dir="/mnt/lab-share/Monkey/nuclick_masks_processed_v2"
+)
 
 
 # Create model
@@ -73,7 +78,7 @@ model = get_custom_hovernext(
     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
     pretrained=True,
     num_heads=3,
-    decoders_out_channels=[2,1,1],
+    decoders_out_channels=[2,2,2],
     use_batchnorm=True,
     attention_type="scse",
 )
@@ -100,6 +105,7 @@ train_loader, val_loader = get_detection_dataloaders(
     use_nuclick_masks=run_config["use_nuclick_masks"],
     strong_augmentation=run_config["strong_augmentation"],
     augmentation_prob=run_config["augmentation_prob"],
+    version=run_config['dataset_version'],
 )
 
 
