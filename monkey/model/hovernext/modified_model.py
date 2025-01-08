@@ -97,6 +97,51 @@ class ChannelAttention(nn.Module):
         y = self.fc(y).view(b, c, 1, 1)
         y = self.sigmoid(y)
         return x * y
+    
+
+class PatchMultiheadAttention(nn.Module):
+    def __init__(self, in_channels=48, patch_size=16, embed_dim=256, num_heads=8):
+        super(PatchMultiheadAttention, self).__init__()
+        self.patch_size = patch_size
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+
+        # Linear layer to embed flattened patches
+        self.projection = nn.Linear(in_channels * patch_size * patch_size, embed_dim)
+
+        # Multihead Attention
+        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
+
+        # Final linear layer to project back
+        self.fc = nn.Linear(embed_dim, in_channels * patch_size * patch_size)
+
+    def forward(self, x):
+        # x shape: (batch_size, in_channels, height, width)
+        batch_size, in_channels, height, width = x.size()
+        
+        # Ensure dimensions are divisible by patch size
+        assert height % self.patch_size == 0 and width % self.patch_size == 0, "Image size must be divisible by patch size"
+
+        # Reshape into patches
+        num_patches_h = height // self.patch_size
+        num_patches_w = width // self.patch_size
+        patches = x.unfold(2, self.patch_size, self.patch_size).unfold(3, self.patch_size, self.patch_size)
+        patches = patches.contiguous().view(batch_size, in_channels, -1, self.patch_size, self.patch_size)
+        patches = patches.permute(0, 2, 1, 3, 4).contiguous().view(batch_size, -1, in_channels * self.patch_size * self.patch_size)
+        
+        # Linear projection of patches
+        patch_embeddings = self.projection(patches)  # Shape: (batch_size, num_patches, embed_dim)
+
+        # Apply multihead attention
+        attn_output, _ = self.multihead_attn(patch_embeddings, patch_embeddings, patch_embeddings)  # Shape: (batch_size, num_patches, embed_dim)
+
+        # Project back to original patch shape
+        attn_output = self.fc(attn_output)  # Shape: (batch_size, num_patches, in_channels * patch_size * patch_size)
+        attn_output = attn_output.view(batch_size, num_patches_h * num_patches_w, in_channels, self.patch_size, self.patch_size)
+        attn_output = attn_output.permute(0, 2, 1, 3, 4).contiguous().view(batch_size, in_channels, height, width)
+
+        return attn_output
+
 
 
 class Modified_MultiHeadModel(torch.nn.Module):
@@ -105,8 +150,11 @@ class Modified_MultiHeadModel(torch.nn.Module):
         self.encoder = nn.ModuleList([encoder])[0]
         self.decoders = nn.ModuleList(decoder_list)
         self.heads = nn.ModuleList(head_list)
+        # self.CAM_Modules = nn.ModuleList(
+        #     [ChannelAttention(in_channels=48) for i in range(3)]
+        # )
         self.CAM_Modules = nn.ModuleList(
-            [ChannelAttention(in_channels=48) for i in range(3)]
+            [PatchMultiheadAttention(in_channels=48) for i in range(3)]
         )
         self.initialize()
 
@@ -119,7 +167,7 @@ class Modified_MultiHeadModel(torch.nn.Module):
         features = self.encoder(x)
         decoder_outputs = []
         for decoder in self.decoders:
-            decoder_outputs.append(decoder(*features))
+            decoder_outputs.append(decoder(*features)) # 48 channels
         decoder_outputs = torch.cat(decoder_outputs, 1)
 
         head_outputs = []
