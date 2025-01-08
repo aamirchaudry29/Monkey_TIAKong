@@ -27,8 +27,8 @@ from monkey.train.train_multitask_segmentation import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Segmentation",
-    "model_name": "convnextv2_tiny_pannuke_seg_v2",
-    "val_fold": 1,  # [1-5]
+    "model_name": "convnextv2_base_lizard_seg_v1",
+    "val_fold": 5,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
     "learning_rate": 0.0001,
@@ -56,7 +56,7 @@ run_config = {
     "augmentation_prob": 0.9,
     "strong_augmentation": True,
     "unfreeze_epoch": 1,
-    "dataset_version": 2,
+    "dataset_version": 1,
 }
 pprint(run_config)
 
@@ -80,14 +80,14 @@ if run_config["dataset_version"] == 2:
 #     out_channels=[2, 1, 1], pretrained=True
 # )
 model = get_custom_hovernext(
-    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+    enc="convnextv2_base.fcmae_ft_in22k_in1k",
     pretrained=True,
     num_heads=3,
-    decoders_out_channels=[2, 2, 2],
+    decoders_out_channels=[2, 1, 1],
     use_batchnorm=True,
     attention_type="scse",
 )
-checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
+checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_base_lizard"
 model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
 pprint("Encoder weights loaded")
 model.to("cuda")

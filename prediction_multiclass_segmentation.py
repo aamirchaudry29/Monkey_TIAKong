@@ -33,7 +33,7 @@ from prediction.multiclass_segmentation import (
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
-    detector_model_name = "convnextv2_tiny_pannuke_seg"
+    detector_model_name = "convnextv2_tiny_pannuke_seg_v2"
     pprint(f"Multiclass segmentation using {detector_model_name}")
     pprint(f"Fold {fold}")
     model_res = 0
@@ -51,6 +51,7 @@ def cross_validation(fold: int = 1):
         thresholds=[0.5, 0.5, 0.5, 0.3],
         nms_boxes=[11, 11, 11],
         nms_overlap_thresh=0.5,
+        seg_model_version=2
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -86,8 +87,8 @@ def cross_validation(fold: int = 1):
     detectors = []
     transforms = tta.Compose(
         [
-            tta.HorizontalFlip(),
-            tta.VerticalFlip(),
+            # tta.HorizontalFlip(),
+            # tta.VerticalFlip(),
             tta.Rotate90(angles=[0, 180, 90, 270]),
         ]
     )
@@ -99,11 +100,12 @@ def cross_validation(fold: int = 1):
         model = get_custom_hovernext(
             enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
             pretrained=False,
-            decoders_out_channels=[2, 1, 1],
+            decoders_out_channels=[2, 2, 2],
             use_batchnorm=True,
             attention_type="scse",
         )
         checkpoint = torch.load(weight_path)
+        print(f"Epoch: {checkpoint['epoch']}")
         model.load_state_dict(checkpoint["model"])
         model.eval()
         model.to("cuda")

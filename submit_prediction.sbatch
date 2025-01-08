@@ -24,6 +24,7 @@ echo "done"
 cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
 echo "starting prediction script"
 
-python3.11 prediction_multiclass_segmentation.py --fold=$1
+# python3.11 prediction_multiclass_segmentation.py --fold=$1
+python3.11 prediction_multiclass_detection.py --fold=$1
 
 echo "finished"

@@ -65,9 +65,8 @@ def detection_in_tile(
         "inflamm_prob": [],
         "lymph_prob": [],
         "mono_prob": [],
-        # "contour_prob": [],
     }
-    batch_size = 16
+    batch_size = 8
     dataloader = DataLoader(
         patch_extractor,
         batch_size=batch_size,
@@ -96,9 +95,6 @@ def detection_in_tile(
         mono_prob = np.zeros(
             shape=(imgs.shape[0], patch_size, patch_size)
         )
-        # contour_prob = np.zeros(
-        #     shape=(imgs.shape[0], patch_size, patch_size)
-        # )
 
         with torch.no_grad():
             for model in models:

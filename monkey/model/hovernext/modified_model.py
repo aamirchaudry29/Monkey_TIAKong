@@ -81,9 +81,10 @@ def get_modified_hovernext(
 
 
 class ChannelAttention(nn.Module):
-    def __init__(self, in_channels, reduction_ratio=16):
+    def __init__(self, in_channels, reduction_ratio=1):
         super(ChannelAttention, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
         self.fc = nn.Sequential(
             nn.Linear(in_channels, in_channels // reduction_ratio),
             nn.ReLU(inplace=True),
@@ -93,9 +94,11 @@ class ChannelAttention(nn.Module):
 
     def forward(self, x):
         b, c, _, _ = x.size()
-        y = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view(b, c, 1, 1)
-        y = self.sigmoid(y)
+        avg_pool = self.avg_pool(x).view(b, c)
+        avg_out = self.fc(avg_pool).view(b, c, 1, 1)
+        max_pool = self.max_pool(x).view(b, c)
+        max_out = self.fc(max_pool).view(b, c, 1, 1)
+        y = self.sigmoid(avg_out + max_out)
         return x * y
     
 
@@ -150,12 +153,12 @@ class Modified_MultiHeadModel(torch.nn.Module):
         self.encoder = nn.ModuleList([encoder])[0]
         self.decoders = nn.ModuleList(decoder_list)
         self.heads = nn.ModuleList(head_list)
-        # self.CAM_Modules = nn.ModuleList(
-        #     [ChannelAttention(in_channels=48) for i in range(3)]
-        # )
         self.CAM_Modules = nn.ModuleList(
-            [PatchMultiheadAttention(in_channels=48) for i in range(3)]
+            [ChannelAttention(in_channels=48) for i in range(3)]
         )
+        # self.CAM_Modules = nn.ModuleList(
+        #     [PatchMultiheadAttention(in_channels=48) for i in range(3)]
+        # )
         self.initialize()
 
     def initialize(self):

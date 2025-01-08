@@ -10,9 +10,11 @@ from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
 from monkey.model.cellvit.cellvit import CellVit256_Unet
 from monkey.model.hovernext.model import (
-    get_convnext_unet,
     get_custom_hovernext,
     load_encoder_weights,
+)
+from monkey.model.hovernext.modified_model import (
+    get_modified_hovernext,
 )
 from monkey.model.loss_functions import get_loss_function
 from monkey.model.utils import get_activation_function
@@ -24,11 +26,11 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "convnextv2_large_lizard_det",
-    "val_fold": 5,  # [1-5]
+    "model_name": "channelattention_convnextv2_tiny_pannuke_det",
+    "val_fold": 1,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
-    "learning_rate": 0.0001,
+    "learning_rate": 0.0004,
     "weight_decay": 0.01,
     "epochs": 50,
     "loss_function": {
@@ -49,7 +51,7 @@ run_config = {
     "disk_radius": 11,
     "regression_map": False,
     "augmentation_prob": 0.95,
-    "unfreeze_epoch": 2,
+    "unfreeze_epoch": 10,
     "strong_augmentation": True,
 }
 pprint(run_config)
@@ -63,13 +65,19 @@ IOconfig = TrainingIOConfig(
 
 
 # Create model
-model = get_custom_hovernext(
-    enc="convnextv2_large.fcmae_ft_in22k_in1k",
+# model = get_custom_hovernext(
+#     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+#     pretrained=True,
+#     use_batchnorm=True,
+#     attention_type="scse",
+# )
+model = get_modified_hovernext(
+    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
     pretrained=True,
     use_batchnorm=True,
     attention_type="scse",
 )
-checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
+checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
 model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
 pprint("Encoder weights loaded")
 model.to("cuda")
@@ -151,7 +159,7 @@ run = wandb.init(
     project=f"{run_config['project_name']}_{run_config['model_name']}",
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
-    notes="Strong augmentation, tf_efficientnetv2_s.in21k encoder",
+    notes="Strong augmentation, channel attention",
 )
 
 # Start training

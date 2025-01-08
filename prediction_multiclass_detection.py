@@ -7,7 +7,7 @@ from pprint import pprint
 import click
 import torch
 import ttach as tta
-from Github.Monkey_TIAKong.prediction.multiclass_detection import (
+from prediction.multiclass_detection import (
     wsi_detection_in_mask_v2,
 )
 from tiatoolbox.wsicore.wsireader import WSIReader
@@ -80,9 +80,9 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_50.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
     ]
     detectors = []
     transforms = tta.Compose(
@@ -104,6 +104,7 @@ def cross_validation(fold: int = 1):
             attention_type="scse",
         )
         checkpoint = torch.load(weight_path)
+        print(f"epoch: {checkpoint['epoch']}")
         model.load_state_dict(checkpoint["model"])
         model.eval()
         model.to("cuda")

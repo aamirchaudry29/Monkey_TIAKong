@@ -25,7 +25,7 @@ cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
 echo "starting training script"
 nvidia-smi
 
-python3.11 train_multiclass_segmentation.py
-# python3.11 train_multiclass_detection.py
+# python3.11 train_multiclass_segmentation.py
+python3.11 train_multiclass_detection.py
 
 echo "finished"

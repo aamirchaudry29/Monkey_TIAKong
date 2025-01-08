@@ -26,7 +26,141 @@ from monkey.model.efficientunetb0.architecture import (
     EfficientUnet_MBConv_Multihead,
 )
 from monkey.model.utils import get_activation_function
-from prediction.utils import multihead_seg_post_process
+from prediction.utils import multihead_seg_post_process, multihead_seg_post_process_v2
+
+
+def segmentation_in_tile_v2(
+    image_tile: np.ndarray,
+    models: list[torch.nn.Module],
+    config: PredictionIOConfig,
+) -> Tuple[list[np.ndarray], list[np.ndarray]]:
+    """
+    Detection in tile image [2048x2048]
+
+    Args:
+        image_tile: input tile image
+        model: model to be used
+        config: PredictionIOConfig object
+    Returns:
+        (predictions, coordinates):
+            prediction: a list of patch probs.
+            coordinates: a list of bounding boxes corresponding to
+                each patch prediction
+    """
+    patch_size = config.patch_size
+    stride = config.stride
+
+    # Create patch extractor
+    tile_reader = VirtualWSIReader.open(image_tile)
+
+    patch_extractor = get_patch_extractor(
+        input_img=tile_reader,
+        method_name="slidingwindow",
+        patch_size=(patch_size, patch_size),
+        stride=(stride, stride),
+        resolution=0,
+        units="level",
+    )
+
+    predictions = {
+        "inflamm_prob": [],
+        "lymph_prob": [],
+        "mono_prob": [],
+        "inflamm_contour_prob": [],
+        "lymph_contour_prob": [],
+        "mono_contour_prob": [],
+    }
+    batch_size = 8
+    dataloader = DataLoader(
+        patch_extractor,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=collate_fn,
+    )
+
+    activation_dict = {
+        "head_1": get_activation_function("sigmoid"),
+        "head_2": get_activation_function("sigmoid"),
+        "head_3": get_activation_function("sigmoid"),
+    }
+
+    for i, imgs in enumerate(dataloader):
+        imgs = torch.permute(imgs, (0, 3, 1, 2))
+        imgs = imgs / 255
+        imgs = imagenet_normalise_torch(imgs)
+        imgs = imgs.to("cuda").float()
+
+        inflamm_prob = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
+        lymph_prob = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
+        mono_prob = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
+        inflamm_contour_prob = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
+        lymph_contour_prob = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
+        mono_contour_prob = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
+
+        with torch.no_grad():
+            for model in models:
+                model.eval()
+                logits_pred = model(imgs)
+                inflamm_logits = logits_pred[:, 0, :, :]
+                inflamm_contour_logits = logits_pred[:, 1, :, :]
+                lymph_logits = logits_pred[:, 2, :, :]
+                lymph_contour_logits = logits_pred[:, 3, :, :]
+                mono_logits = logits_pred[:, 4, :, :]
+                mono_contour_logits = logits_pred[:, 5, :, :]
+
+                _inflamm_prob = activation_dict["head_1"](
+                    inflamm_logits
+                ).numpy(force=True)
+                _inflamm_contour_prob = activation_dict["head_1"](
+                    inflamm_contour_logits
+                ).numpy(force=True)
+                _lymph_prob = activation_dict["head_2"](
+                    lymph_logits
+                ).numpy(force=True)
+                _lymph_contour_prob = activation_dict["head_2"](
+                    lymph_contour_logits
+                ).numpy(force=True)
+                _mono_prob = activation_dict["head_3"](
+                    mono_logits
+                ).numpy(force=True)
+                _mono_contour_prob = activation_dict["head_3"](
+                    mono_contour_logits
+                ).numpy(force=True)
+
+                inflamm_prob += _inflamm_prob
+                inflamm_contour_prob += _inflamm_contour_prob
+                lymph_prob += _lymph_prob
+                lymph_contour_prob += _lymph_contour_prob
+                mono_prob += _mono_prob
+                mono_contour_prob += _mono_contour_prob
+
+        inflamm_prob = inflamm_prob / len(models)
+        inflamm_contour_prob = inflamm_contour_prob / len(models)
+        lymph_prob = lymph_prob / len(models)
+        lymph_contour_prob = lymph_contour_prob / len(models)
+        mono_prob = mono_prob / len(models)
+        mono_contour_prob = mono_contour_prob / len(models)
+
+        predictions["inflamm_prob"].extend(list(inflamm_prob))
+        predictions["inflamm_contour_prob"].extend(list(inflamm_contour_prob))
+        predictions["lymph_prob"].extend(list(lymph_prob))
+        predictions["lymph_contour_prob"].extend(list(lymph_contour_prob))
+        predictions["mono_prob"].extend(list(mono_prob))
+        predictions["mono_contour_prob"].extend(list(mono_contour_prob))
+
+    return predictions, patch_extractor.coordinate_list
 
 
 def segmentation_in_tile(
@@ -68,7 +202,7 @@ def segmentation_in_tile(
         "mono_prob": [],
         "contour_prob": [],
     }
-    batch_size = 16
+    batch_size = 8
     dataloader = DataLoader(
         patch_extractor,
         batch_size=batch_size,
@@ -139,6 +273,188 @@ def segmentation_in_tile(
         predictions["mono_prob"].extend(list(mono_prob))
 
     return predictions, patch_extractor.coordinate_list
+
+
+def process_tile_segmentation_masks_v2(
+    pred_results: list,
+    coordinate_list: list,
+    config: PredictionIOConfig,
+    x_start: int,
+    y_start: int,
+    mask_tile: np.ndarray,
+    min_size: int = 3,
+    tile_size: int = 2048,
+) -> dict:
+    """
+    Process cell detection of tile image
+    x_start and y_start are used to convert detected cells to WSI coordinates
+
+    Args:
+        pred_masks: list of predicted probs[HxWx3]
+        coordinate_list: list of coordinates from patch extractor
+        config: PredictionIOConfig
+        x_start: starting x coordinate of this tile
+        y_start: starting y coordinate of this tile
+        threshold: threshold for raw prediction
+    Returns:
+        detected_points: list[dict]
+            A list of detection records: [{'x', 'y', 'type', 'probability'}]
+
+    """
+    inflamm_probs_map = np.zeros(shape=(tile_size, tile_size))
+    lymph_probs_map = np.zeros(shape=(tile_size, tile_size))
+    mono_probs_map = np.zeros(shape=(tile_size, tile_size))
+    inflamm_contour_probs_map = np.zeros(shape=(tile_size, tile_size))
+    lymph_contour_probs_map = np.zeros(shape=(tile_size, tile_size))
+    mono_contour_probs_map = np.zeros(shape=(tile_size, tile_size))
+
+    if len(pred_results["lymph_prob"]) != 0:
+        lymph_probs_map = SemanticSegmentor.merge_prediction(
+            (tile_size, tile_size),
+            pred_results["lymph_prob"],
+            coordinate_list,
+        )[:, :, 0]
+
+    if len(pred_results["mono_prob"]) != 0:
+        mono_probs_map = SemanticSegmentor.merge_prediction(
+            (tile_size, tile_size),
+            pred_results["mono_prob"],
+            coordinate_list,
+        )[:, :, 0]
+
+    if len(pred_results["inflamm_prob"]) != 0:
+        inflamm_probs_map = SemanticSegmentor.merge_prediction(
+            (tile_size, tile_size),
+            pred_results["inflamm_prob"],
+            coordinate_list,
+        )[:, :, 0]
+
+    if len(pred_results["inflamm_contour_prob"]) != 0:
+        inflamm_contour_probs_map = SemanticSegmentor.merge_prediction(
+            (tile_size, tile_size),
+            pred_results["inflamm_contour_prob"],
+            coordinate_list,
+        )[:, :, 0]
+
+    if len(pred_results["lymph_contour_prob"]) != 0:
+        lymph_contour_probs_map = SemanticSegmentor.merge_prediction(
+            (tile_size, tile_size),
+            pred_results["lymph_contour_prob"],
+            coordinate_list,
+        )[:, :, 0]
+    
+    if len(pred_results["mono_contour_prob"]) != 0:
+        mono_contour_probs_map = SemanticSegmentor.merge_prediction(
+            (tile_size, tile_size),
+            pred_results["mono_contour_prob"],
+            coordinate_list,
+        )[:, :, 0]
+
+    inflamm_probs_map = inflamm_probs_map * mask_tile
+    lymph_probs_map = lymph_probs_map * mask_tile
+    mono_probs_map = mono_probs_map * mask_tile
+    inflamm_contour_probs_map = inflamm_contour_probs_map * mask_tile
+    lymph_contour_probs_map = lymph_contour_probs_map * mask_tile
+    mono_contour_probs_map = mono_contour_probs_map * mask_tile
+
+    processed_masks = multihead_seg_post_process_v2(
+        inflamm_probs_map,
+        lymph_probs_map,
+        mono_probs_map,
+        inflamm_contour_probs_map,
+        lymph_contour_probs_map,
+        mono_contour_probs_map,
+        thresholds=config.thresholds,
+    )
+
+    inflamm_labels = skimage.measure.label(
+        processed_masks["inflamm_mask"]
+    )
+    inflamm_stats = skimage.measure.regionprops(
+        inflamm_labels, intensity_image=inflamm_probs_map
+    )
+
+    lymph_labels = skimage.measure.label(
+        processed_masks["lymph_mask"]
+    )
+    lymph_stats = skimage.measure.regionprops(
+        lymph_labels, intensity_image=lymph_probs_map
+    )
+
+    mono_labels = skimage.measure.label(processed_masks["mono_mask"])
+    mono_stats = skimage.measure.regionprops(
+        mono_labels, intensity_image=mono_probs_map
+    )
+
+    inflamm_points = []
+    lymph_points = []
+    mono_points = []
+
+    for region in inflamm_stats:
+        centroid = region["centroid"]
+
+        c, r, confidence = (
+            centroid[1],
+            centroid[0],
+            region["mean_intensity"],
+        )
+        c1 = c + x_start
+        r1 = r + y_start
+
+        prediction_record = {
+            "x": c1,
+            "y": r1,
+            "type": "inflammatory",
+            "prob": float(confidence),
+        }
+
+        inflamm_points.append(prediction_record)
+
+    for region in lymph_stats:
+        centroid = region["centroid"]
+
+        c, r, confidence = (
+            centroid[1],
+            centroid[0],
+            region["mean_intensity"],
+        )
+        c1 = c + x_start
+        r1 = r + y_start
+
+        prediction_record = {
+            "x": c1,
+            "y": r1,
+            "type": "lymphocyte",
+            "prob": float(confidence),
+        }
+
+        lymph_points.append(prediction_record)
+
+    for region in mono_stats:
+        centroid = region["centroid"]
+
+        c, r, confidence = (
+            centroid[1],
+            centroid[0],
+            region["mean_intensity"],
+        )
+        c1 = c + x_start
+        r1 = r + y_start
+
+        prediction_record = {
+            "x": c1,
+            "y": r1,
+            "type": "monocyte",
+            "prob": float(confidence),
+        }
+
+        mono_points.append(prediction_record)
+
+    return {
+        "inflamm_points": inflamm_points,
+        "lymph_points": lymph_points,
+        "mono_points": mono_points,
+    }
 
 
 def process_tile_segmentation_masks(
@@ -372,9 +688,14 @@ def wsi_segmentation_in_mask(
             i
         ]  # (x_start, y_start, x_end, y_end)
 
-        predictions, coordinates = segmentation_in_tile(
-            tile, models, config
-        )
+        if config.seg_model_version == 1:
+            predictions, coordinates = segmentation_in_tile(
+                tile, models, config
+            )
+        else:
+            predictions, coordinates = segmentation_in_tile_v2(
+                tile, models, config
+            )
 
         mask_tile = mask_reader.read_rect(
             location=(bounding_box[0], bounding_box[1]),
@@ -383,15 +704,27 @@ def wsi_segmentation_in_mask(
             units="level",
         )[:, :, 0].astype(np.uint8)
         mask_tile[mask_tile > 0] = 1
-        output_points_tile = process_tile_segmentation_masks(
-            predictions,
-            coordinates,
-            config,
-            bounding_box[0],
-            bounding_box[1],
-            mask_tile,
-            min_size=config.min_size,
-        )
+
+        if config.seg_model_version == 1:
+            output_points_tile = process_tile_segmentation_masks(
+                predictions,
+                coordinates,
+                config,
+                bounding_box[0],
+                bounding_box[1],
+                mask_tile,
+                min_size=config.min_size,
+            )
+        else:
+            output_points_tile = process_tile_segmentation_masks_v2(
+                predictions,
+                coordinates,
+                config,
+                bounding_box[0],
+                bounding_box[1],
+                mask_tile,
+                min_size=config.min_size,
+            )
         detected_inflamm_points.extend(
             output_points_tile["inflamm_points"]
         )

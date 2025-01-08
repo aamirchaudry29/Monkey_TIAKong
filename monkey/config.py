@@ -99,6 +99,7 @@ class PredictionIOConfig:
         min_distances: list = [5, 5, 5],
         nms_boxes: list = [30, 16, 40],
         nms_overlap_thresh: float = 0.5,
+        seg_model_version: int = 1
     ):
         """Initalize Config
 
@@ -117,6 +118,7 @@ class PredictionIOConfig:
             min_distances (list, optional): min distance for peak local max. Defaults to [5, 5, 5].
             nms_boxes (list, optional): box size for nms
             nms_overlap_thresh: overlap thresh for nms
+            seg_model_version: version of segmentation model
         """
         self.wsi_dir = wsi_dir
         self.mask_dir = mask_dir
@@ -135,6 +137,7 @@ class PredictionIOConfig:
         self.min_distances = min_distances
         self.nms_boxes = nms_boxes
         self.nms_overlap_thresh = nms_overlap_thresh
+        self.seg_model_version = seg_model_version
 
     def check_dirs_exist(self):
         """Check of wsi dir, mask dir and output dir exist.
