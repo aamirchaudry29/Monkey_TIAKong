@@ -66,7 +66,13 @@ def get_modified_hovernext(
             )
         )
 
-    model = Modified_MultiHeadModel(encoder, decoders, heads)
+    attention_modules = []
+    for i in range(num_heads):
+        attention_modules.append(
+            GCT(48)
+        )
+
+    model = Modified_MultiHeadModel(encoder, decoders, heads, attention_modules)
     if pre_path:
         state_dict = torch.load(pre_path, map_location=f"cpu")[
             "model_state_dict"
@@ -146,16 +152,46 @@ class PatchMultiheadAttention(nn.Module):
         return attn_output
 
 
+class GCT(nn.Module):
+
+    def __init__(self, num_channels, epsilon=1e-5, mode='l2', after_relu=False):
+        super(GCT, self).__init__()
+
+        self.alpha = nn.Parameter(torch.ones(1, num_channels, 1, 1))
+        self.gamma = nn.Parameter(torch.zeros(1, num_channels, 1, 1))
+        self.beta = nn.Parameter(torch.zeros(1, num_channels, 1, 1))
+        self.epsilon = epsilon
+        self.mode = mode
+        self.after_relu = after_relu
+
+    def forward(self, x):
+
+        if self.mode == 'l2':
+            embedding = (x.pow(2).sum((2,3), keepdim=True) + self.epsilon).pow(0.5) * self.alpha
+            norm = self.gamma / (embedding.pow(2).mean(dim=1, keepdim=True) + self.epsilon).pow(0.5)
+            
+        elif self.mode == 'l1':
+            if not self.after_relu:
+                _x = torch.abs(x)
+            else:
+                _x = x
+            embedding = _x.sum((2,3), keepdim=True) * self.alpha
+            norm = self.gamma / (torch.abs(embedding).mean(dim=1, keepdim=True) + self.epsilon)
+        else:
+            print('Unknown mode!')
+
+        gate = 1. + torch.tanh(embedding * norm + self.beta)
+
+        return x * gate
+    
 
 class Modified_MultiHeadModel(torch.nn.Module):
-    def __init__(self, encoder, decoder_list, head_list):
+    def __init__(self, encoder, decoder_list, head_list, attention_modules):
         super(Modified_MultiHeadModel, self).__init__()
         self.encoder = nn.ModuleList([encoder])[0]
         self.decoders = nn.ModuleList(decoder_list)
         self.heads = nn.ModuleList(head_list)
-        self.CAM_Modules = nn.ModuleList(
-            [ChannelAttention(in_channels=48) for i in range(3)]
-        )
+        self.CAM_Modules = nn.ModuleList(attention_modules)
         # self.CAM_Modules = nn.ModuleList(
         #     [PatchMultiheadAttention(in_channels=48) for i in range(3)]
         # )
