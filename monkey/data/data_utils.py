@@ -36,7 +36,7 @@ def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
     Load a single mask for cell detection
     """
     mask_name = f"{file_id}.npy"
-    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
+    mask_path = os.path.join(IOConfig.cell_centroid_mask_dir, mask_name)
     mask = np.load(mask_path)
     return mask
 

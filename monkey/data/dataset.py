@@ -48,7 +48,7 @@ AUGMENT_SPACE = {
     "tone": (0.0, 1.0),
     "autocontrast": (True, True),
     "equalize": (True, True),
-    "grayscale": (True, True),
+    # "grayscale": (True, True),
 }
 
 
@@ -265,11 +265,8 @@ class Multitask_Dataset(Dataset):
         file_ids: list,
         phase: str = "train",
         do_augment: bool = True,
-        use_nuclick_masks: bool = True,
-        include_background_channel: bool = False,
-        disk_radius: int = 9,
+        disk_radius: int = 11,
         augmentation_prob: float = 0.9,
-        regression_map: bool = False,
         strong_augmentation: bool = False,
     ):
         self.IOConfig = IOConfig
@@ -280,7 +277,6 @@ class Multitask_Dataset(Dataset):
         self.module = "multiclass_detection"
         self.include_background_channel = False
         self.disk_radius = disk_radius
-        self.regression_map = regression_map
         self.strong_augmentation = strong_augmentation
 
         if self.do_augment:
@@ -304,69 +300,68 @@ class Multitask_Dataset(Dataset):
         return len(self.file_ids)
 
     def __getitem__(self, idx: int) -> dict:
-        # Load image and mask
+        # Load image and nuclick masks
         file_id = self.file_ids[idx]
         image = load_image(file_id, self.IOConfig)
-        annotation_mask = load_mask(file_id, self.IOConfig)
-        class_mask = class_mask_to_multichannel_mask(
-            annotation_mask
-        ).astype(np.float32)
-        binary_mask = class_mask_to_binary(annotation_mask).astype(
-            np.float32
+        annotation_mask = load_nuclick_annotation_v2(
+            file_id, self.IOConfig
         )
 
-        # dialate masks
-        # if not self.regression_map:
-        #     class_mask[0] = dilate_mask(class_mask[0], self.disk_radius)
-        #     class_mask[1] = dilate_mask(class_mask[1], self.disk_radius)
-        #     binary_mask = dilate_mask(binary_mask, self.disk_radius)
+        inflamm_mask = annotation_mask["inflamm_mask"]
+        inflamm_contour_mask = annotation_mask["inflamm_contour_mask"]
+        lymph_mask = annotation_mask["lymph_mask"]
+        lymph_contour_mask = annotation_mask["lymph_contour_mask"]
+        mono_mask = annotation_mask["mono_mask"]
+        mono_contour_mask = annotation_mask["mono_contour_mask"]
+
+        # Load cell centroid masks
+        cell_centroid_masks = load_mask(file_id, self.IOConfig)
 
         # augmentation
         if self.do_augment:
             augmented_data = self.augmentation(
                 image=image,
-                masks=[binary_mask, class_mask[0], class_mask[1]],
+                masks=[
+                    inflamm_mask,
+                    lymph_mask,
+                    mono_mask,
+                    inflamm_contour_mask,
+                    lymph_contour_mask,
+                    mono_contour_mask,
+                    cell_centroid_masks
+                ],
             )
             image, masks = (
                 augmented_data["image"],
                 augmented_data["masks"],
             )
-            binary_mask = masks[0]
-            class_mask[0] = masks[1]
-            class_mask[1] = masks[2]
+            inflamm_mask = masks[0]
+            lymph_mask = masks[1]
+            mono_mask = masks[2]
+            inflamm_contour_mask = masks[3]
+            lymph_contour_mask = masks[4]
+            mono_contour_mask = masks[5]
+            cell_centroid_masks = masks[6]
             if self.strong_augmentation:
                 image = self.trnsf(image)
 
-        if self.regression_map:
-            binary_mask = generate_regression_map(
-                binary_mask,
-                d_thresh=self.disk_radius,
-                alpha=3,
-                scale=1,
+        lymph_mono_centroid_masks = class_mask_to_multichannel_mask(cell_centroid_masks)
+        for i in range(lymph_mono_centroid_masks.shape[0]):
+            lymph_mono_centroid_masks[i] = dilate_mask(
+                lymph_mono_centroid_masks[i], disk_radius=self.disk_radius
             )
-            class_mask[0] = generate_regression_map(
-                binary_mask=class_mask[0],
-                d_thresh=self.disk_radius,
-                alpha=3,
-                scale=1,
-            )
-            class_mask[1] = generate_regression_map(
-                binary_mask=class_mask[1],
-                d_thresh=self.disk_radius,
-                alpha=3,
-                scale=1,
-            )
-        else:
-            class_mask[0] = dilate_mask(
-                class_mask[0], self.disk_radius
-            )
-            class_mask[1] = dilate_mask(
-                class_mask[1], self.disk_radius
-            )
-            binary_mask = dilate_mask(binary_mask, self.disk_radius)
-
+        inflamm_centroid_masks = class_mask_to_binary(cell_centroid_masks)
+        inflamm_centroid_masks = dilate_mask(
+            inflamm_centroid_masks, disk_radius=self.disk_radius
+        )
+        inflamm_centroid_masks = inflamm_centroid_masks[np.newaxis, :, :]
         # HxW -> 1xHxW
-        binary_mask = binary_mask[np.newaxis, :, :]
+        inflamm_mask = inflamm_mask[np.newaxis, :, :]
+        lymph_mask = lymph_mask[np.newaxis, :, :]
+        mono_mask = mono_mask[np.newaxis, :, :]
+        inflamm_contour_mask = inflamm_contour_mask[np.newaxis, :, :]
+        lymph_contour_mask = lymph_contour_mask[np.newaxis, :, :]
+        mono_contour_mask = mono_contour_mask[np.newaxis, :, :]
 
         # HxWx3 -> 3xHxW
         image = image / 255
@@ -376,8 +371,15 @@ class Multitask_Dataset(Dataset):
         data = {
             "id": file_id,
             "image": image,
-            "binary_mask": binary_mask,
-            "class_mask": class_mask,
+            "inflamm_mask": inflamm_mask,
+            "lymph_mask": lymph_mask,
+            "mono_mask": mono_mask,
+            "inflamm_contour_mask": inflamm_contour_mask,
+            "lymph_contour_mask": lymph_contour_mask,
+            "mono_contour_mask": mono_contour_mask,
+            "inflamm_centroid_mask": inflamm_centroid_masks,
+            "lymph_centroid_mask": lymph_mono_centroid_masks[0:1, :, :],
+            "mono_centroid_mask": lymph_mono_centroid_masks[1:2, :, :],
         }
         return data
 
@@ -816,11 +818,8 @@ def get_detection_dataloaders(
             file_ids=train_file_ids,
             phase="Train",
             do_augment=do_augmentation,
-            use_nuclick_masks=use_nuclick_masks,
-            include_background_channel=include_background_channel,
             disk_radius=disk_radius,
             augmentation_prob=augmentation_prob,
-            regression_map=regression_map,
             strong_augmentation=strong_augmentation,
         )
         val_dataset = Multitask_Dataset(
@@ -828,10 +827,7 @@ def get_detection_dataloaders(
             file_ids=test_file_ids,
             phase="Test",
             do_augment=False,
-            use_nuclick_masks=use_nuclick_masks,
-            include_background_channel=include_background_channel,
             disk_radius=disk_radius,
-            regression_map=regression_map,
         )
     elif dataset_name == "segmentation":
         train_dataset = Segmentation_Dataset(

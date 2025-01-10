@@ -29,6 +29,9 @@ class TrainingIOConfig:
         mask_dir = os.path.join(
             self.dataset_dir, "annotations/masks/"
         )
+        self.cell_centroid_mask_dir = os.path.join(
+            self.dataset_dir, "annotations/masks/"
+        )
         json_dir = os.path.join(self.dataset_dir, "annotations/json/")
 
         self.set_image_dir(image_dir)
