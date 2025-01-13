@@ -17,6 +17,262 @@ from monkey.train.utils import compose_multitask_log_images
 from prediction.utils import multihead_det_post_process_batch
 
 
+def det_v2_train_one_epoch(
+model: nn.Module,
+    training_loader: DataLoader,
+    optimizer: Optimizer,
+    loss_fn_dict: dict[str, Loss_Function],
+    run_config: dict,
+    activation_dict: dict[str, torch.nn.Module],
+):
+    epoch_loss = 0.0
+    model.train()
+    for i, data in enumerate(
+        tqdm(training_loader, desc="train", leave=False)
+    ):
+        images = data["image"].cuda().float()
+
+        inflamm_seg_masks = data["inflamm_mask"].cuda().float()
+        lymph_seg_masks = data["lymph_mask"].cuda().float()
+        mono_seg_masks = data["mono_mask"].cuda().float()
+        inflamm_centroid_masks = data['inflamm_centroid_mask'].cuda().float()
+        lymph_centroid_masks = data['lymph_centroid_mask'].cuda().float()
+        mono_centroid_masks = data['mono_centroid_mask'].cuda().float()
+        inflamm_contour_masks = data['inflamm_contour_mask'].cuda().float()
+        lymph_contour_masks = data['lymph_contour_mask'].cuda().float()
+        mono_contour_masks = data['mono_contour_mask'].cuda().float()
+
+        optimizer.zero_grad()
+
+        logits_pred = model(images)
+
+        inflamm_seg_logits = logits_pred[:, 0:1, :, :]
+        inflamm_contour_logits = logits_pred[:, 1:2, :, :]
+        inflamm_centroid_logits = logits_pred[:, 2:3, :, :]
+
+        lymph_seg_logits = logits_pred[:, 3:4, :, :]
+        lymph_contour_logits = logits_pred[:, 4:5, :, :]
+        lymph_centroid_logits = logits_pred[:, 5:6, :, :]
+
+        mono_seg_logits = logits_pred[:, 6:7, :, :]
+        mono_contour_logits = logits_pred[:, 7:8, :, :]
+        mono_centroid_logits = logits_pred[:, 8:9, :, :]
+
+        inflamm_seg_pred = activation_dict["head_1"](inflamm_seg_logits)
+        inflamm_contour_pred = activation_dict["head_1"](inflamm_contour_logits)
+        inflamm_centroid_pred = activation_dict["head_1"](inflamm_centroid_logits)
+
+        lymph_seg_pred = activation_dict["head_2"](lymph_seg_logits)
+        lymph_contour_pred = activation_dict["head_2"](lymph_contour_logits)
+        lymph_centroid_pred = activation_dict["head_2"](lymph_centroid_logits)
+
+        mono_seg_pred = activation_dict["head_3"](mono_seg_logits)
+        mono_contour_pred = activation_dict["head_3"](mono_contour_logits)
+        mono_centroid_pred = activation_dict["head_3"](mono_centroid_logits)
+
+        inflamm_seg_loss = loss_fn_dict["head_1"].compute_loss(
+            inflamm_seg_pred, inflamm_seg_masks
+        )
+        inflamm_contour_loss = loss_fn_dict["head_1"].compute_loss(
+            inflamm_contour_pred, inflamm_contour_masks
+        )
+        inflamm_centroid_loss = loss_fn_dict["head_1"].compute_loss(
+            inflamm_centroid_pred, inflamm_centroid_masks
+        )
+        
+        lymph_seg_loss = loss_fn_dict["head_2"].compute_loss(
+            lymph_seg_pred, lymph_seg_masks
+        )
+        lymph_contour_loss = loss_fn_dict["head_2"].compute_loss(
+            lymph_contour_pred, lymph_contour_masks
+        )
+        lymph_centroid_loss = loss_fn_dict["head_2"].compute_loss(
+            lymph_centroid_pred, lymph_centroid_masks
+        )
+
+        mono_seg_loss = loss_fn_dict["head_3"].compute_loss(
+            mono_seg_pred, mono_seg_masks
+        )
+        mono_contour_loss = loss_fn_dict["head_3"].compute_loss(
+            mono_contour_pred, mono_contour_masks
+        )
+        mono_centroid_loss = loss_fn_dict["head_3"].compute_loss(
+            mono_centroid_pred, mono_centroid_masks
+        )
+
+        loss_1 = 0.5 * inflamm_seg_loss + 0.5 * inflamm_contour_loss + inflamm_centroid_loss
+        loss_2 = 0.5 * lymph_seg_loss + 0.5 * lymph_contour_loss + lymph_centroid_loss
+        loss_3 = 0.5 * mono_seg_loss + 0.5 * mono_contour_loss + mono_centroid_loss
+
+        sum_loss = loss_1 + loss_2 + loss_3
+        sum_loss.backward()
+        optimizer.step()
+
+        epoch_loss += sum_loss.item() * images.size(0)
+
+    return epoch_loss / len(training_loader.sampler)
+
+
+def det_v2_validate_one_epoch(
+    model: nn.Module,
+    validation_loader: DataLoader,
+    loss_fn_dict: dict[str, Loss_Function],
+    run_config: dict,
+    activation_dict: dict[str, torch.nn.Module],
+    wandb_run: Optional[wandb.run] = None,
+):
+    running_overall_score = 0.0
+    running_lymph_score = 0.0
+    running_mono_score = 0.0
+    running_loss = 0.0
+
+    model.eval()
+    for i, data in enumerate(
+        tqdm(validation_loader, desc="validation", leave=False)
+    ):
+        images = data["image"].cuda().float()
+
+        inflamm_seg_masks = data["inflamm_mask"].cuda().float()
+        lymph_seg_masks = data["lymph_mask"].cuda().float()
+        mono_seg_masks = data["mono_mask"].cuda().float()
+        inflamm_centroid_masks = data['inflamm_centroid_mask'].cuda().float()
+        lymph_centroid_masks = data['lymph_centroid_mask'].cuda().float()
+        mono_centroid_masks = data['mono_centroid_mask'].cuda().float()
+        inflamm_contour_masks = data['inflamm_contour_mask'].cuda().float()
+        lymph_contour_masks = data['lymph_contour_mask'].cuda().float()
+        mono_contour_masks = data['mono_contour_mask'].cuda().float()
+
+        with torch.no_grad():
+            logits_pred = model(images)
+
+            inflamm_seg_logits = logits_pred[:, 0:1, :, :]
+            inflamm_contour_logits = logits_pred[:, 1:2, :, :]
+            inflamm_centroid_logits = logits_pred[:, 2:3, :, :]
+
+            lymph_seg_logits = logits_pred[:, 3:4, :, :]
+            lymph_contour_logits = logits_pred[:, 4:5, :, :]
+            lymph_centroid_logits = logits_pred[:, 5:6, :, :]
+
+            mono_seg_logits = logits_pred[:, 6:7, :, :]
+            mono_contour_logits = logits_pred[:, 7:8, :, :]
+            mono_centroid_logits = logits_pred[:, 8:9, :, :]
+
+            inflamm_seg_pred = activation_dict["head_1"](inflamm_seg_logits)
+            inflamm_contour_pred = activation_dict["head_1"](inflamm_contour_logits)
+            inflamm_centroid_pred = activation_dict["head_1"](inflamm_centroid_logits)
+
+            lymph_seg_pred = activation_dict["head_2"](lymph_seg_logits)
+            lymph_contour_pred = activation_dict["head_2"](lymph_contour_logits)
+            lymph_centroid_pred = activation_dict["head_2"](lymph_centroid_logits)
+
+            mono_seg_pred = activation_dict["head_3"](mono_seg_logits)
+            mono_contour_pred = activation_dict["head_3"](mono_contour_logits)
+            mono_centroid_pred = activation_dict["head_3"](mono_centroid_logits)
+
+            inflamm_seg_loss = loss_fn_dict["head_1"].compute_loss(
+                inflamm_seg_pred, inflamm_seg_masks
+            )
+            inflamm_contour_loss = loss_fn_dict["head_1"].compute_loss(
+                inflamm_contour_pred, inflamm_contour_masks
+            )
+            inflamm_centroid_loss = loss_fn_dict["head_1"].compute_loss(
+                inflamm_centroid_pred, inflamm_centroid_masks
+            )
+            
+            lymph_seg_loss = loss_fn_dict["head_2"].compute_loss(
+                lymph_seg_pred, lymph_seg_masks
+            )
+            lymph_contour_loss = loss_fn_dict["head_2"].compute_loss(
+                lymph_contour_pred, lymph_contour_masks
+            )
+            lymph_centroid_loss = loss_fn_dict["head_2"].compute_loss(
+                lymph_centroid_pred, lymph_centroid_masks
+            )
+
+            mono_seg_loss = loss_fn_dict["head_3"].compute_loss(
+                mono_seg_pred, mono_seg_masks
+            )
+            mono_contour_loss = loss_fn_dict["head_3"].compute_loss(
+                mono_contour_pred, mono_contour_masks
+            )
+            mono_centroid_loss = loss_fn_dict["head_3"].compute_loss(
+                mono_centroid_pred, mono_centroid_masks
+            )
+
+            loss_1 = 0.5 * inflamm_seg_loss + 0.5 * inflamm_contour_loss + inflamm_centroid_loss
+            loss_2 = 0.5 * lymph_seg_loss + 0.5 * lymph_contour_loss + lymph_centroid_loss
+            loss_3 = 0.5 * mono_seg_loss + 0.5 * mono_contour_loss + mono_centroid_loss
+
+            sum_loss = loss_1 + loss_2 + loss_3
+
+            running_loss += sum_loss * images.size(0)
+
+            binary_masks = multihead_det_post_process_batch(
+                inflamm_prob=inflamm_centroid_pred,
+                lymph_prob=lymph_centroid_pred,
+                mono_prob=mono_centroid_pred,
+                thresholds=run_config["peak_thresholds"],
+                min_distances=[11, 11, 11],
+            )
+            overall_pred_binary = binary_masks["inflamm_mask"]
+            lymph_pred_binary = binary_masks["lymph_mask"]
+            mono_pred_binary = binary_masks["mono_mask"]
+
+            # Compute detection F1 score
+            overall_metrics = get_multiclass_patch_F1_score_batch(
+                overall_pred_binary[:, np.newaxis, :, :],
+                inflamm_centroid_masks,
+                [5],
+                inflamm_centroid_pred,
+            )
+            lymph_metrics = get_multiclass_patch_F1_score_batch(
+                lymph_pred_binary[:, np.newaxis, :, :],
+                lymph_centroid_masks,
+                [4],
+                lymph_centroid_pred,
+            )
+            mono_metrics = get_multiclass_patch_F1_score_batch(
+                mono_pred_binary[:, np.newaxis, :, :],
+                mono_centroid_masks,
+                [5],
+                mono_centroid_pred,
+            )
+
+        running_overall_score += (
+            overall_metrics["F1"]
+        ) * images.size(0)
+        running_lymph_score += (lymph_metrics["F1"]) * images.size(0)
+        running_mono_score += (mono_metrics["F1"]) * images.size(0)
+
+    # Log an example prediction to WandB
+    log_data = compose_multitask_log_images(
+        images,
+        inflamm_centroid_masks,
+        lymph_centroid_masks,
+        mono_centroid_masks,
+        None,
+        overall_pred_probs=inflamm_centroid_pred,
+        lymph_pred_probs=lymph_centroid_pred,
+        mono_pred_probs=mono_centroid_pred,
+        contour_pred_probs=None,
+    )
+    wandb_run.log(log_data)
+
+    # avg_score = running_val_score / len(validation_loader.sampler)
+
+    return {
+        "overall_F1": running_overall_score
+        / len(validation_loader.sampler),
+        "lymph_F1": running_lymph_score
+        / len(validation_loader.sampler),
+        "mono_F1": running_mono_score
+        / len(validation_loader.sampler),
+        "val_loss": running_loss / len(validation_loader.sampler),
+    }
+
+        
+
+
 def hovernext_train_one_epoch(
     model: nn.Module,
     training_loader: DataLoader,
@@ -367,7 +623,7 @@ def multitask_train_loop(
 ) -> torch.nn.Module:
     pprint("Starting training")
 
-    best_val_score = 0.0
+    best_val_score = np.inf
     epochs = run_config["epochs"]
 
     model = freeze_enc(model)
@@ -395,22 +651,41 @@ def multitask_train_loop(
         #     activation_dict=activation_dict,
         #     wandb_run=wandb_run,
         # )
-        avg_train_loss = hovernext_train_one_epoch(
-            model=model,
-            training_loader=train_loader,
-            optimizer=optimizer,
-            loss_fn_dict=loss_fn_dict,
-            run_config=run_config,
-            activation_dict=activation_dict,
-        )
-        avg_scores = hovernext_validate_one_epoch(
-            model=model,
-            validation_loader=validation_loader,
-            loss_fn_dict=loss_fn_dict,
-            run_config=run_config,
-            activation_dict=activation_dict,
-            wandb_run=wandb_run,
-        )
+
+        if run_config["det_version"] == 2:
+            avg_train_loss = det_v2_train_one_epoch(
+                model=model,
+                training_loader=train_loader,
+                optimizer=optimizer,
+                loss_fn_dict=loss_fn_dict,
+                run_config=run_config,
+                activation_dict=activation_dict,
+            )
+            avg_scores = det_v2_validate_one_epoch(
+                model=model,
+                validation_loader=validation_loader,
+                loss_fn_dict=loss_fn_dict,
+                run_config=run_config,
+                activation_dict=activation_dict,
+                wandb_run=wandb_run,
+            )
+        else:
+            avg_train_loss = hovernext_train_one_epoch(
+                model=model,
+                training_loader=train_loader,
+                optimizer=optimizer,
+                loss_fn_dict=loss_fn_dict,
+                run_config=run_config,
+                activation_dict=activation_dict,
+            )
+            avg_scores = hovernext_validate_one_epoch(
+                model=model,
+                validation_loader=validation_loader,
+                loss_fn_dict=loss_fn_dict,
+                run_config=run_config,
+                activation_dict=activation_dict,
+                wandb_run=wandb_run,
+            )
 
         sum_val_score = (
             avg_scores["overall_F1"]
@@ -436,8 +711,8 @@ def multitask_train_loop(
             wandb_run.log(log_data)
         pprint(log_data)
 
-        if sum_val_score > best_val_score:
-            best_val_score = sum_val_score
+        if avg_scores["val_loss"] < best_val_score:
+            best_val_score = avg_scores["val_loss"]
             pprint(f"Check Point {epoch}")
             checkpoint = {
                 "epoch": epoch,

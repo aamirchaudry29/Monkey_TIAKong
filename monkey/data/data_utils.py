@@ -606,6 +606,117 @@ def save_detection_records_monkey(
     )
 
 
+def save_detection_records_monkey_v2(
+    IOConfig: PredictionIOConfig,
+    lymph_detection_records: list[dict] = [],
+    mono_detection_records: list[dict] = [],
+    wsi_id: str | None = None,
+    save_mpp: float = 0.24199951445730394,
+) -> None:
+    """
+    Save cell detection records into Monkey challenge format
+    """
+
+    output_dir = IOConfig.output_dir
+
+    output_dict_lymphocytes = {
+        "name": "lymphocytes",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+    output_dict_monocytes = {
+        "name": "monocytes",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+    output_dict_inflammatory_cells = {
+        "name": "inflammatory-cells",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+
+    for i, record in enumerate(lymph_detection_records):
+        counter = i + 1
+        x = record["x"]
+        y = record["y"]
+        confidence = record["prob"]
+        cell_type = record["type"]
+        prediction_record = {
+            "name": "Point " + str(counter),
+            "point": [
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
+                0.24199951445730394,
+            ],
+            "probability": confidence,
+        }
+
+        output_dict_lymphocytes["points"].append(prediction_record)
+        output_dict_inflammatory_cells["points"].append(
+            prediction_record
+        )
+
+    for i, record in enumerate(mono_detection_records):
+        counter = i + 1
+        x = record["x"]
+        y = record["y"]
+        confidence = record["prob"]
+        cell_type = record["type"]
+        prediction_record = {
+            "name": "Point " + str(counter),
+            "point": [
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
+                0.24199951445730394,
+            ],
+            "probability": confidence,
+        }
+        output_dict_monocytes["points"].append(prediction_record)
+        output_dict_inflammatory_cells["points"].append(
+            prediction_record
+        )
+
+    if wsi_id is not None:
+        json_filename_lymphocytes = (
+            f"{wsi_id}_detected-lymphocytes.json"
+        )
+        json_filename_monocytes = f"{wsi_id}_detected-monocytes.json"
+        json_filename_inflammatory_cells = (
+            f"{wsi_id}_detected-inflammatory-cells.json"
+        )
+    else:
+        json_filename_lymphocytes = "detected-lymphocytes.json"
+        json_filename_monocytes = "detected-monocytes.json"
+        json_filename_inflammatory_cells = (
+            "detected-inflammatory-cells.json"
+        )
+
+    output_path_json = os.path.join(
+        output_dir, json_filename_lymphocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_lymphocytes
+    )
+
+    output_path_json = os.path.join(
+        output_dir, json_filename_monocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_monocytes
+    )
+
+    output_path_json = os.path.join(
+        output_dir, json_filename_inflammatory_cells
+    )
+    write_json_file(
+        location=output_path_json,
+        content=output_dict_inflammatory_cells,
+    )
+
+
 def filter_detection_with_mask(
     detection_records: list[dict],
     mask: np.ndarray,

@@ -19,6 +19,7 @@ from monkey.data.data_utils import (
     extract_id,
     open_json_file,
     save_detection_records_monkey,
+    save_detection_records_monkey_v2
 )
 from monkey.model.cellvit.cellvit import CellVit256_Unet
 from monkey.model.efficientunetb0.architecture import (
@@ -27,6 +28,9 @@ from monkey.model.efficientunetb0.architecture import (
 from monkey.model.hovernext.model import (
     get_convnext_unet,
     get_custom_hovernext,
+)
+from monkey.model.hovernext.modified_model import (
+    get_modified_hovernext
 )
 
 
@@ -80,9 +84,9 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_50.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_50.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
     ]
     detectors = []
     transforms = tta.Compose(
@@ -103,6 +107,12 @@ def cross_validation(fold: int = 1):
             use_batchnorm=True,
             attention_type="scse",
         )
+        # model = get_modified_hovernext(
+        #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+        #     pretrained=False,
+        #     use_batchnorm=True,
+        #     attention_type="scse",
+        # )
         checkpoint = torch.load(weight_path)
         print(f"epoch: {checkpoint['epoch']}")
         model.load_state_dict(checkpoint["model"])

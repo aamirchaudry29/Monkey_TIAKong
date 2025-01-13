@@ -100,9 +100,9 @@ def train_one_epoch_v2(
             inflamm_loss
             + lymph_loss
             + mono_loss
-            + inflamm_contour_loss
-            + lymph_contour_loss
-            + mono_contour_loss
+            + inflamm_contour_loss * 0.5
+            + lymph_contour_loss * 0.5
+            + mono_contour_loss * 0.5
         )
         sum_loss.backward()
         optimizer.step()
@@ -191,9 +191,9 @@ def validate_one_epoch_v2(
                 inflamm_loss
                 + lymph_loss
                 + mono_loss
-                + inflamm_contour_loss
-                + lymph_contour_loss
-                + mono_contour_loss
+                + inflamm_contour_loss * 0.5
+                + lymph_contour_loss * 0.5
+                + mono_contour_loss * 0.5
             )
             running_loss += sum_loss * images.size(0)
 

@@ -27,13 +27,13 @@ from monkey.train.train_multitask_segmentation import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Segmentation",
-    "model_name": "convnextv2_base_lizard_seg_v1",
-    "val_fold": 5,  # [1-5]
+    "model_name": "convnextv2_tiny_pannuke_seg_v3",
+    "val_fold": 1,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
-    "learning_rate": 0.0001,
-    "weight_decay": 0.01,
-    "epochs": 75,
+    "learning_rate": 0.0004,
+    "weight_decay": 0.004,
+    "epochs": 50,
     "loss_function": {
         "head_1": "Weighted_BCE_Jaccard",
         "head_2": "Weighted_BCE_Jaccard",
@@ -44,7 +44,7 @@ run_config = {
         0.5,
         0.5,
         0.5,
-        0.3,
+        0.5,
     ],  # [inflamm, lymph, mono, contour]
     "do_augmentation": True,
     "activation_function": {
@@ -53,10 +53,11 @@ run_config = {
         "head_3": "sigmoid",
     },
     "use_nuclick_masks": True,  # Whether to use NuClick segmentation masks,
-    "augmentation_prob": 0.9,
+    "augmentation_prob": 0.95,
     "strong_augmentation": True,
     "unfreeze_epoch": 1,
-    "dataset_version": 1,
+    "dataset_version": 2,
+    "loss_weights": [1.0, 0.5]
 }
 pprint(run_config)
 
@@ -80,14 +81,14 @@ if run_config["dataset_version"] == 2:
 #     out_channels=[2, 1, 1], pretrained=True
 # )
 model = get_custom_hovernext(
-    enc="convnextv2_base.fcmae_ft_in22k_in1k",
+    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
     pretrained=True,
     num_heads=3,
-    decoders_out_channels=[2, 1, 1],
+    decoders_out_channels=[2, 2, 2],
     use_batchnorm=True,
     attention_type="scse",
 )
-checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_base_lizard"
+checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
 model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
 pprint("Encoder weights loaded")
 model.to("cuda")
@@ -149,7 +150,7 @@ optimizer = torch.optim.AdamW(
     weight_decay=run_config["weight_decay"],
 )
 scheduler = lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="min", factor=0.1, patience=5
+    optimizer, mode="min", factor=0.1, patience=5, min_lr=1e-6
 )
 
 

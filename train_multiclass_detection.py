@@ -26,13 +26,13 @@ from monkey.train.train_multitask_cell_detection import (
 # Specify training config and hyperparameters
 run_config = {
     "project_name": "Monkey_Multiclass_Detection",
-    "model_name": "channelattention_convnextv2_tiny_pannuke_det",
-    "val_fold": 1,  # [1-5]
+    "model_name": "convnextv2_tiny_pannuke_multitask_det_experiment",
+    "val_fold": 5,  # [1-5]
     "batch_size": 32,
     "optimizer": "AdamW",
-    "learning_rate": 0.0004,
-    "weight_decay": 0.01,
-    "epochs": 50,
+    "learning_rate": 0.003,
+    "weight_decay": 0.005,
+    "epochs": 75,
     "loss_function": {
         "head_1": "Weighted_BCE_Jaccard",
         "head_2": "Weighted_BCE_Jaccard",
@@ -46,13 +46,11 @@ run_config = {
         "head_2": "sigmoid",
         "head_3": "sigmoid",
     },
-    "use_nuclick_masks": False,  # Whether to use NuClick segmentation masks,
-    "include_background_channel": False,
     "disk_radius": 11,
-    "regression_map": False,
     "augmentation_prob": 0.95,
-    "unfreeze_epoch": 10,
+    "unfreeze_epoch": 1,
     "strong_augmentation": True,
+    "det_version": 2
 }
 pprint(run_config)
 
@@ -62,24 +60,27 @@ IOconfig = TrainingIOConfig(
     dataset_dir="/mnt/lab-share/Monkey/patches_256/",
     save_dir=f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{run_config['model_name']}",
 )
-
+IOconfig.set_mask_dir(
+    mask_dir="/mnt/lab-share/Monkey/nuclick_masks_processed_v2"
+)
 
 # Create model
-# model = get_custom_hovernext(
+model = get_custom_hovernext(
+    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+    pretrained=False,
+    use_batchnorm=False,
+    attention_type="scse",
+    decoders_out_channels=[3,3,3]
+)
+# model = get_modified_hovernext(
 #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
 #     pretrained=True,
 #     use_batchnorm=True,
 #     attention_type="scse",
 # )
-model = get_modified_hovernext(
-    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
-    pretrained=True,
-    use_batchnorm=True,
-    attention_type="scse",
-)
-checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
-model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
-pprint("Encoder weights loaded")
+# checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_base_lizard"
+# model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
+# pprint("Encoder weights loaded")
 model.to("cuda")
 # -----------------------------------------------------------------------
 
@@ -96,13 +97,8 @@ train_loader, val_loader = get_detection_dataloaders(
     dataset_name="multitask",
     batch_size=run_config["batch_size"],
     do_augmentation=run_config["do_augmentation"],
-    use_nuclick_masks=run_config["use_nuclick_masks"],
-    include_background_channel=run_config[
-        "include_background_channel"
-    ],
     disk_radius=run_config["disk_radius"],
     augmentation_prob=run_config["augmentation_prob"],
-    regression_map=run_config["regression_map"],
     strong_augmentation=run_config["strong_augmentation"],
 )
 
@@ -159,7 +155,7 @@ run = wandb.init(
     project=f"{run_config['project_name']}_{run_config['model_name']}",
     name=f"fold_{run_config['val_fold']}",
     config=run_config,
-    notes="Strong augmentation, channel attention",
+    notes="",
 )
 
 # Start training

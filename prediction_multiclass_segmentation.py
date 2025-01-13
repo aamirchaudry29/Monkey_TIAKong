@@ -47,9 +47,9 @@ def cross_validation(fold: int = 1):
         patch_size=256,
         resolution=model_res,
         units=units,
-        stride=216,
-        thresholds=[0.5, 0.5, 0.5, 0.3],
-        nms_boxes=[11, 11, 11],
+        stride=196,
+        thresholds=[0.5, 0.5, 0.5, 0.5],
+        nms_boxes=[15, 13, 15],
         nms_overlap_thresh=0.5,
         seg_model_version=2
     )
@@ -80,9 +80,9 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_75.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_75.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_75.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_75.pth",
     ]
     detectors = []
     transforms = tta.Compose(
@@ -109,7 +109,7 @@ def cross_validation(fold: int = 1):
         model.load_state_dict(checkpoint["model"])
         model.eval()
         model.to("cuda")
-        # model = tta.SegmentationTTAWrapper(model, transforms)
+        model = tta.SegmentationTTAWrapper(model, transforms)
         detectors.append(model)
 
     for wsi_name in tqdm(val_wsi_files):
