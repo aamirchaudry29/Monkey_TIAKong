@@ -26,6 +26,6 @@ echo "starting training script"
 nvidia-smi
 
 # python3.11 train_multiclass_segmentation.py
-python3.11 train_multiclass_detection.py
+python3.11 train_multiclass_detection.py --fold=$1
 
 echo "finished"
