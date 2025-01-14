@@ -1,4 +1,5 @@
 import os
+from pdb import run
 from pprint import pprint
 from typing import Optional
 
@@ -25,6 +26,7 @@ model: nn.Module,
     run_config: dict,
     activation_dict: dict[str, torch.nn.Module],
 ):
+    aux_loss_weight = run_config["aux_loss_weight"]
     epoch_loss = 0.0
     model.train()
     for i, data in enumerate(
@@ -70,39 +72,39 @@ model: nn.Module,
         mono_contour_pred = activation_dict["head_3"](mono_contour_logits)
         mono_centroid_pred = activation_dict["head_3"](mono_centroid_logits)
 
-        inflamm_seg_loss = loss_fn_dict["head_1"].compute_loss(
+        inflamm_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
             inflamm_seg_pred, inflamm_seg_masks
         )
-        inflamm_contour_loss = loss_fn_dict["head_1"].compute_loss(
+        inflamm_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
             inflamm_contour_pred, inflamm_contour_masks
         )
-        inflamm_centroid_loss = loss_fn_dict["head_1"].compute_loss(
+        inflamm_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
             inflamm_centroid_pred, inflamm_centroid_masks
         )
         
-        lymph_seg_loss = loss_fn_dict["head_2"].compute_loss(
+        lymph_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
             lymph_seg_pred, lymph_seg_masks
         )
-        lymph_contour_loss = loss_fn_dict["head_2"].compute_loss(
+        lymph_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
             lymph_contour_pred, lymph_contour_masks
         )
-        lymph_centroid_loss = loss_fn_dict["head_2"].compute_loss(
+        lymph_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
             lymph_centroid_pred, lymph_centroid_masks
         )
 
-        mono_seg_loss = loss_fn_dict["head_3"].compute_loss(
+        mono_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
             mono_seg_pred, mono_seg_masks
         )
-        mono_contour_loss = loss_fn_dict["head_3"].compute_loss(
+        mono_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
             mono_contour_pred, mono_contour_masks
         )
-        mono_centroid_loss = loss_fn_dict["head_3"].compute_loss(
+        mono_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
             mono_centroid_pred, mono_centroid_masks
         )
 
-        loss_1 = 0.5 * inflamm_seg_loss + 0.5 * inflamm_contour_loss + inflamm_centroid_loss
-        loss_2 = 0.5 * lymph_seg_loss + 0.5 * lymph_contour_loss + lymph_centroid_loss
-        loss_3 = 0.5 * mono_seg_loss + 0.5 * mono_contour_loss + mono_centroid_loss
+        loss_1 = aux_loss_weight * inflamm_seg_loss + aux_loss_weight * inflamm_contour_loss + inflamm_centroid_loss
+        loss_2 = aux_loss_weight * lymph_seg_loss + aux_loss_weight * lymph_contour_loss + lymph_centroid_loss
+        loss_3 = aux_loss_weight * mono_seg_loss + aux_loss_weight * mono_contour_loss + mono_centroid_loss
 
         sum_loss = loss_1 + loss_2 + loss_3
         sum_loss.backward()
@@ -126,6 +128,7 @@ def det_v2_validate_one_epoch(
     running_mono_score = 0.0
     running_loss = 0.0
 
+    aux_loss_weight = run_config["aux_loss_weight"]
     model.eval()
     for i, data in enumerate(
         tqdm(validation_loader, desc="validation", leave=False)
@@ -169,43 +172,43 @@ def det_v2_validate_one_epoch(
             mono_contour_pred = activation_dict["head_3"](mono_contour_logits)
             mono_centroid_pred = activation_dict["head_3"](mono_centroid_logits)
 
-            inflamm_seg_loss = loss_fn_dict["head_1"].compute_loss(
+            inflamm_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
                 inflamm_seg_pred, inflamm_seg_masks
             )
-            inflamm_contour_loss = loss_fn_dict["head_1"].compute_loss(
+            inflamm_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
                 inflamm_contour_pred, inflamm_contour_masks
             )
-            inflamm_centroid_loss = loss_fn_dict["head_1"].compute_loss(
+            inflamm_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
                 inflamm_centroid_pred, inflamm_centroid_masks
             )
             
-            lymph_seg_loss = loss_fn_dict["head_2"].compute_loss(
+            lymph_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
                 lymph_seg_pred, lymph_seg_masks
             )
-            lymph_contour_loss = loss_fn_dict["head_2"].compute_loss(
+            lymph_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
                 lymph_contour_pred, lymph_contour_masks
             )
-            lymph_centroid_loss = loss_fn_dict["head_2"].compute_loss(
+            lymph_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
                 lymph_centroid_pred, lymph_centroid_masks
             )
 
-            mono_seg_loss = loss_fn_dict["head_3"].compute_loss(
+            mono_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
                 mono_seg_pred, mono_seg_masks
             )
-            mono_contour_loss = loss_fn_dict["head_3"].compute_loss(
+            mono_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
                 mono_contour_pred, mono_contour_masks
             )
-            mono_centroid_loss = loss_fn_dict["head_3"].compute_loss(
+            mono_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
                 mono_centroid_pred, mono_centroid_masks
             )
 
-            loss_1 = 0.5 * inflamm_seg_loss + 0.5 * inflamm_contour_loss + inflamm_centroid_loss
-            loss_2 = 0.5 * lymph_seg_loss + 0.5 * lymph_contour_loss + lymph_centroid_loss
-            loss_3 = 0.5 * mono_seg_loss + 0.5 * mono_contour_loss + mono_centroid_loss
+            loss_1 = aux_loss_weight * inflamm_seg_loss + aux_loss_weight * inflamm_contour_loss + inflamm_centroid_loss
+            loss_2 = aux_loss_weight * lymph_seg_loss + aux_loss_weight * lymph_contour_loss + lymph_centroid_loss
+            loss_3 = aux_loss_weight * mono_seg_loss + aux_loss_weight * mono_contour_loss + mono_centroid_loss
 
             sum_loss = loss_1 + loss_2 + loss_3
 
-            running_loss += sum_loss * images.size(0)
+            running_loss += sum_loss.item() * images.size(0)
 
             binary_masks = multihead_det_post_process_batch(
                 inflamm_prob=inflamm_centroid_pred,

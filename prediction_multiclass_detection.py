@@ -21,7 +21,6 @@ from monkey.data.data_utils import (
     save_detection_records_monkey,
     save_detection_records_monkey_v2
 )
-from monkey.model.cellvit.cellvit import CellVit256_Unet
 from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
 )
@@ -37,7 +36,7 @@ from monkey.model.hovernext.modified_model import (
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
-    detector_model_name = "convnext_tiny_pannuke_256_experiment"
+    detector_model_name = "convnextv2_base_multitask_det_experiment"
     pprint(f"Multiclass detection using {detector_model_name}")
     pprint(f"Fold {fold}")
     model_res = 0
@@ -84,8 +83,8 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_50.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/best.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
         # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
     ]
     detectors = []
@@ -102,10 +101,11 @@ def cross_validation(fold: int = 1):
         # )
         # model = get_custom_hovernext(pretrained=False)
         model = get_custom_hovernext(
-            enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+            enc="convnextv2_base.fcmae_ft_in22k_in1k",
             pretrained=False,
             use_batchnorm=True,
             attention_type="scse",
+            decoders_out_channels=[3,3,3]
         )
         # model = get_modified_hovernext(
         #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",

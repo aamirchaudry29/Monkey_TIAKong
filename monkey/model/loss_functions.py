@@ -43,7 +43,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Weighted_BCE_Dice": Weighted_BCE_Dice_Loss,
         "MSE": MSE_Loss,
         "Weighted_CrossEntropy": CrossEntropy_Loss,
-        "Dice_Focal_Loss": Dice_Focal_Loss,
+        "Jaccard_Focal_Loss": Jaccard_Focal_Loss,
         "Weighted_CE_Dice": Weighted_CE_Dice_Loss,
         "MapDe_Loss": MapDe_Loss,
         "Weighted_BCE_Jaccard": Weighted_BCE_Jaccard_Loss,
@@ -112,21 +112,24 @@ class Focal_Loss(Loss_Function):
         return
 
 
-class Dice_Focal_Loss(Loss_Function):
+class Jaccard_Focal_Loss(Loss_Function):
     def __init__(self, use_weights=False):
         super().__init__("name", use_weights)
         self.focal_loss = Focal_Loss()
-        self.dice_loss = Dice_Loss()
+        self.jaccard_loss = Jaccard_Loss()
         self.multiclass = False
+
+    def set_weight(self, pos_weight):
+        return
 
     def compute_loss(self, input: Tensor, target: Tensor):
         loss_1 = self.focal_loss.compute_loss(input, target)
-        loss_2 = self.dice_loss.compute_loss(input, target)
+        loss_2 = self.jaccard_loss.compute_loss(input, target)
         return loss_1 + loss_2
 
     def set_multiclass(self, multiclass: bool):
         self.multiclass = multiclass
-        self.dice_loss.set_multiclass(multiclass)
+        self.jaccard_loss.set_multiclass(multiclass)
         return
 
 

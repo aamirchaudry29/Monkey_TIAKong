@@ -30,17 +30,17 @@ def train(fold: int = 1):
     # Specify training config and hyperparameters
     run_config = {
         "project_name": "Monkey_Multiclass_Detection",
-        "model_name": "convnextv2_tiny_pannuke_multitask_det_experiment",
+        "model_name": "efficientnetv2_m_multitask_det_focal",
         "val_fold": fold,  # [1-5]
         "batch_size": 32,
         "optimizer": "AdamW",
         "learning_rate": 0.0004,
         "weight_decay": 0.005,
-        "epochs": 75,
+        "epochs": 90,
         "loss_function": {
-            "head_1": "Weighted_BCE_Jaccard",
-            "head_2": "Weighted_BCE_Jaccard",
-            "head_3": "Weighted_BCE_Jaccard",
+            "seg_loss": "Weighted_BCE_Jaccard",
+            "contour_loss": "Weighted_BCE_Jaccard",
+            "det_loss": "Jaccard_Focal_Loss",
         },
         "loss_pos_weight": 1.0,
         "peak_thresholds": [0.5, 0.5, 0.5],  # [inflamm, lymph, mono]
@@ -54,7 +54,8 @@ def train(fold: int = 1):
         "augmentation_prob": 0.95,
         "unfreeze_epoch": 1,
         "strong_augmentation": True,
-        "det_version": 2
+        "det_version": 2,
+        "aux_loss_weight": 0.2
     }
     pprint(run_config)
 
@@ -70,7 +71,7 @@ def train(fold: int = 1):
 
     # Create model
     model = get_custom_hovernext(
-        enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+        enc="tf_efficientnetv2_m.in21k_ft_in1k",
         pretrained=True,
         use_batchnorm=True,
         attention_type="scse",
@@ -82,9 +83,9 @@ def train(fold: int = 1):
     #     use_batchnorm=True,
     #     attention_type="scse",
     # )
-    checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
-    model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
-    pprint("Encoder weights loaded")
+    # checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
+    # model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
+    # pprint("Encoder weights loaded")
     model.to("cuda")
     # -----------------------------------------------------------------------
 
@@ -110,19 +111,19 @@ def train(fold: int = 1):
     # Create loss function, optimizer and scheduler
 
     loss_fn_dict = {
-        "head_1": get_loss_function(
-            run_config["loss_function"]["head_1"]
+        "seg_loss": get_loss_function(
+            run_config["loss_function"]["seg_loss"]
         ),
-        "head_2": get_loss_function(
-            run_config["loss_function"]["head_2"]
+        "contour_loss": get_loss_function(
+            run_config["loss_function"]["contour_loss"]
         ),
-        "head_3": get_loss_function(
-            run_config["loss_function"]["head_3"]
+        "det_loss": get_loss_function(
+            run_config["loss_function"]["det_loss"]
         ),
     }
-    loss_fn_dict["head_1"].set_weight(run_config["loss_pos_weight"])
-    loss_fn_dict["head_2"].set_weight(run_config["loss_pos_weight"])
-    loss_fn_dict["head_3"].set_weight(run_config["loss_pos_weight"])
+    loss_fn_dict["seg_loss"].set_weight(run_config["loss_pos_weight"])
+    loss_fn_dict["contour_loss"].set_weight(run_config["loss_pos_weight"])
+    loss_fn_dict["det_loss"].set_weight(run_config["loss_pos_weight"])
 
     activation_fn_dict = {
         "head_1": get_activation_function(

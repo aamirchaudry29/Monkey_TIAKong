@@ -19,7 +19,7 @@ def compute_FROC(fold: int = 1):
     # )
 
     FOLD = fold
-    model_name = "convnext_tiny_pannuke_256_experiment"
+    model_name = "convnextv2_base_multitask_det_experiment"
     print(f"Model name: {model_name}")
     PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     # PREDICT_DIR = f"/home/u1910100/Documents/Monkey/local_output/{model_name}/Fold_{FOLD}"

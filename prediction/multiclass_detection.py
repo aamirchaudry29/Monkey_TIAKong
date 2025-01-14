@@ -25,7 +25,7 @@ from monkey.model.efficientunetb0.architecture import (
     EfficientUnet_MBConv_Multihead,
 )
 from monkey.model.utils import get_activation_function
-from prediction.utils import multihead_det_post_process
+from prediction.utils import multihead_det_post_process, multihead_det_post_process_batch_v2
 
 
 def detection_in_tile(
@@ -65,6 +65,9 @@ def detection_in_tile(
         "inflamm_prob": [],
         "lymph_prob": [],
         "mono_prob": [],
+        "inflamm_seg_prob": [],
+        "lymph_seg_prob": [],
+        "mono_seg_prob": [],
     }
     batch_size = 8
     dataloader = DataLoader(
@@ -96,13 +99,33 @@ def detection_in_tile(
             shape=(imgs.shape[0], patch_size, patch_size)
         )
 
+        # inflamm_seg_prob = np.zeros(
+        #     shape=(imgs.shape[0], patch_size, patch_size)
+        # )
+        # lymph_seg_prob = np.zeros(
+        #     shape=(imgs.shape[0], patch_size, patch_size)
+        # )
+        # mono_seg_prob = np.zeros(
+        #     shape=(imgs.shape[0], patch_size, patch_size)
+        # )
+
         with torch.no_grad():
             for model in models:
                 model.eval()
                 logits_pred = model(imgs)
-                head_1_logits = logits_pred[:, 0, :, :]
-                head_2_logits = logits_pred[:, 1, :, :]
-                head_3_logits = logits_pred[:, 2, :, :]
+                # head_1_logits = logits_pred[:, 0, :, :]
+                # head_2_logits = logits_pred[:, 1, :, :]
+                # head_3_logits = logits_pred[:, 2, :, :]
+                head_1_logits = logits_pred[:, 2, :, :]
+                head_2_logits = logits_pred[:, 5, :, :]
+                head_3_logits = logits_pred[:, 8, :, :]
+
+                inflamm_seg_logits = logits_pred[:, 0, :, :]
+                lymph_seg_logits = logits_pred[:, 3, :, :]
+                mono_seg_logits = logits_pred[:, 6, :, :]
+                _inflamm_seg_prob = activation_dict["head_1"](inflamm_seg_logits).numpy(force=True)
+                _lymph_seg_prob = activation_dict["head_2"](lymph_seg_logits).numpy(force=True)
+                _mono_seg_prob = activation_dict["head_3"](mono_seg_logits).numpy(force=True)
 
                 _inflamm_prob = activation_dict["head_1"](
                     head_1_logits
@@ -114,17 +137,34 @@ def detection_in_tile(
                     head_3_logits
                 ).numpy(force=True)
 
+                _inflamm_seg_prob[_inflamm_prob < config.thresholds[0]] = 0
+                _lymph_seg_prob[_lymph_prob < config.thresholds[1]] = 0
+                _mono_seg_prob[_mono_prob < config.thresholds[2]] = 0
+
+                _inflamm_prob = _inflamm_seg_prob * 0.4 + _inflamm_prob * 0.6
+                _lymph_prob = _lymph_seg_prob * 0.4 + _lymph_prob * 0.6
+                _mono_prob = _mono_seg_prob * 0.4 + _mono_prob * 0.6
+
                 inflamm_prob += _inflamm_prob
                 lymph_prob += _lymph_prob
                 mono_prob += _mono_prob
+                # inflamm_seg_prob += _inflamm_seg_prob
+                # lymph_seg_prob += _lymph_seg_prob
+                # mono_seg_prob += _mono_seg_prob
 
         inflamm_prob = inflamm_prob / len(models)
         lymph_prob = lymph_prob / len(models)
         mono_prob = mono_prob / len(models)
+        # inflamm_seg_prob /= len(models)
+        # lymph_seg_prob /= len(models)
+        # mono_seg_prob /= len(models)
 
         predictions["inflamm_prob"].extend(list(inflamm_prob))
         predictions["lymph_prob"].extend(list(lymph_prob))
         predictions["mono_prob"].extend(list(mono_prob))
+        # predictions["inflamm_seg_prob"].extend(list(inflamm_seg_prob))
+        # predictions["lymph_seg_prob"].extend(list(lymph_seg_prob))
+        # predictions["mono_seg_prob"].extend(list(mono_seg_prob))
 
     return predictions, patch_extractor.coordinate_list
 
@@ -158,6 +198,9 @@ def process_tile_detection_masks(
     inflamm_probs_map = np.zeros(shape=(tile_size, tile_size))
     lymph_probs_map = np.zeros(shape=(tile_size, tile_size))
     mono_probs_map = np.zeros(shape=(tile_size, tile_size))
+    # inflamm_seg_probs_map = np.zeros(shape=(tile_size, tile_size))
+    # lymph_seg_probs_map = np.zeros(shape=(tile_size, tile_size))
+    # mono_seg_probs_map = np.zeros(shape=(tile_size, tile_size))
 
     if len(pred_results["lymph_prob"]) != 0:
         lymph_probs_map = SemanticSegmentor.merge_prediction(
@@ -165,6 +208,11 @@ def process_tile_detection_masks(
             pred_results["lymph_prob"],
             coordinate_list,
         )[:, :, 0]
+        # lymph_seg_probs_map = SemanticSegmentor.merge_prediction(
+        #     (tile_size, tile_size),
+        #     pred_results["lymph_seg_prob"],
+        #     coordinate_list,
+        # )[:, :, 0]
 
     if len(pred_results["mono_prob"]) != 0:
         mono_probs_map = SemanticSegmentor.merge_prediction(
@@ -172,6 +220,11 @@ def process_tile_detection_masks(
             pred_results["mono_prob"],
             coordinate_list,
         )[:, :, 0]
+        # mono_seg_probs_map = SemanticSegmentor.merge_prediction(
+        #     (tile_size, tile_size),
+        #     pred_results["mono_seg_prob"],
+        #     coordinate_list,
+        # )[:, :, 0]
 
     if len(pred_results["inflamm_prob"]) != 0:
         inflamm_probs_map = SemanticSegmentor.merge_prediction(
@@ -179,10 +232,18 @@ def process_tile_detection_masks(
             pred_results["inflamm_prob"],
             coordinate_list,
         )[:, :, 0]
+        # inflamm_seg_probs_map = SemanticSegmentor.merge_prediction(
+        #     (tile_size, tile_size),
+        #     pred_results["inflamm_seg_prob"],
+        #     coordinate_list,
+        # )[:, :, 0]
 
     inflamm_probs_map = inflamm_probs_map * mask_tile
     lymph_probs_map = lymph_probs_map * mask_tile
     mono_probs_map = mono_probs_map * mask_tile
+    # inflamm_seg_probs_map = inflamm_seg_probs_map * mask_tile
+    # lymph_seg_probs_map = lymph_seg_probs_map * mask_tile
+    # mono_seg_probs_map = mono_seg_probs_map * mask_tile
 
     processed_masks = multihead_det_post_process(
         inflamm_probs_map,
@@ -191,6 +252,13 @@ def process_tile_detection_masks(
         thresholds=config.thresholds,
         min_distances=config.min_distances,
     )
+    # processed_masks = multihead_det_post_process_v2(
+    #     inflamm_probs_map,
+    #     lymph_probs_map,
+    #     mono_probs_map,
+    #     thresholds=config.thresholds,
+    #     min_distances=config.min_distances,
+    # )
 
     inflamm_labels = skimage.measure.label(
         processed_masks["inflamm_mask"]
