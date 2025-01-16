@@ -6,5 +6,6 @@ echo model folder:
 ls /opt/ml/model
 
 echo running inference.py
-python -u inference_multiclass_segmentation.py
+# python -u inference_multiclass_segmentation.py
+python -u inference_multiclass_detection.py
 echo inference.py finished

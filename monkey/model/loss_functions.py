@@ -48,6 +48,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "MapDe_Loss": MapDe_Loss,
         "Weighted_BCE_Jaccard": Weighted_BCE_Jaccard_Loss,
         "Weighted_MSE": Weighted_MSE_Loss,
+        "Focal_Loss": Focal_Loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -109,6 +110,14 @@ class Focal_Loss(Loss_Function):
         return self.loss_fn(input, target)
 
     def set_multiclass(self):
+        return
+    
+    def set_gamma(self, gamma):
+        self.loss_fn.gamma = gamma
+        return
+
+    def set_alpha(self, alpha):
+        self.loss_fn.alpha = alpha
         return
 
 
@@ -254,22 +263,37 @@ class Weighted_BCE_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss", True)
         self.multiclass = False
-        self.pos_weight = 1.0
+        self.reduction = "mean"
+
+    def set_reduction(self, reduction):
+        self.reduction = reduction
 
     def set_multiclass(self, multiclass):
         self.multiclass = multiclass
 
     def set_weight(self, pos_weight: float):
-        self.pos_weight = pos_weight
+        return
 
-    def compute_loss(self, input: Tensor, target: Tensor):
-        weight_map = 1 + (self.pos_weight - 1) * target
-        loss = nn.functional.binary_cross_entropy(
-            input.float(),
-            target.float(),
-            weight=weight_map,
-            reduction="mean",
-        )
+    def compute_loss(self, input: Tensor, target: Tensor, weight_map=None):
+        if weight_map is not None:
+            loss = nn.functional.binary_cross_entropy(
+                input.float(),
+                target.float(),
+                reduction='none',
+            )
+            final_loss = loss * weight_map
+            if self.reduction == "mean":
+                return final_loss.mean()
+            elif self.reduction == "sum":
+                return final_loss.sum()
+            else:
+                return final_loss.mean()
+        else:
+            loss = nn.functional.binary_cross_entropy(
+                input.float(),
+                target.float(),
+                reduction=self.reduction,
+            )
         return loss
 
 
@@ -341,8 +365,8 @@ class Weighted_BCE_Jaccard_Loss(Loss_Function):
         self.pos_weight = pos_weight
         self.bce_loss.set_weight(self.pos_weight)
 
-    def compute_loss(self, input: Tensor, target: Tensor):
-        bce = self.bce_loss.compute_loss(input, target)
+    def compute_loss(self, input: Tensor, target: Tensor, weight_map=None):
+        bce = self.bce_loss.compute_loss(input, target, weight_map=weight_map)
         jaccard = jaccard_loss(
             input.float(), target.float(), multiclass=self.multiclass
         )
