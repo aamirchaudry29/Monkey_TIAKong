@@ -158,8 +158,8 @@ class Focal_Loss(Loss_Function):
         self.loss_fn = FocalLoss(
             include_background=True,
             gamma=2.0,
-            alpha=0,
-            reduction="none",
+            alpha=0.25,
+            reduction="mean",
         )
 
     def compute_loss(self, input: Tensor, target: Tensor):

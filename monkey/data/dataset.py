@@ -349,9 +349,9 @@ class Multitask_Dataset(Dataset):
                 image = self.trnsf(image)
 
         # Get gradient maps
-        inflamm_h_map, inflamm_v_map = compute_hv_map(inflamm_mask)
-        lymph_h_map, lymph_v_map = compute_hv_map(lymph_mask)
-        mono_h_map, mono_v_map = compute_hv_map(mono_mask)
+        inflamm_hv_map = compute_hv_map(inflamm_mask)
+        lymph_hv_map = compute_hv_map(lymph_mask)
+        mono_hv_map = compute_hv_map(mono_mask)
 
         lymph_mono_centroid_masks = class_mask_to_multichannel_mask(
             cell_centroid_masks
@@ -401,12 +401,6 @@ class Multitask_Dataset(Dataset):
         lymph_weight_mask = lymph_weight_mask[np.newaxis, :, :]
         mono_weight_mask = mono_weight_mask[np.newaxis, :, :]
         inflamm_weight_mask = inflamm_weight_mask[np.newaxis, :, :]
-        inflamm_h_map = inflamm_h_map[np.newaxis, :, :]
-        inflamm_v_map = inflamm_v_map[np.newaxis, :, :]
-        lymph_h_map = lymph_h_map[np.newaxis, :, :]
-        lymph_v_map = lymph_v_map[np.newaxis, :, :]
-        mono_h_map = mono_h_map[np.newaxis, :, :]
-        mono_v_map = mono_v_map[np.newaxis, :, :]
 
         # HxWx3 -> 3xHxW
         image = image / 255
@@ -432,12 +426,9 @@ class Multitask_Dataset(Dataset):
             "inflamm_weight_mask": inflamm_weight_mask,
             "lymph_weight_mask": lymph_weight_mask,
             "mono_weight_mask": mono_weight_mask,
-            "inflamm_h_map": inflamm_h_map,
-            "inflamm_v_map": inflamm_v_map,
-            "lymph_h_map": lymph_h_map,
-            "lymph_v_map": lymph_v_map,
-            "mono_h_map": mono_h_map,
-            "mono_v_map": mono_v_map,
+            "inflamm_hv_map": inflamm_hv_map,
+            "lymph_hv_map": lymph_hv_map,
+            "mono_hv_map": mono_hv_map,
         }
         return data
 

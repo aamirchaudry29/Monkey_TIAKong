@@ -34,7 +34,7 @@ def train(fold: int = 1):
     # Specify training config and hyperparameters
     run_config = {
         "project_name": "Monkey_Multiclass_Detection",
-        "model_name": "efficientnetv2_l_multitask_det_experiment",
+        "model_name": "efficientnetv2_l_multitask_det_grad_map",
         "val_fold": fold,  # [1-5]
         "batch_size": 64,
         "optimizer": "AdamW",
@@ -45,6 +45,7 @@ def train(fold: int = 1):
             "seg_loss": "Jaccard_Focal_Loss",
             "contour_loss": "Jaccard_Focal_Loss",
             "det_loss": "Jaccard_Focal_Loss",
+            "hv_loss": "MSGE_Loss"
         },
         "weight_map_scale": 1.0,
         "peak_thresholds": [0.5, 0.5, 0.5],  # [inflamm, lymph, mono]
@@ -53,14 +54,15 @@ def train(fold: int = 1):
             "head_1": "sigmoid",
             "head_2": "sigmoid",
             "head_3": "sigmoid",
+            "hv": "tanh",
         },
         "disk_radius": 11,
         "augmentation_prob": 0.95,
         "unfreeze_epoch": 1,
         "strong_augmentation": True,
         "det_version": 2,
-        "train_aux_loss_weights": [0.1, 0.1],  # [seg, contour]
-        "val_aux_loss_weights": [0.1, 0.1],  # [seg, contour]
+        "train_aux_loss_weights": [0.5, 0.5, 0.5],  # [seg, contour, hv]
+        "val_aux_loss_weights": [0.5, 0.5, 0.5],  # [seg, contour, hv]
     }
     pprint(run_config)
 
@@ -81,7 +83,7 @@ def train(fold: int = 1):
         pretrained=True,
         use_batchnorm=True,
         attention_type="scse",
-        decoders_out_channels=[3, 3, 3],
+        decoders_out_channels=[5, 5, 5],
     )
     # model = get_modified_hovernext(
     #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
@@ -125,6 +127,9 @@ def train(fold: int = 1):
         "det_loss": get_loss_function(
             run_config["loss_function"]["det_loss"]
         ),
+        "hv_loss": get_loss_function(
+            run_config["loss_function"]["hv_loss"]
+        ),
     }
 
     is_regression = torch.tensor([False, False, False], device="cuda")
@@ -142,6 +147,9 @@ def train(fold: int = 1):
         ),
         "head_3": get_activation_function(
             run_config["activation_function"]["head_3"]
+        ),
+        "hv": get_activation_function(
+            run_config["activation_function"]["hv"]
         ),
     }
 
