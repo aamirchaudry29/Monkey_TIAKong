@@ -268,6 +268,7 @@ class Multitask_Dataset(Dataset):
         disk_radius: int = 11,
         augmentation_prob: float = 0.9,
         strong_augmentation: bool = False,
+        weight_map_scale: int = 1,
     ):
         self.IOConfig = IOConfig
         self.file_ids = file_ids
@@ -278,6 +279,7 @@ class Multitask_Dataset(Dataset):
         self.include_background_channel = False
         self.disk_radius = disk_radius
         self.strong_augmentation = strong_augmentation
+        self.weight_map_scale = weight_map_scale
 
         if self.do_augment:
             self.augmentation = get_augmentation(
@@ -346,14 +348,17 @@ class Multitask_Dataset(Dataset):
                 image = self.trnsf(image)
 
         lymph_mono_centroid_masks = class_mask_to_multichannel_mask(cell_centroid_masks)
-        lymph_weight_mask = generate_regression_map(lymph_mono_centroid_masks[0], d_thresh=self.disk_radius, alpha=1, scale=1)
-        mono_weight_mask = generate_regression_map(lymph_mono_centroid_masks[1], d_thresh=self.disk_radius, alpha=1, scale=1)
+        lymph_weight_mask = generate_regression_map(lymph_mono_centroid_masks[0], d_thresh=self.disk_radius, alpha=1, scale=self.weight_map_scale)
+        lymph_weight_mask = lymph_weight_mask + 1
+        mono_weight_mask = generate_regression_map(lymph_mono_centroid_masks[1], d_thresh=self.disk_radius, alpha=1, scale=self.weight_map_scale)
+        mono_weight_mask = mono_weight_mask + 1
         for i in range(lymph_mono_centroid_masks.shape[0]):
             lymph_mono_centroid_masks[i] = dilate_mask(
                 lymph_mono_centroid_masks[i], disk_radius=self.disk_radius
             )
         inflamm_centroid_masks = class_mask_to_binary(cell_centroid_masks)
-        inflamm_weight_mask = generate_regression_map(inflamm_centroid_masks, d_thresh=self.disk_radius, alpha=1, scale=1)
+        inflamm_weight_mask = generate_regression_map(inflamm_centroid_masks, d_thresh=self.disk_radius, alpha=1, scale=self.weight_map_scale)
+        inflamm_weight_mask = inflamm_weight_mask + 1
         inflamm_centroid_masks = dilate_mask(
             inflamm_centroid_masks, disk_radius=self.disk_radius
         )
@@ -753,6 +758,7 @@ def get_detection_dataloaders(
     augmentation_prob: float = 0.8,
     strong_augmentation: bool = False,
     version: int = 1,
+    weight_map_scale: int = 1,
 ):
     """
     Get training and validation dataloaders
@@ -830,6 +836,7 @@ def get_detection_dataloaders(
             disk_radius=disk_radius,
             augmentation_prob=augmentation_prob,
             strong_augmentation=strong_augmentation,
+            weight_map_scale = weight_map_scale
         )
         val_dataset = Multitask_Dataset(
             IOConfig=IOConfig,
@@ -837,6 +844,7 @@ def get_detection_dataloaders(
             phase="Test",
             do_augment=False,
             disk_radius=disk_radius,
+            weight_map_scale = weight_map_scale
         )
     elif dataset_name == "segmentation":
         train_dataset = Segmentation_Dataset(

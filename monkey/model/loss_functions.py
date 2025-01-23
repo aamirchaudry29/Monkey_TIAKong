@@ -8,6 +8,29 @@ from monai.losses import DiceLoss, FocalLoss
 from torch import Tensor
 
 
+class MultiTaskLoss(torch.nn.Module):
+    def __init__(self, is_regression:torch.Tensor = torch.tensor([False, False, False]), reduction="none"):
+        super(MultiTaskLoss, self).__init__()
+        self.is_regression = is_regression
+        self.n_tasks = len(is_regression)
+        self.log_vars = nn.Parameter(torch.zeros(self.n_tasks))
+        self.reduction = reduction
+    
+    def forward(self, losses:torch.Tensor):
+        dtype = losses.dtype
+        device = losses.device
+        stds = (torch.exp(self.log_vars)**0.5).to(dtype).to(device)
+        self.is_regression = self.is_regression.to(device).to(dtype)
+        coeffs = 1 / ((self.is_regression+1) * stds**2)
+        multi_task_losses = coeffs * losses + self.log_vars
+
+        if self.reduction == 'sum':
+            return multi_task_losses.sum()
+        if self.reduction == 'mean':
+            return multi_task_losses.mean()
+        return multi_task_losses
+
+
 # Abstract class for loss functions
 # All loss functions need to a subclass of this class
 class Loss_Function(ABC):
@@ -223,6 +246,9 @@ class Jaccard_Loss(Loss_Function):
 
     def set_multiclass(self, multiclass: bool):
         self.multiclass = multiclass
+
+    def set_weight(self, pos_weight: float):
+        return
 
     def compute_loss(self, input: Tensor, target: Tensor):
         return jaccard_loss(

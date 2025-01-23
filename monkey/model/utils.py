@@ -276,3 +276,36 @@ def get_classification_metrics(
     }
 
     return metrics
+
+
+class EarlyStopper:
+    """
+    A utility class to perform early stopping during model training.
+    Attributes:
+        patience (int): The number of epochs to wait after the last time the validation loss improved.
+        min_delta (float): The minimum change in the monitored quantity to qualify as an improvement.
+        counter (int): The number of epochs since the last improvement in validation loss.
+        min_validation_loss (float): The minimum validation loss observed so far.
+    Methods:
+        early_stop(validation_loss):
+            Checks if training should be stopped early based on the validation loss.
+            Args:
+                validation_loss (float): The current epoch's validation loss.
+            Returns:
+                bool: True if training should be stopped early, False otherwise.
+    """
+    def __init__(self, patience: int = 10, min_delta: float = 0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.min_validation_loss = float("inf")
+    
+    def early_stop(self, validation_loss):
+        if validation_loss < self.min_validation_loss:
+            self.min_validation_loss = validation_loss
+            self.counter = 0
+        elif validation_loss > (self.min_validation_loss + self.min_delta):
+            self.counter += 1
+            if self.counter >= self.patience:
+                return True
+        return False

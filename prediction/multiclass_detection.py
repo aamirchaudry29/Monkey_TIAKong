@@ -99,16 +99,6 @@ def detection_in_tile(
             shape=(imgs.shape[0], patch_size, patch_size)
         )
 
-        # inflamm_seg_prob = np.zeros(
-        #     shape=(imgs.shape[0], patch_size, patch_size)
-        # )
-        # lymph_seg_prob = np.zeros(
-        #     shape=(imgs.shape[0], patch_size, patch_size)
-        # )
-        # mono_seg_prob = np.zeros(
-        #     shape=(imgs.shape[0], patch_size, patch_size)
-        # )
-
         with torch.no_grad():
             for model in models:
                 model.eval()
@@ -148,23 +138,15 @@ def detection_in_tile(
                 inflamm_prob += _inflamm_prob
                 lymph_prob += _lymph_prob
                 mono_prob += _mono_prob
-                # inflamm_seg_prob += _inflamm_seg_prob
-                # lymph_seg_prob += _lymph_seg_prob
-                # mono_seg_prob += _mono_seg_prob
+
 
         inflamm_prob = inflamm_prob / len(models)
         lymph_prob = lymph_prob / len(models)
         mono_prob = mono_prob / len(models)
-        # inflamm_seg_prob /= len(models)
-        # lymph_seg_prob /= len(models)
-        # mono_seg_prob /= len(models)
 
         predictions["inflamm_prob"].extend(list(inflamm_prob))
         predictions["lymph_prob"].extend(list(lymph_prob))
         predictions["mono_prob"].extend(list(mono_prob))
-        # predictions["inflamm_seg_prob"].extend(list(inflamm_seg_prob))
-        # predictions["lymph_seg_prob"].extend(list(lymph_seg_prob))
-        # predictions["mono_seg_prob"].extend(list(mono_seg_prob))
 
     return predictions, patch_extractor.coordinate_list
 

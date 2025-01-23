@@ -36,8 +36,8 @@ from monkey.model.hovernext.modified_model import (
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
-    detector_model_name = "convnextv2_base_multitask_det_experiment"
-    pprint(f"Multiclass detection using {detector_model_name}")
+    detector_model_name = "efficientnetv2_l_multitask_det_experiment"
+    pprint(f"Multiclass detection using {detector_model_name}") 
     pprint(f"Fold {fold}")
     model_res = 0
     units = "level"
@@ -83,16 +83,16 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/best.pth",
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best_val.pth",
+        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best_val.pth",
     ]
     detectors = []
     transforms = tta.Compose(
         [
             tta.HorizontalFlip(),
             tta.VerticalFlip(),
-            tta.Rotate90(angles=[0, 180, 90, 270]),
+            tta.Rotate90(angles=[0, 90, 180, 270]),
         ]
     )
     for weight_path in detector_weight_paths:
@@ -101,7 +101,7 @@ def cross_validation(fold: int = 1):
         # )
         # model = get_custom_hovernext(pretrained=False)
         model = get_custom_hovernext(
-            enc="convnextv2_base.fcmae_ft_in22k_in1k",
+            enc="tf_efficientnetv2_l.in21k_ft_in1k",
             pretrained=False,
             use_batchnorm=True,
             attention_type="scse",
