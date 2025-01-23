@@ -26,7 +26,10 @@ from monkey.model.efficientunetb0.architecture import (
     EfficientUnet_MBConv_Multihead,
 )
 from monkey.model.utils import get_activation_function
-from prediction.utils import multihead_seg_post_process, multihead_seg_post_process_v2
+from prediction.utils import (
+    multihead_seg_post_process,
+    multihead_seg_post_process_v2,
+)
 
 
 def segmentation_in_tile_v2(
@@ -154,11 +157,17 @@ def segmentation_in_tile_v2(
         mono_contour_prob = mono_contour_prob / len(models)
 
         predictions["inflamm_prob"].extend(list(inflamm_prob))
-        predictions["inflamm_contour_prob"].extend(list(inflamm_contour_prob))
+        predictions["inflamm_contour_prob"].extend(
+            list(inflamm_contour_prob)
+        )
         predictions["lymph_prob"].extend(list(lymph_prob))
-        predictions["lymph_contour_prob"].extend(list(lymph_contour_prob))
+        predictions["lymph_contour_prob"].extend(
+            list(lymph_contour_prob)
+        )
         predictions["mono_prob"].extend(list(mono_prob))
-        predictions["mono_contour_prob"].extend(list(mono_contour_prob))
+        predictions["mono_contour_prob"].extend(
+            list(mono_contour_prob)
+        )
 
     return predictions, patch_extractor.coordinate_list
 
@@ -330,11 +339,13 @@ def process_tile_segmentation_masks_v2(
         )[:, :, 0]
 
     if len(pred_results["inflamm_contour_prob"]) != 0:
-        inflamm_contour_probs_map = SemanticSegmentor.merge_prediction(
-            (tile_size, tile_size),
-            pred_results["inflamm_contour_prob"],
-            coordinate_list,
-        )[:, :, 0]
+        inflamm_contour_probs_map = (
+            SemanticSegmentor.merge_prediction(
+                (tile_size, tile_size),
+                pred_results["inflamm_contour_prob"],
+                coordinate_list,
+            )[:, :, 0]
+        )
 
     if len(pred_results["lymph_contour_prob"]) != 0:
         lymph_contour_probs_map = SemanticSegmentor.merge_prediction(
@@ -342,7 +353,7 @@ def process_tile_segmentation_masks_v2(
             pred_results["lymph_contour_prob"],
             coordinate_list,
         )[:, :, 0]
-    
+
     if len(pred_results["mono_contour_prob"]) != 0:
         mono_contour_probs_map = SemanticSegmentor.merge_prediction(
             (tile_size, tile_size),

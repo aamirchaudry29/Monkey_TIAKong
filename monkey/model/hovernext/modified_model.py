@@ -9,7 +9,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from segmentation_models_pytorch.base import modules as md
-from monkey.model.hovernext.model import get_timm_encoder, UnetDecoder
+
+from monkey.model.hovernext.model import UnetDecoder, get_timm_encoder
 
 
 def get_modified_hovernext(
@@ -68,11 +69,11 @@ def get_modified_hovernext(
 
     attention_modules = []
     for i in range(num_heads):
-        attention_modules.append(
-            GCT(48)
-        )
+        attention_modules.append(GCT(48))
 
-    model = Modified_MultiHeadModel(encoder, decoders, heads, attention_modules)
+    model = Modified_MultiHeadModel(
+        encoder, decoders, heads, attention_modules
+    )
     if pre_path:
         state_dict = torch.load(pre_path, map_location=f"cpu")[
             "model_state_dict"
@@ -83,7 +84,6 @@ def get_modified_hovernext(
                 new_state[k] = v
         model.load_state_dict(new_state)
     return model
-    
 
 
 class ChannelAttention(nn.Module):
@@ -94,7 +94,7 @@ class ChannelAttention(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(in_channels, in_channels // reduction_ratio),
             nn.ReLU(inplace=True),
-            nn.Linear(in_channels // reduction_ratio, in_channels)
+            nn.Linear(in_channels // reduction_ratio, in_channels),
         )
         self.sigmoid = nn.Sigmoid()
 
@@ -106,55 +106,104 @@ class ChannelAttention(nn.Module):
         max_out = self.fc(max_pool).view(b, c, 1, 1)
         y = self.sigmoid(avg_out + max_out)
         return x * y
-    
+
 
 class PatchMultiheadAttention(nn.Module):
-    def __init__(self, in_channels=48, patch_size=16, embed_dim=256, num_heads=8):
+    def __init__(
+        self,
+        in_channels=48,
+        patch_size=16,
+        embed_dim=256,
+        num_heads=8,
+    ):
         super(PatchMultiheadAttention, self).__init__()
         self.patch_size = patch_size
         self.embed_dim = embed_dim
         self.num_heads = num_heads
 
         # Linear layer to embed flattened patches
-        self.projection = nn.Linear(in_channels * patch_size * patch_size, embed_dim)
+        self.projection = nn.Linear(
+            in_channels * patch_size * patch_size, embed_dim
+        )
 
         # Multihead Attention
-        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
+        self.multihead_attn = nn.MultiheadAttention(
+            embed_dim, num_heads, batch_first=True
+        )
 
         # Final linear layer to project back
-        self.fc = nn.Linear(embed_dim, in_channels * patch_size * patch_size)
+        self.fc = nn.Linear(
+            embed_dim, in_channels * patch_size * patch_size
+        )
 
     def forward(self, x):
         # x shape: (batch_size, in_channels, height, width)
         batch_size, in_channels, height, width = x.size()
-        
+
         # Ensure dimensions are divisible by patch size
-        assert height % self.patch_size == 0 and width % self.patch_size == 0, "Image size must be divisible by patch size"
+        assert (
+            height % self.patch_size == 0
+            and width % self.patch_size == 0
+        ), "Image size must be divisible by patch size"
 
         # Reshape into patches
         num_patches_h = height // self.patch_size
         num_patches_w = width // self.patch_size
-        patches = x.unfold(2, self.patch_size, self.patch_size).unfold(3, self.patch_size, self.patch_size)
-        patches = patches.contiguous().view(batch_size, in_channels, -1, self.patch_size, self.patch_size)
-        patches = patches.permute(0, 2, 1, 3, 4).contiguous().view(batch_size, -1, in_channels * self.patch_size * self.patch_size)
-        
+        patches = x.unfold(
+            2, self.patch_size, self.patch_size
+        ).unfold(3, self.patch_size, self.patch_size)
+        patches = patches.contiguous().view(
+            batch_size,
+            in_channels,
+            -1,
+            self.patch_size,
+            self.patch_size,
+        )
+        patches = (
+            patches.permute(0, 2, 1, 3, 4)
+            .contiguous()
+            .view(
+                batch_size,
+                -1,
+                in_channels * self.patch_size * self.patch_size,
+            )
+        )
+
         # Linear projection of patches
-        patch_embeddings = self.projection(patches)  # Shape: (batch_size, num_patches, embed_dim)
+        patch_embeddings = self.projection(
+            patches
+        )  # Shape: (batch_size, num_patches, embed_dim)
 
         # Apply multihead attention
-        attn_output, _ = self.multihead_attn(patch_embeddings, patch_embeddings, patch_embeddings)  # Shape: (batch_size, num_patches, embed_dim)
+        attn_output, _ = self.multihead_attn(
+            patch_embeddings, patch_embeddings, patch_embeddings
+        )  # Shape: (batch_size, num_patches, embed_dim)
 
         # Project back to original patch shape
-        attn_output = self.fc(attn_output)  # Shape: (batch_size, num_patches, in_channels * patch_size * patch_size)
-        attn_output = attn_output.view(batch_size, num_patches_h * num_patches_w, in_channels, self.patch_size, self.patch_size)
-        attn_output = attn_output.permute(0, 2, 1, 3, 4).contiguous().view(batch_size, in_channels, height, width)
+        attn_output = self.fc(
+            attn_output
+        )  # Shape: (batch_size, num_patches, in_channels * patch_size * patch_size)
+        attn_output = attn_output.view(
+            batch_size,
+            num_patches_h * num_patches_w,
+            in_channels,
+            self.patch_size,
+            self.patch_size,
+        )
+        attn_output = (
+            attn_output.permute(0, 2, 1, 3, 4)
+            .contiguous()
+            .view(batch_size, in_channels, height, width)
+        )
 
         return attn_output
 
 
 class GCT(nn.Module):
 
-    def __init__(self, num_channels, epsilon=1e-5, mode='l2', after_relu=False):
+    def __init__(
+        self, num_channels, epsilon=1e-5, mode="l2", after_relu=False
+    ):
         super(GCT, self).__init__()
 
         self.alpha = nn.Parameter(torch.ones(1, num_channels, 1, 1))
@@ -166,27 +215,37 @@ class GCT(nn.Module):
 
     def forward(self, x):
 
-        if self.mode == 'l2':
-            embedding = (x.pow(2).sum((2,3), keepdim=True) + self.epsilon).pow(0.5) * self.alpha
-            norm = self.gamma / (embedding.pow(2).mean(dim=1, keepdim=True) + self.epsilon).pow(0.5)
-            
-        elif self.mode == 'l1':
+        if self.mode == "l2":
+            embedding = (
+                x.pow(2).sum((2, 3), keepdim=True) + self.epsilon
+            ).pow(0.5) * self.alpha
+            norm = self.gamma / (
+                embedding.pow(2).mean(dim=1, keepdim=True)
+                + self.epsilon
+            ).pow(0.5)
+
+        elif self.mode == "l1":
             if not self.after_relu:
                 _x = torch.abs(x)
             else:
                 _x = x
-            embedding = _x.sum((2,3), keepdim=True) * self.alpha
-            norm = self.gamma / (torch.abs(embedding).mean(dim=1, keepdim=True) + self.epsilon)
+            embedding = _x.sum((2, 3), keepdim=True) * self.alpha
+            norm = self.gamma / (
+                torch.abs(embedding).mean(dim=1, keepdim=True)
+                + self.epsilon
+            )
         else:
-            print('Unknown mode!')
+            print("Unknown mode!")
 
-        gate = 1. + torch.tanh(embedding * norm + self.beta)
+        gate = 1.0 + torch.tanh(embedding * norm + self.beta)
 
         return x * gate
-    
+
 
 class Modified_MultiHeadModel(torch.nn.Module):
-    def __init__(self, encoder, decoder_list, head_list, attention_modules):
+    def __init__(
+        self, encoder, decoder_list, head_list, attention_modules
+    ):
         super(Modified_MultiHeadModel, self).__init__()
         self.encoder = nn.ModuleList([encoder])[0]
         self.decoders = nn.ModuleList(decoder_list)
@@ -206,7 +265,7 @@ class Modified_MultiHeadModel(torch.nn.Module):
         features = self.encoder(x)
         decoder_outputs = []
         for decoder in self.decoders:
-            decoder_outputs.append(decoder(*features)) # 48 channels
+            decoder_outputs.append(decoder(*features))  # 48 channels
         decoder_outputs = torch.cat(decoder_outputs, 1)
 
         head_outputs = []

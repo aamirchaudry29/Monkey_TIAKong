@@ -3,9 +3,9 @@
 import os
 from pprint import pprint
 
+import click
 import torch
 import wandb
-import click
 from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
@@ -62,7 +62,7 @@ def train(fold: int = 1):
         "strong_augmentation": True,
         "unfreeze_epoch": 1,
         "dataset_version": 2,
-        "loss_weights": [1.0, 0.5]
+        "loss_weights": [1.0, 0.5],
     }
     pprint(run_config)
 
@@ -80,7 +80,6 @@ def train(fold: int = 1):
             mask_dir="/mnt/lab-share/Monkey/nuclick_masks_processed_v2"
         )
 
-
     # Create model
     # model = get_multihead_efficientunet(
     #     out_channels=[2, 1, 1], pretrained=True
@@ -94,12 +93,13 @@ def train(fold: int = 1):
         attention_type="scse",
     )
     checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_tiny_pannuke"
-    model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
+    model = load_encoder_weights(
+        model, checkpoint_path=checkpoint_path
+    )
     pprint("Encoder weights loaded")
     model.to("cuda")
     device = torch.device("cuda")
     # -----------------------------------------------------------------------
-
 
     IOconfig.set_checkpoint_save_dir(
         run_name=f"fold_{run_config['val_fold']}"
@@ -118,7 +118,6 @@ def train(fold: int = 1):
         augmentation_prob=run_config["augmentation_prob"],
         version=run_config["dataset_version"],
     )
-
 
     # Create loss function, optimizer and scheduler
     loss_fn_dict = {
@@ -148,7 +147,6 @@ def train(fold: int = 1):
         ),
     }
 
-
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=run_config["learning_rate"],
@@ -157,7 +155,6 @@ def train(fold: int = 1):
     scheduler = lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.1, patience=5, min_lr=1e-6
     )
-
 
     # Create WandB session
     run = wandb.init(

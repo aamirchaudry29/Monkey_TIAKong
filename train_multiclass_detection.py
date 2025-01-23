@@ -2,8 +2,8 @@
 import os
 from pprint import pprint
 
-import torch
 import click
+import torch
 import wandb
 from torch.optim import lr_scheduler
 
@@ -17,11 +17,15 @@ from monkey.model.hovernext.model import (
 from monkey.model.hovernext.modified_model import (
     get_modified_hovernext,
 )
-from monkey.model.loss_functions import get_loss_function, MultiTaskLoss
+from monkey.model.loss_functions import (
+    MultiTaskLoss,
+    get_loss_function,
+)
 from monkey.model.utils import get_activation_function
 from monkey.train.train_multitask_cell_detection import (
     multitask_train_loop,
 )
+
 
 @click.command()
 @click.option("--fold", default=1)
@@ -55,8 +59,8 @@ def train(fold: int = 1):
         "unfreeze_epoch": 1,
         "strong_augmentation": True,
         "det_version": 2,
-        "train_aux_loss_weights": [0.1, 0.1], # [seg, contour]
-        "val_aux_loss_weights": [0.1, 0.1], # [seg, contour]
+        "train_aux_loss_weights": [0.1, 0.1],  # [seg, contour]
+        "val_aux_loss_weights": [0.1, 0.1],  # [seg, contour]
     }
     pprint(run_config)
 
@@ -77,7 +81,7 @@ def train(fold: int = 1):
         pretrained=True,
         use_batchnorm=True,
         attention_type="scse",
-        decoders_out_channels=[3,3,3]
+        decoders_out_channels=[3, 3, 3],
     )
     # model = get_modified_hovernext(
     #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
@@ -90,7 +94,6 @@ def train(fold: int = 1):
     # pprint("Encoder weights loaded")
     model.to("cuda")
     # -----------------------------------------------------------------------
-
 
     IOconfig.set_checkpoint_save_dir(
         run_name=f"fold_{run_config['val_fold']}"
@@ -110,7 +113,6 @@ def train(fold: int = 1):
         weight_map_scale=run_config["weight_map_scale"],
     )
 
-
     # Create loss function, optimizer and scheduler
 
     loss_fn_dict = {
@@ -125,9 +127,11 @@ def train(fold: int = 1):
         ),
     }
 
-    is_regression = torch.tensor([False,False,False], device="cuda")
-    multi_task_loss_instance = MultiTaskLoss(is_regression=is_regression, reduction='sum')
-    multi_task_loss_instance.to('cuda')
+    is_regression = torch.tensor([False, False, False], device="cuda")
+    multi_task_loss_instance = MultiTaskLoss(
+        is_regression=is_regression, reduction="sum"
+    )
+    multi_task_loss_instance.to("cuda")
 
     activation_fn_dict = {
         "head_1": get_activation_function(
@@ -141,7 +145,9 @@ def train(fold: int = 1):
         ),
     }
 
-    params = list(model.parameters()) + list(multi_task_loss_instance.parameters())
+    params = list(model.parameters()) + list(
+        multi_task_loss_instance.parameters()
+    )
     optimizer = torch.optim.AdamW(
         params,
         lr=run_config["learning_rate"],
@@ -156,7 +162,9 @@ def train(fold: int = 1):
     # scheduler = lr_scheduler.ReduceLROnPlateau(
     #     optimizer, "min", factor=0.1, patience=5
     # )
-    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=0.0)
+    scheduler = lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=10, eta_min=0.0
+    )
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
     #     optimizer, T_0=20, T_mult=1
     # )
@@ -182,7 +190,7 @@ def train(fold: int = 1):
         save_dir=IOconfig.checkpoint_save_dir,
         run_config=run_config,
         wandb_run=run,
-        multi_task_loss_instance=multi_task_loss_instance
+        multi_task_loss_instance=multi_task_loss_instance,
     )
 
     # Save final checkpoint

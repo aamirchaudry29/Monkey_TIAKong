@@ -15,17 +15,20 @@ from tqdm.auto import tqdm
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
+    check_image_mask_shape,
     collate_fn,
     filter_detection_with_mask,
     imagenet_normalise_torch,
     slide_nms,
-    check_image_mask_shape
 )
 from monkey.model.efficientunetb0.architecture import (
     EfficientUnet_MBConv_Multihead,
 )
 from monkey.model.utils import get_activation_function
-from prediction.utils import multihead_det_post_process, multihead_det_post_process_batch_v2
+from prediction.utils import (
+    multihead_det_post_process,
+    multihead_det_post_process_batch_v2,
+)
 
 
 def detection_in_tile(
@@ -113,9 +116,15 @@ def detection_in_tile(
                 inflamm_seg_logits = logits_pred[:, 0, :, :]
                 lymph_seg_logits = logits_pred[:, 3, :, :]
                 mono_seg_logits = logits_pred[:, 6, :, :]
-                _inflamm_seg_prob = activation_dict["head_1"](inflamm_seg_logits).numpy(force=True)
-                _lymph_seg_prob = activation_dict["head_2"](lymph_seg_logits).numpy(force=True)
-                _mono_seg_prob = activation_dict["head_3"](mono_seg_logits).numpy(force=True)
+                _inflamm_seg_prob = activation_dict["head_1"](
+                    inflamm_seg_logits
+                ).numpy(force=True)
+                _lymph_seg_prob = activation_dict["head_2"](
+                    lymph_seg_logits
+                ).numpy(force=True)
+                _mono_seg_prob = activation_dict["head_3"](
+                    mono_seg_logits
+                ).numpy(force=True)
 
                 _inflamm_prob = activation_dict["head_1"](
                     head_1_logits
@@ -127,18 +136,25 @@ def detection_in_tile(
                     head_3_logits
                 ).numpy(force=True)
 
-                _inflamm_seg_prob[_inflamm_prob < config.thresholds[0]] = 0
-                _lymph_seg_prob[_lymph_prob < config.thresholds[1]] = 0
+                _inflamm_seg_prob[
+                    _inflamm_prob < config.thresholds[0]
+                ] = 0
+                _lymph_seg_prob[
+                    _lymph_prob < config.thresholds[1]
+                ] = 0
                 _mono_seg_prob[_mono_prob < config.thresholds[2]] = 0
 
-                _inflamm_prob = _inflamm_seg_prob * 0.4 + _inflamm_prob * 0.6
-                _lymph_prob = _lymph_seg_prob * 0.4 + _lymph_prob * 0.6
+                _inflamm_prob = (
+                    _inflamm_seg_prob * 0.4 + _inflamm_prob * 0.6
+                )
+                _lymph_prob = (
+                    _lymph_seg_prob * 0.4 + _lymph_prob * 0.6
+                )
                 _mono_prob = _mono_seg_prob * 0.4 + _mono_prob * 0.6
 
                 inflamm_prob += _inflamm_prob
                 lymph_prob += _lymph_prob
                 mono_prob += _mono_prob
-
 
         inflamm_prob = inflamm_prob / len(models)
         lymph_prob = lymph_prob / len(models)

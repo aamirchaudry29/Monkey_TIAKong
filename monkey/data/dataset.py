@@ -17,6 +17,7 @@ from monkey.data.data_utils import (
     add_background_channel,
     dilate_mask,
     generate_regression_map,
+    get_gradient_maps,
     get_label_from_class_id,
     get_split_from_json,
     imagenet_normalise,
@@ -26,7 +27,6 @@ from monkey.data.data_utils import (
     load_mask,
     load_nuclick_annotation,
     load_nuclick_annotation_v2,
-    get_gradient_maps
 )
 
 # Strong augmentation
@@ -331,7 +331,7 @@ class Multitask_Dataset(Dataset):
                     inflamm_contour_mask,
                     lymph_contour_mask,
                     mono_contour_mask,
-                    cell_centroid_masks
+                    cell_centroid_masks,
                 ],
             )
             image, masks = (
@@ -349,27 +349,52 @@ class Multitask_Dataset(Dataset):
                 image = self.trnsf(image)
 
         # Get gradient maps
-        inflamm_grad_x, inflamm_grad_y = get_gradient_maps(image, inflamm_mask)
-        lymph_grad_x, lymph_grad_y = get_gradient_maps(image, lymph_mask)
+        inflamm_grad_x, inflamm_grad_y = get_gradient_maps(
+            image, inflamm_mask
+        )
+        lymph_grad_x, lymph_grad_y = get_gradient_maps(
+            image, lymph_mask
+        )
         mono_grad_x, mono_grad_y = get_gradient_maps(image, mono_mask)
 
-
-        lymph_mono_centroid_masks = class_mask_to_multichannel_mask(cell_centroid_masks)
-        lymph_weight_mask = generate_regression_map(lymph_mono_centroid_masks[0], d_thresh=self.disk_radius, alpha=1, scale=self.weight_map_scale)
+        lymph_mono_centroid_masks = class_mask_to_multichannel_mask(
+            cell_centroid_masks
+        )
+        lymph_weight_mask = generate_regression_map(
+            lymph_mono_centroid_masks[0],
+            d_thresh=self.disk_radius,
+            alpha=1,
+            scale=self.weight_map_scale,
+        )
         lymph_weight_mask = lymph_weight_mask + 1
-        mono_weight_mask = generate_regression_map(lymph_mono_centroid_masks[1], d_thresh=self.disk_radius, alpha=1, scale=self.weight_map_scale)
+        mono_weight_mask = generate_regression_map(
+            lymph_mono_centroid_masks[1],
+            d_thresh=self.disk_radius,
+            alpha=1,
+            scale=self.weight_map_scale,
+        )
         mono_weight_mask = mono_weight_mask + 1
         for i in range(lymph_mono_centroid_masks.shape[0]):
             lymph_mono_centroid_masks[i] = dilate_mask(
-                lymph_mono_centroid_masks[i], disk_radius=self.disk_radius
+                lymph_mono_centroid_masks[i],
+                disk_radius=self.disk_radius,
             )
-        inflamm_centroid_masks = class_mask_to_binary(cell_centroid_masks)
-        inflamm_weight_mask = generate_regression_map(inflamm_centroid_masks, d_thresh=self.disk_radius, alpha=1, scale=self.weight_map_scale)
+        inflamm_centroid_masks = class_mask_to_binary(
+            cell_centroid_masks
+        )
+        inflamm_weight_mask = generate_regression_map(
+            inflamm_centroid_masks,
+            d_thresh=self.disk_radius,
+            alpha=1,
+            scale=self.weight_map_scale,
+        )
         inflamm_weight_mask = inflamm_weight_mask + 1
         inflamm_centroid_masks = dilate_mask(
             inflamm_centroid_masks, disk_radius=self.disk_radius
         )
-        inflamm_centroid_masks = inflamm_centroid_masks[np.newaxis, :, :]
+        inflamm_centroid_masks = inflamm_centroid_masks[
+            np.newaxis, :, :
+        ]
         # HxW -> 1xHxW
         inflamm_mask = inflamm_mask[np.newaxis, :, :]
         lymph_mask = lymph_mask[np.newaxis, :, :]
@@ -402,8 +427,12 @@ class Multitask_Dataset(Dataset):
             "lymph_contour_mask": lymph_contour_mask,
             "mono_contour_mask": mono_contour_mask,
             "inflamm_centroid_mask": inflamm_centroid_masks,
-            "lymph_centroid_mask": lymph_mono_centroid_masks[0:1, :, :],
-            "mono_centroid_mask": lymph_mono_centroid_masks[1:2, :, :],
+            "lymph_centroid_mask": lymph_mono_centroid_masks[
+                0:1, :, :
+            ],
+            "mono_centroid_mask": lymph_mono_centroid_masks[
+                1:2, :, :
+            ],
             "inflamm_weight_mask": inflamm_weight_mask,
             "lymph_weight_mask": lymph_weight_mask,
             "mono_weight_mask": mono_weight_mask,
@@ -412,7 +441,7 @@ class Multitask_Dataset(Dataset):
             "lymph_grad_x": lymph_grad_x,
             "lymph_grad_y": lymph_grad_y,
             "mono_grad_x": mono_grad_x,
-            "mono_grad_y": mono_grad_y
+            "mono_grad_y": mono_grad_y,
         }
         return data
 
@@ -855,7 +884,7 @@ def get_detection_dataloaders(
             disk_radius=disk_radius,
             augmentation_prob=augmentation_prob,
             strong_augmentation=strong_augmentation,
-            weight_map_scale = weight_map_scale
+            weight_map_scale=weight_map_scale,
         )
         val_dataset = Multitask_Dataset(
             IOConfig=IOConfig,
@@ -863,7 +892,7 @@ def get_detection_dataloaders(
             phase="Test",
             do_augment=False,
             disk_radius=disk_radius,
-            weight_map_scale = weight_map_scale
+            weight_map_scale=weight_map_scale,
         )
     elif dataset_name == "segmentation":
         train_dataset = Segmentation_Dataset(

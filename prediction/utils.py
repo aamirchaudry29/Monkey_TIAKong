@@ -245,7 +245,6 @@ def multihead_seg_post_process_v2(
     return processed_masks
 
 
-
 def multihead_det_post_process_batch_v2(
     inflamm_prob: torch.Tensor,
     lymph_prob: torch.Tensor,
@@ -282,6 +281,7 @@ def multihead_det_post_process_batch_v2(
         "mono_mask": mono_output_mask,
     }
 
+
 def post_process_batch_v2(
     prob: torch.Tensor,
     seg_prob: torch.Tensor,
@@ -307,7 +307,7 @@ def post_process_batch_v2(
         prob_mask = prob[i]
         seg_prob_mask = seg_prob[i]
         final_prob_mask = prob_mask * 0.7 + seg_prob_mask * 0.3
-        final_prob_mask[prob_mask<threshold] = 0
+        final_prob_mask[prob_mask < threshold] = 0
         coordinates = peak_local_max(
             final_prob_mask,
             min_distance=min_distance,

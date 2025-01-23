@@ -7,9 +7,6 @@ from pprint import pprint
 import click
 import torch
 import ttach as tta
-from prediction.multiclass_detection import (
-    wsi_detection_in_mask_v2,
-)
 from tiatoolbox.wsicore.wsireader import WSIReader
 from tqdm.auto import tqdm
 
@@ -19,7 +16,7 @@ from monkey.data.data_utils import (
     extract_id,
     open_json_file,
     save_detection_records_monkey,
-    save_detection_records_monkey_v2
+    save_detection_records_monkey_v2,
 )
 from monkey.model.efficientunetb0.architecture import (
     get_multihead_efficientunet,
@@ -29,15 +26,16 @@ from monkey.model.hovernext.model import (
     get_custom_hovernext,
 )
 from monkey.model.hovernext.modified_model import (
-    get_modified_hovernext
+    get_modified_hovernext,
 )
+from prediction.multiclass_detection import wsi_detection_in_mask_v2
 
 
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
     detector_model_name = "efficientnetv2_l_multitask_det_experiment"
-    pprint(f"Multiclass detection using {detector_model_name}") 
+    pprint(f"Multiclass detection using {detector_model_name}")
     pprint(f"Fold {fold}")
     model_res = 0
     units = "level"
@@ -105,7 +103,7 @@ def cross_validation(fold: int = 1):
             pretrained=False,
             use_batchnorm=True,
             attention_type="scse",
-            decoders_out_channels=[3,3,3]
+            decoders_out_channels=[3, 3, 3],
         )
         # model = get_modified_hovernext(
         #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",

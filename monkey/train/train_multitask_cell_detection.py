@@ -13,13 +13,16 @@ from tqdm import tqdm
 
 from monkey.model.hovernext.model import freeze_enc, unfreeze_enc
 from monkey.model.loss_functions import Loss_Function, MultiTaskLoss
-from monkey.model.utils import EarlyStopper, get_multiclass_patch_F1_score_batch
+from monkey.model.utils import (
+    EarlyStopper,
+    get_multiclass_patch_F1_score_batch,
+)
 from monkey.train.utils import compose_multitask_log_images
 from prediction.utils import multihead_det_post_process_batch
 
 
 def det_v2_train_one_epoch(
-model: nn.Module,
+    model: nn.Module,
     training_loader: DataLoader,
     optimizer: Optimizer,
     loss_fn_dict: dict[str, Loss_Function],
@@ -40,16 +43,25 @@ model: nn.Module,
         inflamm_seg_masks = data["inflamm_mask"].cuda().float()
         lymph_seg_masks = data["lymph_mask"].cuda().float()
         mono_seg_masks = data["mono_mask"].cuda().float()
-        inflamm_centroid_masks = data['inflamm_centroid_mask'].cuda().float()
-        lymph_centroid_masks = data['lymph_centroid_mask'].cuda().float()
-        mono_centroid_masks = data['mono_centroid_mask'].cuda().float()
-        inflamm_contour_masks = data['inflamm_contour_mask'].cuda().float()
-        lymph_contour_masks = data['lymph_contour_mask'].cuda().float()
-        mono_contour_masks = data['mono_contour_mask'].cuda().float()
+        inflamm_centroid_masks = (
+            data["inflamm_centroid_mask"].cuda().float()
+        )
+        lymph_centroid_masks = (
+            data["lymph_centroid_mask"].cuda().float()
+        )
+        mono_centroid_masks = (
+            data["mono_centroid_mask"].cuda().float()
+        )
+        inflamm_contour_masks = (
+            data["inflamm_contour_mask"].cuda().float()
+        )
+        lymph_contour_masks = (
+            data["lymph_contour_mask"].cuda().float()
+        )
+        mono_contour_masks = data["mono_contour_mask"].cuda().float()
         # inflamm_weight_masks = data['inflamm_weight_mask'].cuda().float()
         # lymph_weight_masks = data['lymph_weight_mask'].cuda().float()
         # mono_weight_masks = data['mono_weight_mask'].cuda().float()
-
 
         optimizer.zero_grad()
 
@@ -67,37 +79,51 @@ model: nn.Module,
         mono_contour_logits = logits_pred[:, 7:8, :, :]
         mono_centroid_logits = logits_pred[:, 8:9, :, :]
 
-        inflamm_seg_pred = activation_dict["head_1"](inflamm_seg_logits)
-        inflamm_contour_pred = activation_dict["head_1"](inflamm_contour_logits)
-        inflamm_centroid_pred = activation_dict["head_1"](inflamm_centroid_logits)
+        inflamm_seg_pred = activation_dict["head_1"](
+            inflamm_seg_logits
+        )
+        inflamm_contour_pred = activation_dict["head_1"](
+            inflamm_contour_logits
+        )
+        inflamm_centroid_pred = activation_dict["head_1"](
+            inflamm_centroid_logits
+        )
 
         lymph_seg_pred = activation_dict["head_2"](lymph_seg_logits)
-        lymph_contour_pred = activation_dict["head_2"](lymph_contour_logits)
-        lymph_centroid_pred = activation_dict["head_2"](lymph_centroid_logits)
+        lymph_contour_pred = activation_dict["head_2"](
+            lymph_contour_logits
+        )
+        lymph_centroid_pred = activation_dict["head_2"](
+            lymph_centroid_logits
+        )
 
         mono_seg_pred = activation_dict["head_3"](mono_seg_logits)
-        mono_contour_pred = activation_dict["head_3"](mono_contour_logits)
-        mono_centroid_pred = activation_dict["head_3"](mono_centroid_logits)
+        mono_contour_pred = activation_dict["head_3"](
+            mono_contour_logits
+        )
+        mono_centroid_pred = activation_dict["head_3"](
+            mono_centroid_logits
+        )
 
         inflamm_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
             inflamm_seg_pred, inflamm_seg_masks
         )
-        inflamm_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
-            inflamm_contour_pred, inflamm_contour_masks
-        )
+        inflamm_contour_loss = loss_fn_dict[
+            "contour_loss"
+        ].compute_loss(inflamm_contour_pred, inflamm_contour_masks)
         # inflamm_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
         #     inflamm_centroid_pred, inflamm_centroid_masks, inflamm_weight_masks
         # )
         inflamm_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
             inflamm_centroid_pred, inflamm_centroid_masks
         )
-        
+
         lymph_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
             lymph_seg_pred, lymph_seg_masks
         )
-        lymph_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
-            lymph_contour_pred, lymph_contour_masks
-        )
+        lymph_contour_loss = loss_fn_dict[
+            "contour_loss"
+        ].compute_loss(lymph_contour_pred, lymph_contour_masks)
         # lymph_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
         #     lymph_centroid_pred, lymph_centroid_masks, lymph_weight_masks
         # )
@@ -118,9 +144,21 @@ model: nn.Module,
             mono_centroid_pred, mono_centroid_masks
         )
 
-        loss_1 = seg_loss_weight * inflamm_seg_loss + contour_loss_weight * inflamm_contour_loss + inflamm_centroid_loss
-        loss_2 = seg_loss_weight * lymph_seg_loss + contour_loss_weight * lymph_contour_loss + lymph_centroid_loss
-        loss_3 = seg_loss_weight * mono_seg_loss + contour_loss_weight * mono_contour_loss + mono_centroid_loss
+        loss_1 = (
+            seg_loss_weight * inflamm_seg_loss
+            + contour_loss_weight * inflamm_contour_loss
+            + inflamm_centroid_loss
+        )
+        loss_2 = (
+            seg_loss_weight * lymph_seg_loss
+            + contour_loss_weight * lymph_contour_loss
+            + lymph_centroid_loss
+        )
+        loss_3 = (
+            seg_loss_weight * mono_seg_loss
+            + contour_loss_weight * mono_contour_loss
+            + mono_centroid_loss
+        )
 
         # sum_loss = loss_1 + loss_2 + loss_3
         # sum_loss.backward()
@@ -128,7 +166,7 @@ model: nn.Module,
 
         stack_loss = torch.stack((loss_1, loss_2, loss_3))
         multi_task_loss = multi_task_loss_instance(stack_loss)
-        multi_task_loss.backward()        
+        multi_task_loss.backward()
         epoch_loss += multi_task_loss.item() * images.size(0)
 
         optimizer.step()
@@ -162,12 +200,22 @@ def det_v2_validate_one_epoch(
         inflamm_seg_masks = data["inflamm_mask"].cuda().float()
         lymph_seg_masks = data["lymph_mask"].cuda().float()
         mono_seg_masks = data["mono_mask"].cuda().float()
-        inflamm_centroid_masks = data['inflamm_centroid_mask'].cuda().float()
-        lymph_centroid_masks = data['lymph_centroid_mask'].cuda().float()
-        mono_centroid_masks = data['mono_centroid_mask'].cuda().float()
-        inflamm_contour_masks = data['inflamm_contour_mask'].cuda().float()
-        lymph_contour_masks = data['lymph_contour_mask'].cuda().float()
-        mono_contour_masks = data['mono_contour_mask'].cuda().float()
+        inflamm_centroid_masks = (
+            data["inflamm_centroid_mask"].cuda().float()
+        )
+        lymph_centroid_masks = (
+            data["lymph_centroid_mask"].cuda().float()
+        )
+        mono_centroid_masks = (
+            data["mono_centroid_mask"].cuda().float()
+        )
+        inflamm_contour_masks = (
+            data["inflamm_contour_mask"].cuda().float()
+        )
+        lymph_contour_masks = (
+            data["lymph_contour_mask"].cuda().float()
+        )
+        mono_contour_masks = data["mono_contour_mask"].cuda().float()
         # inflamm_weight_masks = data['inflamm_weight_mask'].cuda().float()
         # lymph_weight_masks = data['lymph_weight_mask'].cuda().float()
         # mono_weight_masks = data['mono_weight_mask'].cuda().float()
@@ -187,66 +235,98 @@ def det_v2_validate_one_epoch(
             mono_contour_logits = logits_pred[:, 7:8, :, :]
             mono_centroid_logits = logits_pred[:, 8:9, :, :]
 
-            inflamm_seg_pred = activation_dict["head_1"](inflamm_seg_logits)
-            inflamm_contour_pred = activation_dict["head_1"](inflamm_contour_logits)
-            inflamm_centroid_pred = activation_dict["head_1"](inflamm_centroid_logits)
+            inflamm_seg_pred = activation_dict["head_1"](
+                inflamm_seg_logits
+            )
+            inflamm_contour_pred = activation_dict["head_1"](
+                inflamm_contour_logits
+            )
+            inflamm_centroid_pred = activation_dict["head_1"](
+                inflamm_centroid_logits
+            )
 
-            lymph_seg_pred = activation_dict["head_2"](lymph_seg_logits)
-            lymph_contour_pred = activation_dict["head_2"](lymph_contour_logits)
-            lymph_centroid_pred = activation_dict["head_2"](lymph_centroid_logits)
+            lymph_seg_pred = activation_dict["head_2"](
+                lymph_seg_logits
+            )
+            lymph_contour_pred = activation_dict["head_2"](
+                lymph_contour_logits
+            )
+            lymph_centroid_pred = activation_dict["head_2"](
+                lymph_centroid_logits
+            )
 
             mono_seg_pred = activation_dict["head_3"](mono_seg_logits)
-            mono_contour_pred = activation_dict["head_3"](mono_contour_logits)
-            mono_centroid_pred = activation_dict["head_3"](mono_centroid_logits)
+            mono_contour_pred = activation_dict["head_3"](
+                mono_contour_logits
+            )
+            mono_centroid_pred = activation_dict["head_3"](
+                mono_centroid_logits
+            )
 
             inflamm_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
                 inflamm_seg_pred, inflamm_seg_masks
             )
-            inflamm_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
+            inflamm_contour_loss = loss_fn_dict[
+                "contour_loss"
+            ].compute_loss(
                 inflamm_contour_pred, inflamm_contour_masks
             )
             # inflamm_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
             #     inflamm_centroid_pred, inflamm_centroid_masks, inflamm_weight_masks
             # )
-            inflamm_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
+            inflamm_centroid_loss = loss_fn_dict[
+                "det_loss"
+            ].compute_loss(
                 inflamm_centroid_pred, inflamm_centroid_masks
             )
-            
+
             lymph_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
                 lymph_seg_pred, lymph_seg_masks
             )
-            lymph_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
-                lymph_contour_pred, lymph_contour_masks
-            )
+            lymph_contour_loss = loss_fn_dict[
+                "contour_loss"
+            ].compute_loss(lymph_contour_pred, lymph_contour_masks)
             # lymph_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
             #     lymph_centroid_pred, lymph_centroid_masks, lymph_weight_masks
             # )
-            lymph_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
-                lymph_centroid_pred, lymph_centroid_masks
-            )
+            lymph_centroid_loss = loss_fn_dict[
+                "det_loss"
+            ].compute_loss(lymph_centroid_pred, lymph_centroid_masks)
 
             mono_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
                 mono_seg_pred, mono_seg_masks
             )
-            mono_contour_loss = loss_fn_dict["contour_loss"].compute_loss(
-                mono_contour_pred, mono_contour_masks
-            )
+            mono_contour_loss = loss_fn_dict[
+                "contour_loss"
+            ].compute_loss(mono_contour_pred, mono_contour_masks)
             # mono_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
             #     mono_centroid_pred, mono_centroid_masks, mono_weight_masks
             # )
-            mono_centroid_loss = loss_fn_dict["det_loss"].compute_loss(
-                mono_centroid_pred, mono_centroid_masks
-            )
+            mono_centroid_loss = loss_fn_dict[
+                "det_loss"
+            ].compute_loss(mono_centroid_pred, mono_centroid_masks)
 
-            loss_1 = seg_loss_weight * inflamm_seg_loss + contour_loss_weight * inflamm_contour_loss + inflamm_centroid_loss
-            loss_2 = seg_loss_weight * lymph_seg_loss + contour_loss_weight * lymph_contour_loss + lymph_centroid_loss
-            loss_3 = seg_loss_weight * mono_seg_loss + contour_loss_weight * mono_contour_loss + mono_centroid_loss
+            loss_1 = (
+                seg_loss_weight * inflamm_seg_loss
+                + contour_loss_weight * inflamm_contour_loss
+                + inflamm_centroid_loss
+            )
+            loss_2 = (
+                seg_loss_weight * lymph_seg_loss
+                + contour_loss_weight * lymph_contour_loss
+                + lymph_centroid_loss
+            )
+            loss_3 = (
+                seg_loss_weight * mono_seg_loss
+                + contour_loss_weight * mono_contour_loss
+                + mono_centroid_loss
+            )
 
             # sum_loss = loss_1 + loss_2 + loss_3
             # running_loss += sum_loss.item() * images.size(0)
 
             stack_loss = torch.stack((loss_1, loss_2, loss_3))
-            multi_task_loss = multi_task_loss_instance(stack_loss)   
+            multi_task_loss = multi_task_loss_instance(stack_loss)
             running_loss += multi_task_loss.item() * images.size(0)
 
             binary_masks = multihead_det_post_process_batch(
@@ -311,8 +391,6 @@ def det_v2_validate_one_epoch(
         / len(validation_loader.sampler),
         "val_loss": running_loss / len(validation_loader.sampler),
     }
-
-        
 
 
 def hovernext_train_one_epoch(
@@ -758,7 +836,6 @@ def multitask_train_loop(
             wandb_run.log(log_data)
         pprint(log_data)
 
-
         if sum_val_score > best_f1_score:
             best_f1_score = sum_val_score
             pprint(f"Best F1 Score Check Point {epoch}")
@@ -771,7 +848,6 @@ def multitask_train_loop(
             model_path = os.path.join(save_dir, model_name)
             torch.save(checkpoint, model_path)
 
-
         if avg_scores["val_loss"] < best_val_score:
             best_val_score = avg_scores["val_loss"]
             pprint(f"Best Val Score Check Point {epoch}")
@@ -783,7 +859,7 @@ def multitask_train_loop(
             model_name = f"best_val.pth"
             model_path = os.path.join(save_dir, model_name)
             torch.save(checkpoint, model_path)
-        
+
         if early_stopper.early_stop(avg_scores["val_loss"]):
             pprint("Early stopping")
             break

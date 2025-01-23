@@ -51,7 +51,7 @@ def cross_validation(fold: int = 1):
         thresholds=[0.5, 0.5, 0.5, 0.5],
         nms_boxes=[15, 13, 15],
         nms_overlap_thresh=0.5,
-        seg_model_version=2
+        seg_model_version=2,
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",

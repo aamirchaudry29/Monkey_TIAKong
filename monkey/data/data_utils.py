@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import scipy.ndimage as ndi
 import torch
+from scipy import ndimage
 from shapely import Point, Polygon
 from skimage.feature import peak_local_max
 from tiatoolbox.annotation.storage import (
@@ -17,7 +18,6 @@ from tiatoolbox.tools.patchextraction import get_patch_extractor
 from tiatoolbox.wsicore.wsireader import WSIReader
 
 from monkey.config import PredictionIOConfig, TrainingIOConfig
-from scipy import ndimage
 
 
 def load_image(
@@ -37,7 +37,9 @@ def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
     Load a single mask for cell detection
     """
     mask_name = f"{file_id}.npy"
-    mask_path = os.path.join(IOConfig.cell_centroid_mask_dir, mask_name)
+    mask_path = os.path.join(
+        IOConfig.cell_centroid_mask_dir, mask_name
+    )
     mask = np.load(mask_path)
     return mask
 
@@ -1128,7 +1130,7 @@ def get_gradient_maps(image, binary_mask):
 
     if np.sum(binary_mask) == 0:
         return np.zeros_like(binary_mask), np.zeros_like(binary_mask)
-    
+
     # convert image to gray scale
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     image = image / 255.0

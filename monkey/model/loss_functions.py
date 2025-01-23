@@ -9,24 +9,30 @@ from torch import Tensor
 
 
 class MultiTaskLoss(torch.nn.Module):
-    def __init__(self, is_regression:torch.Tensor = torch.tensor([False, False, False]), reduction="none"):
+    def __init__(
+        self,
+        is_regression: torch.Tensor = torch.tensor(
+            [False, False, False]
+        ),
+        reduction="none",
+    ):
         super(MultiTaskLoss, self).__init__()
         self.is_regression = is_regression
         self.n_tasks = len(is_regression)
         self.log_vars = nn.Parameter(torch.zeros(self.n_tasks))
         self.reduction = reduction
-    
-    def forward(self, losses:torch.Tensor):
+
+    def forward(self, losses: torch.Tensor):
         dtype = losses.dtype
         device = losses.device
-        stds = (torch.exp(self.log_vars)**0.5).to(dtype).to(device)
+        stds = (torch.exp(self.log_vars) ** 0.5).to(dtype).to(device)
         self.is_regression = self.is_regression.to(device).to(dtype)
-        coeffs = 1 / ((self.is_regression+1) * stds**2)
+        coeffs = 1 / ((self.is_regression + 1) * stds**2)
         multi_task_losses = coeffs * losses + self.log_vars
 
-        if self.reduction == 'sum':
+        if self.reduction == "sum":
             return multi_task_losses.sum()
-        if self.reduction == 'mean':
+        if self.reduction == "mean":
             return multi_task_losses.mean()
         return multi_task_losses
 
@@ -126,7 +132,10 @@ class Focal_Loss(Loss_Function):
     def __init__(self, use_weights=False):
         super().__init__("name", use_weights)
         self.loss_fn = FocalLoss(
-            include_background=True, gamma=2.0, alpha=0, reduction="none"
+            include_background=True,
+            gamma=2.0,
+            alpha=0,
+            reduction="none",
         )
 
     def compute_loss(self, input: Tensor, target: Tensor):
@@ -134,7 +143,7 @@ class Focal_Loss(Loss_Function):
 
     def set_multiclass(self):
         return
-    
+
     def set_gamma(self, gamma):
         self.loss_fn.gamma = gamma
         return
@@ -300,12 +309,14 @@ class Weighted_BCE_Loss(Loss_Function):
     def set_weight(self, pos_weight: float):
         return
 
-    def compute_loss(self, input: Tensor, target: Tensor, weight_map=None):
+    def compute_loss(
+        self, input: Tensor, target: Tensor, weight_map=None
+    ):
         if weight_map is not None:
             loss = nn.functional.binary_cross_entropy(
                 input.float(),
                 target.float(),
-                reduction='none',
+                reduction="none",
             )
             final_loss = loss * weight_map
             if self.reduction == "mean":
@@ -391,8 +402,12 @@ class Weighted_BCE_Jaccard_Loss(Loss_Function):
         self.pos_weight = pos_weight
         self.bce_loss.set_weight(self.pos_weight)
 
-    def compute_loss(self, input: Tensor, target: Tensor, weight_map=None):
-        bce = self.bce_loss.compute_loss(input, target, weight_map=weight_map)
+    def compute_loss(
+        self, input: Tensor, target: Tensor, weight_map=None
+    ):
+        bce = self.bce_loss.compute_loss(
+            input, target, weight_map=weight_map
+        )
         jaccard = jaccard_loss(
             input.float(), target.float(), multiclass=self.multiclass
         )

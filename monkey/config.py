@@ -102,7 +102,7 @@ class PredictionIOConfig:
         min_distances: list = [5, 5, 5],
         nms_boxes: list = [30, 16, 40],
         nms_overlap_thresh: float = 0.5,
-        seg_model_version: int = 1
+        seg_model_version: int = 1,
     ):
         """Initalize Config
 

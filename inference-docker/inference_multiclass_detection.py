@@ -40,7 +40,7 @@ def load_detectors() -> list[torch.nn.Module]:
             pretrained=False,
             use_batchnorm=True,
             attention_type="scse",
-            decoders_out_channels=[3,3,3]
+            decoders_out_channels=[3, 3, 3],
         )
         checkpoint = torch.load(weight_path)
         detector.load_state_dict(checkpoint["model"])
