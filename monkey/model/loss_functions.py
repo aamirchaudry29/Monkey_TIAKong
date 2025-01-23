@@ -46,6 +46,11 @@ class Loss_Function(ABC):
 
     @abstractmethod
     def compute_loss(self):
+        """
+        Args:
+            input: Tensor: Model output
+            target: Tensor: Ground truth
+        """
         pass
 
     @abstractmethod
@@ -78,6 +83,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Weighted_BCE_Jaccard": Weighted_BCE_Jaccard_Loss,
         "Weighted_MSE": Weighted_MSE_Loss,
         "Focal_Loss": Focal_Loss,
+        "MSGE_Loss": MSGE_Loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -90,6 +96,22 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 
 
 # -------------------------------------Classes implementing loss functions---------------------------------
+class MSGE_Loss(Loss_Function):
+    def __init__(self, use_weights=False):
+        super().__init__("MSGE_Loss", use_weights)
+    
+    def set_multiclass(self, multiclass):
+        return
+    
+    def set_weight(self, pos_weight):
+        return
+    
+    def compute_loss(self, input: Tensor, target: Tensor, focus: Tensor):
+        loss = (input - target) ** 2 * focus * 2
+        loss = loss.sum() / (focus.sum() + 1.0e-8)
+        return loss
+
+
 class MapDe_Loss(Loss_Function):
     def __init__(self, use_weights=True):
         super().__init__("MapDe_Loss", use_weights)

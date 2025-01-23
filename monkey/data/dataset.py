@@ -17,7 +17,6 @@ from monkey.data.data_utils import (
     add_background_channel,
     dilate_mask,
     generate_regression_map,
-    get_gradient_maps,
     get_label_from_class_id,
     get_split_from_json,
     imagenet_normalise,
@@ -27,6 +26,7 @@ from monkey.data.data_utils import (
     load_mask,
     load_nuclick_annotation,
     load_nuclick_annotation_v2,
+    compute_hv_map
 )
 
 # Strong augmentation
@@ -349,13 +349,13 @@ class Multitask_Dataset(Dataset):
                 image = self.trnsf(image)
 
         # Get gradient maps
-        inflamm_grad_x, inflamm_grad_y = get_gradient_maps(
-            image, inflamm_mask
+        inflamm_h_map, inflamm_v_map = compute_hv_map(
+            inflamm_mask
         )
-        lymph_grad_x, lymph_grad_y = get_gradient_maps(
-            image, lymph_mask
+        lymph_h_map, lymph_v_map = compute_hv_map(
+            lymph_mask
         )
-        mono_grad_x, mono_grad_y = get_gradient_maps(image, mono_mask)
+        mono_h_map, mono_v_map = compute_hv_map(mono_mask)
 
         lymph_mono_centroid_masks = class_mask_to_multichannel_mask(
             cell_centroid_masks
@@ -405,12 +405,12 @@ class Multitask_Dataset(Dataset):
         lymph_weight_mask = lymph_weight_mask[np.newaxis, :, :]
         mono_weight_mask = mono_weight_mask[np.newaxis, :, :]
         inflamm_weight_mask = inflamm_weight_mask[np.newaxis, :, :]
-        inflamm_grad_x = inflamm_grad_x[np.newaxis, :, :]
-        inflamm_grad_y = inflamm_grad_y[np.newaxis, :, :]
-        lymph_grad_x = lymph_grad_x[np.newaxis, :, :]
-        lymph_grad_y = lymph_grad_y[np.newaxis, :, :]
-        mono_grad_x = mono_grad_x[np.newaxis, :, :]
-        mono_grad_y = mono_grad_y[np.newaxis, :, :]
+        inflamm_h_map = inflamm_h_map[np.newaxis, :, :]
+        inflamm_v_map = inflamm_v_map[np.newaxis, :, :]
+        lymph_h_map = lymph_h_map[np.newaxis, :, :]
+        lymph_v_map = lymph_v_map[np.newaxis, :, :]
+        mono_h_map = mono_h_map[np.newaxis, :, :]
+        mono_v_map = mono_v_map[np.newaxis, :, :]
 
         # HxWx3 -> 3xHxW
         image = image / 255
@@ -436,12 +436,12 @@ class Multitask_Dataset(Dataset):
             "inflamm_weight_mask": inflamm_weight_mask,
             "lymph_weight_mask": lymph_weight_mask,
             "mono_weight_mask": mono_weight_mask,
-            "inflamm_grad_x": inflamm_grad_x,
-            "inflamm_grad_y": inflamm_grad_y,
-            "lymph_grad_x": lymph_grad_x,
-            "lymph_grad_y": lymph_grad_y,
-            "mono_grad_x": mono_grad_x,
-            "mono_grad_y": mono_grad_y,
+            "inflamm_h_map": inflamm_h_map,
+            "inflamm_v_map": inflamm_v_map,
+            "lymph_h_map": lymph_h_map,
+            "lymph_v_map": lymph_v_map,
+            "mono_h_map": mono_h_map,
+            "mono_v_map": mono_v_map,
         }
         return data
 
