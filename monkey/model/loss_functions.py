@@ -99,14 +99,16 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 class MSGE_Loss(Loss_Function):
     def __init__(self, use_weights=False):
         super().__init__("MSGE_Loss", use_weights)
-    
+
     def set_multiclass(self, multiclass):
         return
-    
+
     def set_weight(self, pos_weight):
         return
-    
-    def compute_loss(self, input: Tensor, target: Tensor, focus: Tensor):
+
+    def compute_loss(
+        self, input: Tensor, target: Tensor, focus: Tensor
+    ):
         loss = (input - target) ** 2 * focus * 2
         loss = loss.sum() / (focus.sum() + 1.0e-8)
         return loss

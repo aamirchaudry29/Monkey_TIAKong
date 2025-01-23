@@ -8,8 +8,8 @@ import scipy.ndimage as ndi
 import torch
 from scipy import ndimage
 from shapely import Point, Polygon
-from skimage.measure import label
 from skimage.feature import peak_local_max
+from skimage.measure import label
 from tiatoolbox.annotation.storage import (
     Annotation,
     AnnotationStore,

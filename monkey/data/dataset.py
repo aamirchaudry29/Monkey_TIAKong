@@ -15,6 +15,7 @@ from monkey.config import TrainingIOConfig
 from monkey.data.augmentation import get_augmentation
 from monkey.data.data_utils import (
     add_background_channel,
+    compute_hv_map,
     dilate_mask,
     generate_regression_map,
     get_label_from_class_id,
@@ -26,7 +27,6 @@ from monkey.data.data_utils import (
     load_mask,
     load_nuclick_annotation,
     load_nuclick_annotation_v2,
-    compute_hv_map
 )
 
 # Strong augmentation
@@ -349,12 +349,8 @@ class Multitask_Dataset(Dataset):
                 image = self.trnsf(image)
 
         # Get gradient maps
-        inflamm_h_map, inflamm_v_map = compute_hv_map(
-            inflamm_mask
-        )
-        lymph_h_map, lymph_v_map = compute_hv_map(
-            lymph_mask
-        )
+        inflamm_h_map, inflamm_v_map = compute_hv_map(inflamm_mask)
+        lymph_h_map, lymph_v_map = compute_hv_map(lymph_mask)
         mono_h_map, mono_v_map = compute_hv_map(mono_mask)
 
         lymph_mono_centroid_masks = class_mask_to_multichannel_mask(
