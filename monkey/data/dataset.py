@@ -26,6 +26,7 @@ from monkey.data.data_utils import (
     load_mask,
     load_nuclick_annotation,
     load_nuclick_annotation_v2,
+    get_gradient_maps
 )
 
 # Strong augmentation
@@ -347,6 +348,12 @@ class Multitask_Dataset(Dataset):
             if self.strong_augmentation:
                 image = self.trnsf(image)
 
+        # Get gradient maps
+        inflamm_grad_x, inflamm_grad_y = get_gradient_maps(image, inflamm_mask)
+        lymph_grad_x, lymph_grad_y = get_gradient_maps(image, lymph_mask)
+        mono_grad_x, mono_grad_y = get_gradient_maps(image, mono_mask)
+
+
         lymph_mono_centroid_masks = class_mask_to_multichannel_mask(cell_centroid_masks)
         lymph_weight_mask = generate_regression_map(lymph_mono_centroid_masks[0], d_thresh=self.disk_radius, alpha=1, scale=self.weight_map_scale)
         lymph_weight_mask = lymph_weight_mask + 1
@@ -373,6 +380,12 @@ class Multitask_Dataset(Dataset):
         lymph_weight_mask = lymph_weight_mask[np.newaxis, :, :]
         mono_weight_mask = mono_weight_mask[np.newaxis, :, :]
         inflamm_weight_mask = inflamm_weight_mask[np.newaxis, :, :]
+        inflamm_grad_x = inflamm_grad_x[np.newaxis, :, :]
+        inflamm_grad_y = inflamm_grad_y[np.newaxis, :, :]
+        lymph_grad_x = lymph_grad_x[np.newaxis, :, :]
+        lymph_grad_y = lymph_grad_y[np.newaxis, :, :]
+        mono_grad_x = mono_grad_x[np.newaxis, :, :]
+        mono_grad_y = mono_grad_y[np.newaxis, :, :]
 
         # HxWx3 -> 3xHxW
         image = image / 255
@@ -394,6 +407,12 @@ class Multitask_Dataset(Dataset):
             "inflamm_weight_mask": inflamm_weight_mask,
             "lymph_weight_mask": lymph_weight_mask,
             "mono_weight_mask": mono_weight_mask,
+            "inflamm_grad_x": inflamm_grad_x,
+            "inflamm_grad_y": inflamm_grad_y,
+            "lymph_grad_x": lymph_grad_x,
+            "lymph_grad_y": lymph_grad_y,
+            "mono_grad_x": mono_grad_x,
+            "mono_grad_y": mono_grad_y
         }
         return data
 

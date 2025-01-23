@@ -17,6 +17,7 @@ from tiatoolbox.tools.patchextraction import get_patch_extractor
 from tiatoolbox.wsicore.wsireader import WSIReader
 
 from monkey.config import PredictionIOConfig, TrainingIOConfig
+from scipy import ndimage
 
 
 def load_image(
@@ -1121,3 +1122,26 @@ def check_image_mask_shape(wsi_path: str, mask_path: str) -> None:
     ):
         message = f"Image and mask have different shapes: {wsi_shape} vs {mask_shape}"
         raise ValueError(message)
+
+
+def get_gradient_maps(image, binary_mask):
+
+    if np.sum(binary_mask) == 0:
+        return np.zeros_like(binary_mask), np.zeros_like(binary_mask)
+    
+    # convert image to gray scale
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    image = image / 255.0
+
+    sx = ndimage.sobel(image, axis=0)
+    sy = ndimage.sobel(image, axis=1)
+    # normalize to [-1, 1]
+    sx = sx / np.max(np.abs(sx))
+    sy = sy / np.max(np.abs(sy))
+    sx[binary_mask == 0] = 0
+    sy[binary_mask == 0] = 0
+
+    # Apply Gaussian filter
+    sx = cv2.GaussianBlur(sx, (3, 3), 0)
+    sy = cv2.GaussianBlur(sy, (3, 3), 0)
+    return sx, sy
