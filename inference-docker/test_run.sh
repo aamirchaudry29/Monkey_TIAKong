@@ -7,8 +7,8 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 DOCKER_TAG="tiakong"
 DOCKER_NOOP_VOLUME="${DOCKER_TAG}-volume"
 
-INPUT_DIR="/home/u1910100/Documents/Monkey/test/input"
-OUTPUT_DIR="/home/u1910100/Documents/Monkey/test/output"
+INPUT_DIR="/media/u1910100/data/Monkey/test/input"
+OUTPUT_DIR="/media/u1910100/data/Monkey/test/output"
 MODEL_DIR="/home/u1910100/GitHub/Monkey_TIAKong/weights"
 
 

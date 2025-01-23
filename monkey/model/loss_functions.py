@@ -103,7 +103,7 @@ class Focal_Loss(Loss_Function):
     def __init__(self, use_weights=False):
         super().__init__("name", use_weights)
         self.loss_fn = FocalLoss(
-            include_background=True, gamma=2.0, alpha=0.25
+            include_background=True, gamma=2.0, alpha=0, reduction="none"
         )
 
     def compute_loss(self, input: Tensor, target: Tensor):

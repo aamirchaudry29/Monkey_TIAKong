@@ -32,11 +32,11 @@ def load_detectors() -> list[torch.nn.Module]:
     detector_weight_paths = [
         os.path.join(MODEL_DIR, "1.pth"),
         os.path.join(MODEL_DIR, "2.pth"),
-        # os.path.join(MODEL_DIR, "4.pth"),
+        os.path.join(MODEL_DIR, "4.pth"),
     ]
     for weight_path in detector_weight_paths:
         detector = get_custom_hovernext(
-            enc="convnextv2_base.fcmae_ft_in22k_in1k",
+            enc="tf_efficientnetv2_l.in21k_ft_in1k",
             pretrained=False,
             use_batchnorm=True,
             attention_type="scse",
