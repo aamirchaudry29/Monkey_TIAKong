@@ -34,13 +34,13 @@ def train(fold: int = 1):
     # Specify training config and hyperparameters
     run_config = {
         "project_name": "Monkey_Multiclass_Detection",
-        "model_name": "efficientnetv2_l_multitask_det_grad_map",
+        "model_name": "efficientnetv2_l_multitask_det_hv",
         "val_fold": fold,  # [1-5]
         "batch_size": 64,
         "optimizer": "AdamW",
         "learning_rate": 4e-4,
-        "weight_decay": 0.01,
-        "epochs": 100,
+        "weight_decay": 0.005,
+        "epochs": 200,
         "loss_function": {
             "seg_loss": "Jaccard_Focal_Loss",
             "contour_loss": "Jaccard_Focal_Loss",
@@ -61,8 +61,8 @@ def train(fold: int = 1):
         "unfreeze_epoch": 1,
         "strong_augmentation": True,
         "det_version": 2,
-        "train_aux_loss_weights": [0.5, 0.5, 0.5],  # [seg, contour, hv]
-        "val_aux_loss_weights": [0.5, 0.5, 0.5],  # [seg, contour, hv]
+        "train_aux_loss_weights": [0.3, 0.3, 0.3],  # [seg, contour, hv]
+        "val_aux_loss_weights": [0.3, 0.3, 0.3],  # [seg, contour, hv]
     }
     pprint(run_config)
 
@@ -131,6 +131,7 @@ def train(fold: int = 1):
             run_config["loss_function"]["hv_loss"]
         ),
     }
+    loss_fn_dict['hv_loss'].set_weight(run_config['weight_map_scale'])
 
     is_regression = torch.tensor([False, False, False], device="cuda")
     multi_task_loss_instance = MultiTaskLoss(
@@ -168,7 +169,7 @@ def train(fold: int = 1):
     # )
     # scheduler = None
     # scheduler = lr_scheduler.ReduceLROnPlateau(
-    #     optimizer, "min", factor=0.1, patience=5
+    #     optimizer, "min", factor=0.5, patience=5
     # )
     scheduler = lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=10, eta_min=0.0

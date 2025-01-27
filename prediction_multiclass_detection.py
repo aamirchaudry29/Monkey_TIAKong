@@ -34,7 +34,7 @@ from prediction.multiclass_detection import wsi_detection_in_mask_v2
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
-    detector_model_name = "efficientnetv2_l_multitask_det_experiment"
+    detector_model_name = "efficientnetv2_l_multitask_det_hv_3"
     pprint(f"Multiclass detection using {detector_model_name}")
     pprint(f"Fold {fold}")
     model_res = 0
@@ -81,7 +81,7 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best_val.pth",
         # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best_val.pth",
         # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best_val.pth",
     ]
@@ -103,7 +103,7 @@ def cross_validation(fold: int = 1):
             pretrained=False,
             use_batchnorm=True,
             attention_type="scse",
-            decoders_out_channels=[3, 3, 3],
+            decoders_out_channels=[5, 5, 5],
         )
         # model = get_modified_hovernext(
         #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",

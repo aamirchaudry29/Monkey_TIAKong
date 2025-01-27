@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
-#SBATCH --mem=20000             # Memory (mb) to use 
+#SBATCH --mem=32000             # Memory (mb) to use 
 #SBATCH --time=48:00:00      # Job time limit
 #
 #SBATCH --output=/home/u1910100/logs/train_%j.out # Standard out from your job
@@ -25,7 +25,7 @@ cd /home/u1910100/cloud_workspace/GitHub/Monkey_TIAKong
 echo "starting training script"
 nvidia-smi
 
-# python3.11 train_multiclass_segmentation.py
+# python3.11 train_multiclass_segmentation.py 
 python3.11 train_multiclass_detection.py --fold=$1
 
 echo "finished"

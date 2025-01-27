@@ -8,6 +8,20 @@ from monai.losses import DiceLoss, FocalLoss
 from torch import Tensor
 
 
+class AutomatucWeightedLoss(nn.Module):
+    def __init__(self, n_tasks: int):
+        super(AutomatucWeightedLoss, self).__init__()
+        self.n_tasks = n_tasks
+        params = torch.ones(n_tasks, requires_grad=True)
+        self.params = torch.nn.parallel(params)
+
+    def forward(self, *x):
+        loss_sum = 0
+        for i, loss in enumerate(x):
+            loss_sum += 0.5 / (self.params[i] ** 2) * loss + torch.log(1 + self.params[i] ** 2)
+        return loss_sum
+
+
 class MultiTaskLoss(torch.nn.Module):
     def __init__(
         self,
@@ -99,12 +113,13 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 class MSGE_Loss(Loss_Function):
     def __init__(self, use_weights=False):
         super().__init__("MSGE_Loss", use_weights)
+        self.pos_weight = 1.0
 
     def set_multiclass(self, multiclass):
         return
 
     def set_weight(self, pos_weight):
-        return
+        self.pos_weight = pos_weight
 
     def compute_loss(
         self, input: Tensor, target: Tensor, focus: Tensor
@@ -112,6 +127,9 @@ class MSGE_Loss(Loss_Function):
         loss = (input - target) ** 2 * focus * 2
         loss = loss.sum() / (focus.sum() + 1.0e-8)
         return loss
+        # weight_map = 1.0 + self.pos_weight * focus
+        # loss = (input - target) ** 2 * weight_map * 2
+        # return loss.mean()
 
 
 class MapDe_Loss(Loss_Function):

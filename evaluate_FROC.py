@@ -19,7 +19,7 @@ def compute_FROC(fold: int = 1):
     # )
 
     FOLD = fold
-    model_name = "convnextv2_base_lizard_multitask_det_focal_loss"
+    model_name = "efficientnetv2_l_multitask_det_hv_3"
     print(f"Model name: {model_name}")
     PREDICT_DIR = f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{model_name}/Fold_{FOLD}"
     print(os.listdir(PREDICT_DIR))

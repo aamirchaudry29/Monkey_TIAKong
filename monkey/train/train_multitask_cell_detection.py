@@ -76,15 +76,15 @@ def det_v2_train_one_epoch(
         inflamm_centroid_logits = logits_pred[:, 2:3, :, :]
         inflamm_hv_logits = logits_pred[:, 3:5, :, :]
 
-        lymph_seg_logits = logits_pred[:, 3:4, :, :]
-        lymph_contour_logits = logits_pred[:, 4:5, :, :]
-        lymph_centroid_logits = logits_pred[:, 5:6, :, :]
-        lymph_hv_logits = logits_pred[:, 6:8, :, :]
+        lymph_seg_logits = logits_pred[:, 5:6, :, :]
+        lymph_contour_logits = logits_pred[:, 6:7, :, :]
+        lymph_centroid_logits = logits_pred[:, 7:8, :, :]
+        lymph_hv_logits = logits_pred[:, 8:10, :, :]
 
-        mono_seg_logits = logits_pred[:, 6:7, :, :]
-        mono_contour_logits = logits_pred[:, 7:8, :, :]
-        mono_centroid_logits = logits_pred[:, 8:9, :, :]
-        mono_hv_logits = logits_pred[:, 9:11, :, :]
+        mono_seg_logits = logits_pred[:, 10:11, :, :]
+        mono_contour_logits = logits_pred[:, 11:12, :, :]
+        mono_centroid_logits = logits_pred[:, 12:13, :, :]
+        mono_hv_logits = logits_pred[:, 13:15, :, :]
 
         inflamm_seg_pred = activation_dict["head_1"](
             inflamm_seg_logits
@@ -252,15 +252,15 @@ def det_v2_validate_one_epoch(
             inflamm_centroid_logits = logits_pred[:, 2:3, :, :]
             inflamm_hv_logits = logits_pred[:, 3:5, :, :]
 
-            lymph_seg_logits = logits_pred[:, 3:4, :, :]
-            lymph_contour_logits = logits_pred[:, 4:5, :, :]
-            lymph_centroid_logits = logits_pred[:, 5:6, :, :]
-            lymph_hv_logits = logits_pred[:, 6:8, :, :]
+            lymph_seg_logits = logits_pred[:, 5:6, :, :]
+            lymph_contour_logits = logits_pred[:, 6:7, :, :]
+            lymph_centroid_logits = logits_pred[:, 7:8, :, :]
+            lymph_hv_logits = logits_pred[:, 8:10, :, :]
 
-            mono_seg_logits = logits_pred[:, 6:7, :, :]
-            mono_contour_logits = logits_pred[:, 7:8, :, :]
-            mono_centroid_logits = logits_pred[:, 8:9, :, :]
-            mono_hv_logits = logits_pred[:, 9:11, :, :]
+            mono_seg_logits = logits_pred[:, 10:11, :, :]
+            mono_contour_logits = logits_pred[:, 11:12, :, :]
+            mono_centroid_logits = logits_pred[:, 12:13, :, :]
+            mono_hv_logits = logits_pred[:, 13:15, :, :]
 
             inflamm_seg_pred = activation_dict["head_1"](
                 inflamm_seg_logits
