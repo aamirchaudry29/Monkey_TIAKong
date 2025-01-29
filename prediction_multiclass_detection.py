@@ -34,7 +34,7 @@ from prediction.multiclass_detection import wsi_detection_in_mask_v2
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
-    detector_model_name = "efficientnetv2_l_multitask_det_hv_3"
+    detector_model_name = "efficientnetv2_l_multitask_det_hv"
     pprint(f"Multiclass detection using {detector_model_name}")
     pprint(f"Fold {fold}")
     model_res = 0

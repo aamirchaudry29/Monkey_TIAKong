@@ -249,6 +249,7 @@ def get_custom_hovernext(
     decoders_out_channels=[1, 1, 1],
     use_batchnorm=False,
     attention_type=None,
+    center=False,
 ):
     pre_path = None
     if type(pretrained) == str:
@@ -276,7 +277,7 @@ def get_custom_hovernext(
                 decoder_channels=decoder_channels,
                 n_blocks=len(decoder_channels),
                 use_batchnorm=use_batchnorm,
-                center=False,
+                center=center,
                 attention_type=attention_type,
                 next="next" in enc,
             )

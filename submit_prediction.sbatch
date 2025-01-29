@@ -1,11 +1,11 @@
 #!/bin/bash
 #
 #SBATCH --job-name=monkey_prediction # Job name for tracking
-#SBATCH --partition=dgxa100  # Partition you wish to use (see above for list)
+#SBATCH --partition=dgx2  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20      # Number of CPU threads used by your job
+#SBATCH --cpus-per-task=8      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
-#SBATCH --mem=32000            # Memory (mb) to use 
+#SBATCH --mem=12000            # Memory (mb) to use 
 #SBATCH --time=2:00:00      # Job time limit
 #
 #SBATCH --output=/home/u1910100/logs/pred_%j.out # Standard out from your job

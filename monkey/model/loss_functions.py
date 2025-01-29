@@ -13,7 +13,7 @@ class AutomatucWeightedLoss(nn.Module):
         super(AutomatucWeightedLoss, self).__init__()
         self.n_tasks = n_tasks
         params = torch.ones(n_tasks, requires_grad=True)
-        self.params = torch.nn.parallel(params)
+        self.params = torch.nn.Parameter(params)
 
     def forward(self, *x):
         loss_sum = 0
@@ -98,6 +98,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Weighted_MSE": Weighted_MSE_Loss,
         "Focal_Loss": Focal_Loss,
         "MSGE_Loss": MSGE_Loss,
+        "Jaccard_Dice_Focal_Loss": Jaccard_Dice_Focal_Loss,
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -193,6 +194,32 @@ class Focal_Loss(Loss_Function):
     def set_alpha(self, alpha):
         self.loss_fn.alpha = alpha
         return
+
+
+class Jaccard_Dice_Focal_Loss(Loss_Function):
+    def __init__(self, use_weights=False):
+        super().__init__("name", use_weights)
+        self.focal_loss = Focal_Loss()
+        self.jaccard_loss = Jaccard_Loss()
+        self.dice_loss = Dice_Loss()
+        self.multiclass = False
+
+    def set_weight(self, pos_weight):
+        return
+
+    def compute_loss(self, input: Tensor, target: Tensor):
+        loss_1 = self.focal_loss.compute_loss(input, target)
+        loss_2 = self.jaccard_loss.compute_loss(input, target)
+        loss_3 = self.dice_loss.compute_loss(input, target)
+        return loss_1 + loss_2 + loss_3
+
+    def set_multiclass(self, multiclass: bool):
+        self.multiclass = multiclass
+        self.jaccard_loss.set_multiclass(multiclass)
+        self.dice_loss.set_multiclass(multiclass)
+        return
+
+
 
 
 class Jaccard_Focal_Loss(Loss_Function):
@@ -410,7 +437,7 @@ class Weighted_BCE_Dice_Loss(Loss_Function):
     def __init__(self) -> None:
         super().__init__("Weighted BCE Loss + Dice Loss", True)
         self.multiclass = False
-        self.pos_weight = 1000.0
+        self.pos_weight = 1.0
         self.bce_loss = Weighted_BCE_Loss()
         self.bce_loss.set_weight(self.pos_weight)
 

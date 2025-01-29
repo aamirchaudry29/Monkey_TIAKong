@@ -31,6 +31,139 @@ from prediction.utils import (
 )
 
 
+def detection_in_tile_hv(
+    image_tile: np.ndarray,
+    models: list[torch.nn.Module],
+    config: PredictionIOConfig,
+) -> Tuple[list[np.ndarray], list[np.ndarray]]:
+    """
+    Detection in tile image [2048x2048]
+
+    Args:
+        image_tile: input tile image
+        model: model to be used
+        config: PredictionIOConfig object
+    Returns:
+        (predictions, coordinates):
+            prediction: a list of patch probs.
+            coordinates: a list of bounding boxes corresponding to
+                each patch prediction
+    """
+    patch_size = config.patch_size
+    stride = config.stride
+
+    # Create patch extractor
+    tile_reader = VirtualWSIReader.open(image_tile)
+
+    patch_extractor = get_patch_extractor(
+        input_img=tile_reader,
+        method_name="slidingwindow",
+        patch_size=(patch_size, patch_size),
+        stride=(stride, stride),
+        resolution=0,
+        units="level",
+    )
+
+    predictions = {
+        "inflamm_prob": [],
+        "lymph_prob": [],
+        "mono_prob": [],
+    }
+    batch_size = 8
+    dataloader = DataLoader(
+        patch_extractor,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=collate_fn,
+    )
+
+    activation_dict = {
+        "head_1": get_activation_function("sigmoid"),
+        "head_2": get_activation_function("sigmoid"),
+        "head_3": get_activation_function("sigmoid"),
+    }
+
+    for i, imgs in enumerate(dataloader):
+        imgs = torch.permute(imgs, (0, 3, 1, 2))
+        imgs = imgs / 255
+        imgs = imagenet_normalise_torch(imgs)
+        imgs = imgs.to("cuda").float()
+
+        inflamm_prob = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
+        lymph_prob = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
+        mono_prob = np.zeros(
+            shape=(imgs.shape[0], patch_size, patch_size)
+        )
+
+        with torch.no_grad():
+            for model in models:
+                model.eval()
+                logits_pred = model(imgs)
+                # head_1_logits = logits_pred[:, 0, :, :]
+                # head_2_logits = logits_pred[:, 1, :, :]
+                # head_3_logits = logits_pred[:, 2, :, :]
+                head_1_logits = logits_pred[:, 2, :, :]
+                head_2_logits = logits_pred[:, 7, :, :]
+                head_3_logits = logits_pred[:, 12, :, :]
+
+                inflamm_seg_logits = logits_pred[:, 0, :, :]
+                lymph_seg_logits = logits_pred[:, 5, :, :]
+                mono_seg_logits = logits_pred[:, 10, :, :]
+                _inflamm_seg_prob = activation_dict["head_1"](
+                    inflamm_seg_logits
+                ).numpy(force=True)
+                _lymph_seg_prob = activation_dict["head_2"](
+                    lymph_seg_logits
+                ).numpy(force=True)
+                _mono_seg_prob = activation_dict["head_3"](
+                    mono_seg_logits
+                ).numpy(force=True)
+
+                _inflamm_prob = activation_dict["head_1"](
+                    head_1_logits
+                ).numpy(force=True)
+                _lymph_prob = activation_dict["head_2"](
+                    head_2_logits
+                ).numpy(force=True)
+                _mono_prob = activation_dict["head_3"](
+                    head_3_logits
+                ).numpy(force=True)
+
+                _inflamm_seg_prob[
+                    _inflamm_prob < config.thresholds[0]
+                ] = 0
+                _lymph_seg_prob[
+                    _lymph_prob < config.thresholds[1]
+                ] = 0
+                _mono_seg_prob[_mono_prob < config.thresholds[2]] = 0
+
+                _inflamm_prob = (
+                    _inflamm_seg_prob * 0.4 + _inflamm_prob * 0.6
+                )
+                _lymph_prob = (
+                    _lymph_seg_prob * 0.4 + _lymph_prob * 0.6
+                )
+                _mono_prob = _mono_seg_prob * 0.4 + _mono_prob * 0.6
+
+                inflamm_prob += _inflamm_prob
+                lymph_prob += _lymph_prob
+                mono_prob += _mono_prob
+
+        inflamm_prob = inflamm_prob / len(models)
+        lymph_prob = lymph_prob / len(models)
+        mono_prob = mono_prob / len(models)
+
+        predictions["inflamm_prob"].extend(list(inflamm_prob))
+        predictions["lymph_prob"].extend(list(lymph_prob))
+        predictions["mono_prob"].extend(list(mono_prob))
+
+    return predictions, patch_extractor.coordinate_list
+
+
 def detection_in_tile(
     image_tile: np.ndarray,
     models: list[torch.nn.Module],
@@ -417,7 +550,10 @@ def wsi_detection_in_mask_v2(
             i
         ]  # (x_start, y_start, x_end, y_end)
 
-        predictions, coordinates = detection_in_tile(
+        # predictions, coordinates = detection_in_tile(
+        #     tile, models, config
+        # )
+        predictions, coordinates = detection_in_tile_hv(
             tile, models, config
         )
 
