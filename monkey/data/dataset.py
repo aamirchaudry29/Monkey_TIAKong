@@ -39,17 +39,17 @@ AUGMENT_SPACE = {
     "brightness": (0.1, 2.0),
     "contrast": (0.1, 2.0),
     "gamma": (0.1, 2.0),
-    # "solarize": (0, 255),
-    # "posterize": (1, 8),
+    "solarize": (0, 255),
+    "posterize": (1, 8),
     "sharpen": (0.0, 1.0),
-    # "emboss": (0.0, 1.0),
+    "emboss": (0.0, 1.0),
     "blur": (0.0, 3.0),
     "noise": (0.0, 0.2),
     "jpeg": (0, 100),
     "tone": (0.0, 1.0),
     "autocontrast": (True, True),
     "equalize": (True, True),
-    # "grayscale": (True, True),
+    "grayscale": (True, True),
 }
 
 
@@ -292,7 +292,7 @@ class Multitask_Dataset(Dataset):
                 self.trnsf = T.Compose(
                     [
                         StrongAugment(
-                            operations=[1, 2, 3],
+                            operations=[2, 3, 4],
                             probabilites=[0.5, 0.3, 0.2],
                             augment_space=AUGMENT_SPACE,
                         )

@@ -31,7 +31,7 @@ def train(fold: int = 1):
     # Specify training config and hyperparameters
     run_config = {
         "project_name": "Monkey_Multiclass_Detection",
-        "model_name": "efficientnetv2_l_multitask_det_experiment",
+        "model_name": "efficientnetv2_l_multitask_det_max_aug",
         "center_block": True,
         "val_fold": fold,  # [1-5]
         "batch_size": 64,

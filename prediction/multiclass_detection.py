@@ -550,12 +550,12 @@ def wsi_detection_in_mask_v2(
             i
         ]  # (x_start, y_start, x_end, y_end)
 
-        # predictions, coordinates = detection_in_tile(
-        #     tile, models, config
-        # )
-        predictions, coordinates = detection_in_tile_hv(
+        predictions, coordinates = detection_in_tile(
             tile, models, config
         )
+        # predictions, coordinates = detection_in_tile_hv(
+        #     tile, models, config
+        # )
 
         mask_tile = mask_reader.read_rect(
             location=(bounding_box[0], bounding_box[1]),

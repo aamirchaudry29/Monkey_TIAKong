@@ -5,6 +5,7 @@ import os
 from pprint import pprint
 
 import click
+from networkx import center
 import torch
 import ttach as tta
 from tiatoolbox.wsicore.wsireader import WSIReader
@@ -34,7 +35,7 @@ from prediction.multiclass_detection import wsi_detection_in_mask_v2
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
-    detector_model_name = "efficientnetv2_l_multitask_det_hv"
+    detector_model_name = "efficientnetv2_l_multitask_det_max_aug"
     pprint(f"Multiclass detection using {detector_model_name}")
     pprint(f"Fold {fold}")
     model_res = 0
@@ -81,9 +82,9 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best_val.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best_val.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best_val.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/best_val.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best_val.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best_val.pth",
     ]
     detectors = []
     transforms = tta.Compose(
@@ -103,7 +104,8 @@ def cross_validation(fold: int = 1):
             pretrained=False,
             use_batchnorm=True,
             attention_type="scse",
-            decoders_out_channels=[5, 5, 5],
+            decoders_out_channels=[3, 3, 3],
+            center=True,
         )
         # model = get_modified_hovernext(
         #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",

@@ -1109,7 +1109,7 @@ def add_background_channel(input_mask: np.ndarray):
 
 def check_image_mask_shape(wsi_path: str, mask_path: str) -> None:
     """
-    Check if the image and mask have the same shape
+    Check if the image and mask have the same shape and mpp
     """
     wsi_reader = WSIReader.open(wsi_path)
     wsi_shape = wsi_reader.slide_dimensions(
@@ -1124,6 +1124,14 @@ def check_image_mask_shape(wsi_path: str, mask_path: str) -> None:
         wsi_shape[1] != mask_shape[1]
     ):
         message = f"Image and mask have different shapes: {wsi_shape} vs {mask_shape}"
+        raise ValueError(message)
+
+    wsi_info = wsi_reader.info.as_dict()
+    mask_info = mask_reader.info.as_dict()
+    wsi_mpp = wsi_info["mpp"]
+    mask_mpp = mask_info["mpp"]
+    if (round(wsi_mpp[0],3) != round(mask_mpp[0],3)) or (round(wsi_mpp[1],3) != round(mask_mpp[1],3)):
+        message = f"Image and mask have different mpp: {wsi_mpp} vs {mask_mpp}"
         raise ValueError(message)
 
 
