@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from segmentation_models_pytorch.base import modules as md
+from torchvision.ops import Conv2dNormActivation
 
 
 def load_encoder_weights(model, checkpoint_path):
@@ -341,6 +342,34 @@ class Conv2dReLU(nn.Sequential):
         super(Conv2dReLU, self).__init__(conv, bn, relu)
 
 
+class SubPixelUpsample(nn.Module):
+    def __init__(self, in_channels, out_channels, upscale_factor=2):
+        super(SubPixelUpsample, self).__init__()
+        # self.conv1 = nn.Conv2d(in_channels, out_channels * upscale_factor ** 2, kernel_size=3, padding=1)
+        self.conv1 = Conv2dNormActivation(
+            in_channels,
+            out_channels * upscale_factor ** 2,
+            kernel_size=1,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
+        )
+        self.pixel_shuffle = nn.PixelShuffle(upscale_factor)
+        # self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+        self.conv2 = Conv2dNormActivation(
+            out_channels,
+            out_channels,
+            kernel_size=1,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
+        )
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.pixel_shuffle(x)
+        x = self.conv2(x)
+        return x
+
+
 class DecoderBlock(nn.Module):
     def __init__(
         self,
@@ -351,29 +380,50 @@ class DecoderBlock(nn.Module):
         attention_type=None,
     ):
         super().__init__()
-        self.conv1 = md.Conv2dReLU(
+        # self.up = nn.ConvTranspose2d(
+        #     in_channels, in_channels, kernel_size=2, stride=2
+        # )
+        self.up = SubPixelUpsample(in_channels, in_channels, upscale_factor=2)
+        # self.conv1 = md.Conv2dReLU(
+        #     in_channels + skip_channels,
+        #     out_channels,
+        #     kernel_size=3,
+        #     padding=1,
+        #     use_batchnorm=use_batchnorm,
+        # )
+        self.conv1 = Conv2dNormActivation(
             in_channels + skip_channels,
             out_channels,
             kernel_size=3,
             padding=1,
-            use_batchnorm=use_batchnorm,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
         )
         self.attention1 = md.Attention(
             attention_type, in_channels=in_channels + skip_channels
         )
-        self.conv2 = md.Conv2dReLU(
+        # self.conv2 = md.Conv2dReLU(
+        #     out_channels,
+        #     out_channels,
+        #     kernel_size=3,
+        #     padding=1,
+        #     use_batchnorm=use_batchnorm,
+        # )
+        self.conv2 = Conv2dNormActivation(
             out_channels,
             out_channels,
             kernel_size=3,
             padding=1,
-            use_batchnorm=use_batchnorm,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
         )
         self.attention2 = md.Attention(
             attention_type, in_channels=out_channels
         )
 
     def forward(self, x, skip=None):
-        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        x = self.up(x)
+        # x = F.interpolate(x, scale_factor=2, mode="nearest")
         if skip is not None:
             x = torch.cat([x, skip], dim=1)
             x = self.attention1(x)
@@ -383,23 +433,51 @@ class DecoderBlock(nn.Module):
         return x
 
 
-class CenterBlock(nn.Sequential):
+# class CenterBlock(nn.Sequential):
+#     def __init__(self, in_channels, out_channels, use_batchnorm=True):
+#         conv1 = md.Conv2dReLU(
+#             in_channels,
+#             out_channels,
+#             kernel_size=3,
+#             padding=1,
+#             use_batchnorm=use_batchnorm,
+#         )
+#         conv2 = md.Conv2dReLU(
+#             out_channels,
+#             out_channels,
+#             kernel_size=3,
+#             padding=1,
+#             use_batchnorm=use_batchnorm,
+#         )
+#         super().__init__(conv1, conv2)
+
+
+class CenterBlock(nn.Module):
     def __init__(self, in_channels, out_channels, use_batchnorm=True):
-        conv1 = md.Conv2dReLU(
+        super().__init__()
+        self.conv1 = Conv2dNormActivation(
             in_channels,
             out_channels,
             kernel_size=3,
             padding=1,
-            use_batchnorm=use_batchnorm,
+            stride=1,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
         )
-        conv2 = md.Conv2dReLU(
+        self.conv2 = Conv2dNormActivation(
             out_channels,
             out_channels,
             kernel_size=3,
             padding=1,
-            use_batchnorm=use_batchnorm,
+            stride=1,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
         )
-        super().__init__(conv1, conv2)
+    
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        return x
 
 
 class UnetDecoder(nn.Module):
