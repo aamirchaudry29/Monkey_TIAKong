@@ -31,7 +31,7 @@ def train(fold: int = 1):
     # Specify training config and hyperparameters
     run_config = {
         "project_name": "Monkey_Multiclass_Detection",
-        "model_name": "efficientnetv2_l_multitask_det_decoder_v2",
+        "model_name": "convnextv2_base_multitask_det_decoder_v3",
         "center_block": True,
         "val_fold": fold,  # [1-5]
         "batch_size": 48,
@@ -75,8 +75,8 @@ def train(fold: int = 1):
     # Create model
     model = get_custom_hovernext(
         # enc="tf_efficientnetv2_l.in21k_ft_in1k",
-        # enc="convnextv2_base.fcmae_ft_in22k_in1k",
-        enc="tf_efficientnetv2_xl.in21k_ft_in1k",
+        enc="convnextv2_base.fcmae_ft_in22k_in1k",
+        # enc="tf_efficientnetv2_l.in21k_ft_in1k",
         pretrained=True,
         use_batchnorm=True,
         attention_type="scse",
@@ -87,6 +87,8 @@ def train(fold: int = 1):
     # model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
     # pprint("Encoder weights loaded")
     model.to("cuda")
+    pprint("Decoder:")
+    pprint(model.decoders)
     # -----------------------------------------------------------------------
 
     IOconfig.set_checkpoint_save_dir(
@@ -158,12 +160,12 @@ def train(fold: int = 1):
     # scheduler = lr_scheduler.ReduceLROnPlateau(
     #     optimizer, "min", factor=0.5, patience=5
     # )
-    scheduler = lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=10, eta_min=0.0
-    )
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-    #     optimizer, T_0=20, T_mult=1
+    # scheduler = lr_scheduler.CosineAnnealingLR(
+    #     optimizer, T_max=10, eta_min=0.0
     # )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=10, T_mult=1
+    )
 
     # Create WandB session
     # run = None

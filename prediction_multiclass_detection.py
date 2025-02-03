@@ -35,7 +35,7 @@ from prediction.multiclass_detection import wsi_detection_in_mask_v2
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
-    detector_model_name = "efficientnetv2_l_multitask_det_decoder_v2"
+    detector_model_name = "convnextv2_large_multitask_det_decoder_v3"
     pprint(f"Multiclass detection using {detector_model_name}")
     pprint(f"Fold {fold}")
     model_res = 0
@@ -100,8 +100,8 @@ def cross_validation(fold: int = 1):
         # )
         # model = get_custom_hovernext(pretrained=False)
         model = get_custom_hovernext(
-            enc="tf_efficientnetv2_l.in21k_ft_in1k",
-            # enc="convnextv2_base.fcmae_ft_in22k_in1k",
+            # enc="tf_efficientnetv2_l.in21k_ft_in1k",
+            enc="convnextv2_large.fcmae_ft_in22k_in1k",
             pretrained=False,
             use_batchnorm=True,
             attention_type="scse",
