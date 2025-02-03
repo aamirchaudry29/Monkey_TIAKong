@@ -1234,3 +1234,112 @@ def compute_hv_map(mask):
         out[0, :, :] += inst_x
         out[1, :, :] += inst_y
     return out
+
+
+class ResizeModule:
+    """
+    A reversible resizing transform using OpenCV that can handle:
+      - A single image.
+      - A *list* of masks 
+
+    Forward Transform (__call__):
+      1. Resizes the image to a specified target size (e.g., 256x256).
+      2. Resizes all masks in the list to the same target size.
+      3. Returns a dictionary containing:
+         {
+           'image': resized_image,
+           'masks': [resized_mask_0, resized_mask_1, ...],
+         }
+    
+    Inverse Transform (invert):
+      1. Takes the resized image/masks plus the stored original shapes.
+      2. Resizes them back to their original dimensions.
+    """
+
+    def __init__(self,
+                 target_size):
+        """
+        Args:
+            size (int or tuple): Desired output size.
+                - If size is an int, we produce a square of shape (size x size).
+                - If size is a tuple (h, w), we produce exactly that shape.
+        """
+        self.target_size = target_size
+
+    def __call__(self, image, image_type: str ='image'):
+        """
+        Forward transform: Resizes the input image and list of masks.
+
+        Args:
+            image: is a NumPy array of shape (H, W, C) or (H, W).
+            image_type: image or mask
+
+        Returns:
+            image: resized image
+        """
+
+        if image_type == 'image':
+            interpolation = cv2.INTER_LINEAR
+        elif image_type == 'mask':
+            interpolation = cv2.INTER_NEAREST
+        else:
+            raise ValueError(f"Unknown image type: {image_type}")
+
+        # Determine new size for cv2 (width, height)
+        if isinstance(self.target_size, int):
+            # square resize
+            new_size = (self.target_size, self.target_size)
+        else:
+            # user provided (h, w), cv2.resize expects (w, h)
+            new_size = (self.target_size[1], self.target_size[0])
+
+        # Resize the image
+        resized_image = cv2.resize(
+            image, new_size, interpolation=interpolation
+        )
+
+        return resized_image
+
+    # def invert(self, sample_dict):
+    #     """
+    #     Inverse transform: Resizes the inputs back to their original shapes.
+
+    #     Args:
+    #         sample_dict: A dictionary returned by __call__, containing keys:
+    #             {
+    #               'image': resized_image,
+    #               'masks': [resized_mask_0, resized_mask_1, ...],
+    #               'original_size_image': (orig_h_img, orig_w_img),
+    #               'original_size_masks': [
+    #                   (orig_h_m0, orig_w_m0),
+    #                   (orig_h_m1, orig_w_m1),
+    #                   ...
+    #               ]
+    #             }
+
+    #     Returns:
+    #         (image, [mask_0, mask_1, ...]) resized back to their original dimensions.
+    #     """
+    #     resized_image = sample_dict['image']
+    #     resized_masks = sample_dict['masks']
+    #     orig_size_image = sample_dict['original_size_image']   # (H, W)
+    #     orig_sizes_masks = sample_dict['original_size_masks']  # list of (H, W)
+
+    #     # Convert to (width, height) for cv2
+    #     orig_size_image_cv2 = (orig_size_image[1], orig_size_image[0])
+        
+    #     # Inverse-resize image
+    #     image = cv2.resize(
+    #         resized_image,
+    #         orig_size_image_cv2,
+    #         interpolation=self.image_interpolation
+    #     )
+
+    #     # Inverse-resize masks
+    #     masks = []
+    #     for mask, (mh, mw) in zip(resized_masks, orig_sizes_masks):
+    #         mask_orig_size_cv2 = (mw, mh)  # (width, height)
+    #         inv_mask = cv2.resize(mask, mask_orig_size_cv2, interpolation=self.mask_interpolation)
+    #         masks.append(inv_mask)
+
+    #     return image, masks
