@@ -31,7 +31,7 @@ def train(fold: int = 1):
     # Specify training config and hyperparameters
     run_config = {
         "project_name": "Monkey_Multiclass_Detection",
-        "model_name": "convnextv2_base_multitask_det_decoder_v3",
+        "model_name": "efficientnetv2_l_multitask_det_decoder_v4",
         "center_block": True,
         "val_fold": fold,  # [1-5]
         "batch_size": 48,
@@ -75,8 +75,8 @@ def train(fold: int = 1):
     # Create model
     model = get_custom_hovernext(
         # enc="tf_efficientnetv2_l.in21k_ft_in1k",
-        enc="convnextv2_base.fcmae_ft_in22k_in1k",
-        # enc="tf_efficientnetv2_l.in21k_ft_in1k",
+        # enc="convnextv2_base.fcmae_ft_in22k_in1k",
+        enc="tf_efficientnetv2_l.in21k_ft_in1k",
         pretrained=True,
         use_batchnorm=True,
         attention_type="scse",

@@ -352,24 +352,25 @@ class SubPixelUpsample(nn.Module):
             out_channels * upscale_factor ** 2,
             kernel_size=1,
             norm_layer=nn.BatchNorm2d,
-            activation_layer=nn.ReLU,
+            activation_layer=nn.SiLU,
         )
         self.pixel_shuffle = nn.PixelShuffle(upscale_factor)
         # self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
-        # self.conv2 = Conv2dNormActivation(
-        #     out_channels,
-        #     out_channels,
-        #     kernel_size=1,
-        #     norm_layer=nn.BatchNorm2d,
-        #     activation_layer=nn.SiLU,
-        # )
-        self.activation = nn.ReLU()
+        self.conv2 = Conv2dNormActivation(
+            out_channels,
+            out_channels,
+            kernel_size=3,
+            padding=1,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
+        )
+        # self.activation = nn.ReLU()
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.pixel_shuffle(x)
-        # x = self.conv2(x)
-        x = self.activation(x)
+        x = self.conv2(x)
+        # x = self.activation(x)
         return x
 
 
@@ -400,7 +401,7 @@ class DecoderBlock(nn.Module):
             kernel_size=3,
             padding=1,
             norm_layer=nn.BatchNorm2d,
-            activation_layer=nn.ReLU,
+            activation_layer=nn.SiLU,
         )
         self.attention1 = md.Attention(
             attention_type, in_channels=in_channels + skip_channels
@@ -418,7 +419,7 @@ class DecoderBlock(nn.Module):
             kernel_size=3,
             padding=1,
             norm_layer=nn.BatchNorm2d,
-            activation_layer=nn.ReLU,
+            activation_layer=nn.SiLU,
         )
         self.attention2 = md.Attention(
             attention_type, in_channels=out_channels
@@ -436,52 +437,33 @@ class DecoderBlock(nn.Module):
         return x
 
 
-# class CenterBlock(nn.Sequential):
-#     def __init__(self, in_channels, out_channels, use_batchnorm=True):
-#         conv1 = md.Conv2dReLU(
-#             in_channels,
-#             out_channels,
-#             kernel_size=3,
-#             padding=1,
-#             use_batchnorm=use_batchnorm,
-#         )
-#         conv2 = md.Conv2dReLU(
-#             out_channels,
-#             out_channels,
-#             kernel_size=3,
-#             padding=1,
-#             use_batchnorm=use_batchnorm,
-#         )
-#         super().__init__(conv1, conv2)
-
-
 class CenterBlock(nn.Module):
     def __init__(self, in_channels, out_channels, use_batchnorm=True):
         super().__init__()
-        self.conv1 = Conv2dNormActivation(
-            in_channels,
-            out_channels,
-            kernel_size=3,
-            padding=1,
-            stride=1,
-            norm_layer=nn.BatchNorm2d,
-            activation_layer=nn.ReLU,
-        )
-        self.conv2 = Conv2dNormActivation(
-            out_channels,
-            out_channels,
-            kernel_size=3,
-            padding=1,
-            stride=1,
-            norm_layer=nn.BatchNorm2d,
-            activation_layer=nn.ReLU,
-        )
+        # self.conv1 = Conv2dNormActivation(
+        #     in_channels,
+        #     out_channels,
+        #     kernel_size=3,
+        #     padding=1,
+        #     stride=1,
+        #     norm_layer=nn.BatchNorm2d,
+        #     activation_layer=nn.ReLU,
+        # )
+        # self.conv2 = Conv2dNormActivation(
+        #     out_channels,
+        #     out_channels,
+        #     kernel_size=3,
+        #     padding=1,
+        #     stride=1,
+        #     norm_layer=nn.BatchNorm2d,
+        #     activation_layer=nn.ReLU,
+        # )
         self.attention = md.Attention("scse", in_channels=in_channels)
     
     def forward(self, x):
         x = self.attention(x)
-        x = self.conv1(x)
-        x = self.conv2(x)
+        # x = self.conv1(x)
+        # x = self.conv2(x)
         return x
 
 
