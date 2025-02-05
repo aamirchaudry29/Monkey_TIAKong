@@ -791,7 +791,7 @@ def multitask_train_loop(
     best_val_score = np.inf
     best_f1_score = 0.0
     epochs = run_config["epochs"]
-    early_stopper = EarlyStopper(patience=20, min_delta=0)
+    early_stopper = EarlyStopper(patience=40, min_delta=0)
 
     model = freeze_enc(model)
     for epoch in tqdm(

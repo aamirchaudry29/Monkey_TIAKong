@@ -62,14 +62,23 @@ class TimmEncoderFixed(nn.Module):
         drop_path_rate=0.0,
     ):
         super().__init__()
-        kwargs = dict(
-            in_chans=in_channels,
-            features_only=True,
-            pretrained=pretrained,
-            out_indices=tuple(range(depth)),
-            drop_rate=drop_rate,
-            drop_path_rate=drop_path_rate,
-        )
+        if drop_path_rate is None:
+            kwargs = dict(
+                in_chans=in_channels,
+                features_only=True,
+                pretrained=pretrained,
+                out_indices=tuple(range(depth)),
+                drop_rate=drop_rate,
+            )
+        else:
+            kwargs = dict(
+                in_chans=in_channels,
+                features_only=True,
+                pretrained=pretrained,
+                out_indices=tuple(range(depth)),
+                drop_rate=drop_rate,
+                drop_path_rate=drop_path_rate,
+            )
 
         self.model = timm.create_model(name, **kwargs)
 
@@ -257,17 +266,35 @@ def get_custom_hovernext(
         pre_path = pretrained
         pretrained = False
     # small fix to deal with large pooling in convnext type models:
-    depth = 4 if "next" in enc else 5
+    next = False
+    if "next" in enc:
+        depth = 4
+        next = True
+    else: 
+        depth = 5
 
-    encoder = get_timm_encoder(
-        name=enc,
-        in_channels=3,
-        depth=depth,
-        weights=pretrained,
-        output_stride=32,
-        drop_rate=0.5,
-        drop_path_rate=0.25,
-    )
+    if "efficientvit" in enc:
+        depth = 4
+        next = True
+        encoder = get_timm_encoder(
+            name=enc,
+            in_channels=3,
+            depth=depth,
+            weights=pretrained,
+            output_stride=32,
+            drop_path_rate=None
+        )
+    else:
+        encoder = get_timm_encoder(
+            name=enc,
+            in_channels=3,
+            depth=depth,
+            weights=pretrained,
+            output_stride=32,
+            drop_rate=0.5,
+            drop_path_rate=0.25,
+        )
+
     # decoder_channels = (256, 128, 64, 32, 16)[:depth]
     decoder_channels = (512, 256, 128, 64, 32)[:depth]
 
@@ -281,7 +308,7 @@ def get_custom_hovernext(
                 use_batchnorm=use_batchnorm,
                 center=center,
                 attention_type=attention_type,
-                next="next" in enc,
+                next=next,
             )
         )
 

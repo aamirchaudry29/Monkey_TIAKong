@@ -8,6 +8,27 @@ from monkey.data.data_utils import (
 )
 
 
+def binary_det_post_process(
+    prob: torch.Tensor,
+    thresholds: float = 0.5,
+    min_distances: int = 5,
+):
+    if torch.is_tensor(prob):
+        prob = prob.detach().cpu().numpy()
+
+    output_mask = np.zeros(shape=prob.shape, dtype=np.uint8)
+
+    coordinates = peak_local_max(
+        prob,
+        min_distance=min_distances,
+        threshold_abs=thresholds,
+        exclude_border=False,
+    )
+    output_mask[coordinates[:, 0], coordinates[:, 1]] = 1
+
+    return output_mask
+
+
 def multihead_det_post_process(
     inflamm_prob: torch.Tensor,
     lymph_prob: torch.Tensor,
