@@ -452,6 +452,7 @@ class DecoderBlock(nn.Module):
             attention_type, in_channels=out_channels
         )
 
+
     def forward(self, x, skip=None):
         x = self.up(x)
         # x = F.interpolate(x, scale_factor=2, mode="nearest")
