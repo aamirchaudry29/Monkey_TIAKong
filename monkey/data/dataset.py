@@ -18,6 +18,7 @@ from monkey.data.data_utils import (
     compute_hv_map,
     dilate_mask,
     generate_regression_map,
+    generate_distance_map,
     get_label_from_class_id,
     get_split_from_json,
     imagenet_normalise,
@@ -356,51 +357,37 @@ class Multitask_Dataset(Dataset):
         lymph_mono_centroid_masks = class_mask_to_multichannel_mask(
             cell_centroid_masks
         )
-        # lymph_weight_mask = generate_regression_map(
-        #     lymph_mono_centroid_masks[0],
-        #     d_thresh=self.disk_radius,
-        #     alpha=1,
-        #     scale=self.weight_map_scale,
-        # )
-        # lymph_weight_mask = lymph_weight_mask + 1
-        # mono_weight_mask = generate_regression_map(
-        #     lymph_mono_centroid_masks[1],
-        #     d_thresh=self.disk_radius,
-        #     alpha=1,
-        #     scale=self.weight_map_scale,
-        # )
-        # mono_weight_mask = mono_weight_mask + 1
         for i in range(lymph_mono_centroid_masks.shape[0]):
             lymph_mono_centroid_masks[i] = dilate_mask(
                 lymph_mono_centroid_masks[i],
                 disk_radius=self.disk_radius,
             )
+        lymph_weight_mask = generate_distance_map(lymph_mono_centroid_masks[0])
+        lymph_weight_mask = (lymph_weight_mask * self.weight_map_scale) + 1
+        mono_weight_mask = generate_distance_map(lymph_mono_centroid_masks[1])
+        mono_weight_mask = (mono_weight_mask * self.weight_map_scale) + 1
         inflamm_centroid_masks = class_mask_to_binary(
             cell_centroid_masks
         )
-        # inflamm_weight_mask = generate_regression_map(
-        #     inflamm_centroid_masks,
-        #     d_thresh=self.disk_radius,
-        #     alpha=1,
-        #     scale=self.weight_map_scale,
-        # )
-        # inflamm_weight_mask = inflamm_weight_mask + 1
         inflamm_centroid_masks = dilate_mask(
             inflamm_centroid_masks, disk_radius=self.disk_radius
         )
+        inflamm_weight_mask = generate_distance_map(inflamm_centroid_masks)
+        inflamm_weight_mask = (inflamm_weight_mask * self.weight_map_scale) + 1
+
+        # HxW -> 1xHxW
         inflamm_centroid_masks = inflamm_centroid_masks[
             np.newaxis, :, :
         ]
-        # HxW -> 1xHxW
         inflamm_mask = inflamm_mask[np.newaxis, :, :]
         lymph_mask = lymph_mask[np.newaxis, :, :]
         mono_mask = mono_mask[np.newaxis, :, :]
         inflamm_contour_mask = inflamm_contour_mask[np.newaxis, :, :]
         lymph_contour_mask = lymph_contour_mask[np.newaxis, :, :]
         mono_contour_mask = mono_contour_mask[np.newaxis, :, :]
-        # lymph_weight_mask = lymph_weight_mask[np.newaxis, :, :]
-        # mono_weight_mask = mono_weight_mask[np.newaxis, :, :]
-        # inflamm_weight_mask = inflamm_weight_mask[np.newaxis, :, :]
+        lymph_weight_mask = lymph_weight_mask[np.newaxis, :, :]
+        mono_weight_mask = mono_weight_mask[np.newaxis, :, :]
+        inflamm_weight_mask = inflamm_weight_mask[np.newaxis, :, :]
 
         # HxWx3 -> 3xHxW
         image = image / 255
@@ -423,12 +410,9 @@ class Multitask_Dataset(Dataset):
             "mono_centroid_mask": lymph_mono_centroid_masks[
                 1:2, :, :
             ],
-            # "inflamm_weight_mask": inflamm_weight_mask,
-            # "lymph_weight_mask": lymph_weight_mask,
-            # "mono_weight_mask": mono_weight_mask,
-            # "inflamm_hv_map": inflamm_hv_map,
-            # "lymph_hv_map": lymph_hv_map,
-            # "mono_hv_map": mono_hv_map,
+            "inflamm_weight_mask": inflamm_weight_mask,
+            "lymph_weight_mask": lymph_weight_mask,
+            "mono_weight_mask": mono_weight_mask,
         }
         return data
 

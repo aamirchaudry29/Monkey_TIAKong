@@ -360,6 +360,13 @@ def generate_regression_map(
     return M
 
 
+def generate_distance_map(
+    binary_mask: np.ndarray
+):
+    dist = ndi.distance_transform_edt(binary_mask)
+    return dist
+
+
 def px_to_mm(px: int, mpp: float = 0.24199951445730394):
     """
     Convert pixel coordinate to millimeters
