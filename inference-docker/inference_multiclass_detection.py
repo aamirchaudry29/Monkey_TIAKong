@@ -29,7 +29,7 @@ def load_detectors() -> list[torch.nn.Module]:
     detector_weight_paths = [
         os.path.join(MODEL_DIR, "1.pth"),
         os.path.join(MODEL_DIR, "2.pth"),
-        # os.path.join(MODEL_DIR, "4.pth"),
+        os.path.join(MODEL_DIR, "4.pth"),
     ]
     for weight_path in detector_weight_paths:
         detector = get_multihead_model(
@@ -91,10 +91,10 @@ def detect():
         patch_size=256,
         resolution=model_res,
         units=units,
-        stride=214,
+        stride=224,
         thresholds=[0.5, 0.5, 0.5],
         min_distances=[11, 11, 11],
-        nms_boxes=[11, 13, 15],
+        nms_boxes=[11, 11, 11],
         nms_overlap_thresh=0.5,
     )
 

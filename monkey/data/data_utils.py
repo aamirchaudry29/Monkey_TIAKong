@@ -6,10 +6,8 @@ import cv2
 import numpy as np
 import scipy.ndimage as ndi
 import torch
-from scipy import ndimage
 from shapely import Point, Polygon
 from skimage.feature import peak_local_max
-from skimage.measure import label
 from tiatoolbox.annotation.storage import (
     Annotation,
     AnnotationStore,

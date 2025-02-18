@@ -311,7 +311,6 @@ def wsi_detection_in_mask_v2(
         input_mask=binary_mask,
         method_name="slidingwindow",
         patch_size=(2048, 2048),
-        stride=(2016, 2016),
         resolution=resolution,
         units=units,
     )

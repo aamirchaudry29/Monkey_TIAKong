@@ -38,10 +38,10 @@ def cross_validation(fold: int = 1):
         patch_size=256,
         resolution=model_res,
         units=units,
-        stride=214,
+        stride=224,
         thresholds=[0.5, 0.5, 0.5],
         min_distances=[11, 11, 11],
-        nms_boxes=[11, 13, 15],
+        nms_boxes=[11, 11, 11],
         nms_overlap_thresh=0.5,
     )
 

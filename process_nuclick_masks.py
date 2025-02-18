@@ -1,5 +1,5 @@
 """
-Process data from nuclick_hovernext folder.
+Process data from nuclick folder.
 Main purpose is to separate touching nuclei in binary segmentation mask
 And generate contours
 """
