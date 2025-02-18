@@ -18,7 +18,9 @@ class AutomaticWeightedLoss(nn.Module):
     def forward(self, *x):
         loss_sum = 0
         for i, loss in enumerate(x):
-            loss_sum += 0.5 / (self.params[i] ** 2) * loss + torch.log(1 + self.params[i] ** 2)
+            loss_sum += 0.5 / (
+                self.params[i] ** 2
+            ) * loss + torch.log(1 + self.params[i] ** 2)
         return loss_sum
 
 
@@ -98,6 +100,7 @@ def get_loss_function(loss_type: str) -> Loss_Function:
 
 # -------------------------------------Classes implementing loss functions--------------------------------
 
+
 class Focal_Loss(Loss_Function):
     def __init__(self, use_weights=False):
         super().__init__("name", use_weights)
@@ -121,7 +124,7 @@ class Focal_Loss(Loss_Function):
     def set_alpha(self, alpha):
         self.loss_fn.alpha = alpha
         return
-    
+
 
 class Weighted_Focal_Loss(Loss_Function):
     def __init__(self, use_weights=False):
@@ -133,7 +136,9 @@ class Weighted_Focal_Loss(Loss_Function):
             reduction="none",
         )
 
-    def compute_loss(self, input: Tensor, target: Tensor, weight_map: Tensor):
+    def compute_loss(
+        self, input: Tensor, target: Tensor, weight_map: Tensor
+    ):
         focal_loss = self.loss_fn(input, target)
         return (focal_loss * weight_map).mean()
 
@@ -147,7 +152,7 @@ class Weighted_Focal_Loss(Loss_Function):
     def set_alpha(self, alpha):
         self.loss_fn.alpha = alpha
         return
-    
+
 
 class Jaccard_Dice_Focal_Loss(Loss_Function):
     def __init__(self, use_weights=False):

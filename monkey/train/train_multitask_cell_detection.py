@@ -10,15 +10,17 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from monkey.model.multihead_model.model import freeze_enc, unfreeze_enc
 from monkey.model.loss_functions import Loss_Function, MultiTaskLoss
+from monkey.model.multihead_model.model import (
+    freeze_enc,
+    unfreeze_enc,
+)
 from monkey.model.utils import (
     EarlyStopper,
     get_multiclass_patch_F1_score_batch,
 )
 from monkey.train.utils import compose_multitask_log_images
 from prediction.utils import multihead_det_post_process_batch
-
 
 
 def det_v2_train_one_epoch(
@@ -74,7 +76,7 @@ def det_v2_train_one_epoch(
 
         mono_seg_logits = logits_pred[:, 6:7, :, :]
         mono_contour_logits = logits_pred[:, 7:8, :, :]
-        mono_centroid_logits = logits_pred[:,8:9, :, :]
+        mono_centroid_logits = logits_pred[:, 8:9, :, :]
 
         inflamm_seg_pred = activation_dict["head_1"](
             inflamm_seg_logits
@@ -147,7 +149,6 @@ def det_v2_train_one_epoch(
             + contour_loss_weight * mono_contour_loss
             + mono_centroid_loss
         )
-
 
         stack_loss = torch.stack((loss_1, loss_2, loss_3))
         multi_task_loss = multi_task_loss_instance(stack_loss)
@@ -245,7 +246,6 @@ def det_v2_validate_one_epoch(
                 mono_centroid_logits
             )
 
-
             inflamm_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
                 inflamm_seg_pred, inflamm_seg_masks
             )
@@ -260,7 +260,6 @@ def det_v2_validate_one_epoch(
                 inflamm_centroid_pred, inflamm_centroid_masks
             )
 
-
             lymph_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
                 lymph_seg_pred, lymph_seg_masks
             )
@@ -271,7 +270,6 @@ def det_v2_validate_one_epoch(
                 "det_loss"
             ].compute_loss(lymph_centroid_pred, lymph_centroid_masks)
 
-
             mono_seg_loss = loss_fn_dict["seg_loss"].compute_loss(
                 mono_seg_pred, mono_seg_masks
             )
@@ -281,7 +279,6 @@ def det_v2_validate_one_epoch(
             mono_centroid_loss = loss_fn_dict[
                 "det_loss"
             ].compute_loss(mono_centroid_pred, mono_centroid_masks)
-
 
             loss_1 = (
                 seg_loss_weight * inflamm_seg_loss
@@ -363,7 +360,6 @@ def det_v2_validate_one_epoch(
         / len(validation_loader.sampler),
         "val_loss": running_loss / len(validation_loader.sampler),
     }
-
 
 
 def multitask_train_loop(

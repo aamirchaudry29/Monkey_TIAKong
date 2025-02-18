@@ -360,9 +360,7 @@ def generate_regression_map(
     return M
 
 
-def generate_distance_map(
-    binary_mask: np.ndarray
-):
+def generate_distance_map(binary_mask: np.ndarray):
     dist = ndi.distance_transform_edt(binary_mask)
     return dist
 
@@ -1137,6 +1135,8 @@ def check_image_mask_shape(wsi_path: str, mask_path: str) -> None:
     mask_info = mask_reader.info.as_dict()
     wsi_mpp = wsi_info["mpp"]
     mask_mpp = mask_info["mpp"]
-    if (round(wsi_mpp[0],3) != round(mask_mpp[0],3)) or (round(wsi_mpp[1],3) != round(mask_mpp[1],3)):
+    if (round(wsi_mpp[0], 3) != round(mask_mpp[0], 3)) or (
+        round(wsi_mpp[1], 3) != round(mask_mpp[1], 3)
+    ):
         message = f"Image and mask have different mpp: {wsi_mpp} vs {mask_mpp}"
         raise ValueError(message)

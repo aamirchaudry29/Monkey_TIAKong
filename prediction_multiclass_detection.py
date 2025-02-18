@@ -16,9 +16,7 @@ from monkey.data.data_utils import (
     open_json_file,
     save_detection_records_monkey,
 )
-from monkey.model.multihead_model.model import (
-    get_multihead_model,
-)
+from monkey.model.multihead_model.model import get_multihead_model
 from prediction.multiclass_detection import wsi_detection_in_mask_v2
 
 

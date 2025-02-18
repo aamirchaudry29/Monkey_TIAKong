@@ -5,12 +5,12 @@ import numpy as np
 import skimage.measure
 import skimage.morphology
 import torch
-from torch.amp import autocast
 from tiatoolbox.models.engine.semantic_segmentor import (
     SemanticSegmentor,
 )
 from tiatoolbox.tools.patchextraction import get_patch_extractor
 from tiatoolbox.wsicore.wsireader import VirtualWSIReader, WSIReader
+from torch.amp import autocast
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
@@ -22,10 +22,7 @@ from monkey.data.data_utils import (
     slide_nms,
 )
 from monkey.model.utils import get_activation_function
-from prediction.utils import (
-    binary_det_post_process
-)
-
+from prediction.utils import binary_det_post_process
 
 
 def detection_in_tile(
@@ -67,7 +64,6 @@ def detection_in_tile(
         "mono_prob": [],
     }
 
-
     batch_size = 16
     dataloader = DataLoader(
         patch_extractor,
@@ -77,7 +73,10 @@ def detection_in_tile(
         num_workers=4,
         pin_memory=True,
     )
-    inflamm_prob_np = np.zeros((len(patch_extractor), patch_size, patch_size), dtype=np.float16)
+    inflamm_prob_np = np.zeros(
+        (len(patch_extractor), patch_size, patch_size),
+        dtype=np.float16,
+    )
     lymph_prob_np = np.zeros_like(inflamm_prob_np)
     mono_prob_np = np.zeros_like(inflamm_prob_np)
 
@@ -89,7 +88,9 @@ def detection_in_tile(
 
     start_idx = 0
     for imgs in dataloader:
-        batch_size_actual = imgs.shape[0]  # In case last batch is smaller
+        batch_size_actual = imgs.shape[
+            0
+        ]  # In case last batch is smaller
         end_idx = start_idx + batch_size_actual
         imgs = torch.permute(imgs, (0, 3, 1, 2))
         imgs = imgs / 255
@@ -97,30 +98,51 @@ def detection_in_tile(
         imgs = imgs.to("cuda").float()
 
         inflamm_prob = torch.zeros(
-            size=(imgs.shape[0], patch_size, patch_size), device="cuda"
+            size=(imgs.shape[0], patch_size, patch_size),
+            device="cuda",
         )
         lymph_prob = torch.zeros(
-            size=(imgs.shape[0], patch_size, patch_size), device="cuda"
+            size=(imgs.shape[0], patch_size, patch_size),
+            device="cuda",
         )
         mono_prob = torch.zeros(
-            size=(imgs.shape[0], patch_size, patch_size), device="cuda"
+            size=(imgs.shape[0], patch_size, patch_size),
+            device="cuda",
         )
 
         with torch.no_grad():
             for model in models:
-                with autocast(device_type='cuda'):
+                with autocast(device_type="cuda"):
                     logits_pred = model(imgs)
-                _inflamm_prob = activation_dict["head_1"](logits_pred[:, 2, :, :])
-                _lymph_prob = activation_dict["head_2"](logits_pred[:, 5, :, :])
-                _mono_prob = activation_dict["head_3"](logits_pred[:, 8, :, :])
+                _inflamm_prob = activation_dict["head_1"](
+                    logits_pred[:, 2, :, :]
+                )
+                _lymph_prob = activation_dict["head_2"](
+                    logits_pred[:, 5, :, :]
+                )
+                _mono_prob = activation_dict["head_3"](
+                    logits_pred[:, 8, :, :]
+                )
 
-                _inflamm_seg_prob = activation_dict["head_1"](logits_pred[:, 0, :, :])
-                _lymph_seg_prob = activation_dict["head_2"](logits_pred[:, 3, :, :])
-                _mono_seg_prob = activation_dict["head_3"](logits_pred[:, 6, :, :])
+                _inflamm_seg_prob = activation_dict["head_1"](
+                    logits_pred[:, 0, :, :]
+                )
+                _lymph_seg_prob = activation_dict["head_2"](
+                    logits_pred[:, 3, :, :]
+                )
+                _mono_seg_prob = activation_dict["head_3"](
+                    logits_pred[:, 6, :, :]
+                )
 
-                _inflamm_seg_prob *= (_inflamm_prob >= config.thresholds[0]).to(dtype=torch.float16)
-                _lymph_seg_prob *= (_lymph_prob >= config.thresholds[1]).to(dtype=torch.float16)
-                _mono_seg_prob *= (_mono_prob >= config.thresholds[2]).to(dtype=torch.float16)
+                _inflamm_seg_prob *= (
+                    _inflamm_prob >= config.thresholds[0]
+                ).to(dtype=torch.float16)
+                _lymph_seg_prob *= (
+                    _lymph_prob >= config.thresholds[1]
+                ).to(dtype=torch.float16)
+                _mono_seg_prob *= (
+                    _mono_prob >= config.thresholds[2]
+                ).to(dtype=torch.float16)
 
                 _inflamm_prob = (
                     _inflamm_seg_prob * 0.4 + _inflamm_prob * 0.6
@@ -138,7 +160,9 @@ def detection_in_tile(
         lymph_prob = lymph_prob / len(models)
         mono_prob = mono_prob / len(models)
 
-        inflamm_prob_np[start_idx:end_idx] = inflamm_prob.cpu().numpy()
+        inflamm_prob_np[start_idx:end_idx] = (
+            inflamm_prob.cpu().numpy()
+        )
         lymph_prob_np[start_idx:end_idx] = lymph_prob.cpu().numpy()
         mono_prob_np[start_idx:end_idx] = mono_prob.cpu().numpy()
 
@@ -187,8 +211,9 @@ def process_tile_detection_masks(
         idx = 2
         cell_full_name = "monocyte"
 
-    probs_map = np.zeros(shape=(tile_size, tile_size), dtype=np.float16)    
-
+    probs_map = np.zeros(
+        shape=(tile_size, tile_size), dtype=np.float16
+    )
 
     if len(pred_results[f"{cell_type}_prob"]) != 0:
         probs_map = SemanticSegmentor.merge_prediction(
@@ -205,16 +230,12 @@ def process_tile_detection_masks(
         min_distances=config.min_distances[idx],
     )
 
-
-    prob_map_labels = skimage.measure.label(
-        processed_mask
-    )
+    prob_map_labels = skimage.measure.label(processed_mask)
     prob_map_stats = skimage.measure.regionprops(
         prob_map_labels, intensity_image=probs_map
     )
 
     points = []
-
 
     for region in prob_map_stats:
         centroid = region["centroid"]

@@ -1,12 +1,14 @@
+import matplotlib.cm as cm
 import numpy as np
 import torch
 import wandb
-from torch import Tensor
-import matplotlib.cm as cm
 from PIL import Image
+from torch import Tensor
 
 
-def tensor_to_heatmap_pil(tensor: torch.Tensor, cmap_name: str = "jet") -> Image.Image:
+def tensor_to_heatmap_pil(
+    tensor: torch.Tensor, cmap_name: str = "jet"
+) -> Image.Image:
     """
     Convert a 2D PyTorch tensor (probability map in [0,1]) into a heatmap PIL image.
 
@@ -19,23 +21,23 @@ def tensor_to_heatmap_pil(tensor: torch.Tensor, cmap_name: str = "jet") -> Image
     """
     # Move tensor to CPU, detach from graph, and convert to NumPy array
     array = tensor.detach().cpu().numpy()
-    
+
     # If the tensor has extra dimensions, squeeze them out to ensure shape is (H, W)
     if array.ndim > 2:
         array = np.squeeze(array)
-    
+
     # Get a colormap object from matplotlib
     cmap = cm.get_cmap(cmap_name)
-    
+
     # Apply colormap returns RGBA in [0,1], shape = (H, W, 4)
     rgba_image = cmap(array)
-    
+
     # Convert [0,1] floats to [0,255] uint8 and drop the alpha channel
     rgb_image = (rgba_image[:, :, :3] * 255).astype(np.uint8)
-    
+
     # Create PIL Image from the RGB array
     pil_image = Image.fromarray(rgb_image)
-    
+
     return pil_image
 
 

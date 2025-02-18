@@ -112,13 +112,13 @@ def get_multihead_model(
     if type(pretrained) == str:
         pre_path = pretrained
         pretrained = False
-    
+
     # deal with large pooling in convnext type models:
     next = False
     if "next" in enc:
         depth = 4
         next = True
-    else: 
+    else:
         depth = 5
 
     if "efficientvit" in enc:
@@ -130,7 +130,7 @@ def get_multihead_model(
             depth=depth,
             weights=pretrained,
             output_stride=32,
-            drop_path_rate=None
+            drop_path_rate=None,
         )
     else:
         encoder = get_timm_encoder(
@@ -193,7 +193,7 @@ class SubPixelUpsample(nn.Module):
         super(SubPixelUpsample, self).__init__()
         self.conv1 = Conv2dNormActivation(
             in_channels,
-            out_channels * upscale_factor ** 2,
+            out_channels * upscale_factor**2,
             kernel_size=1,
             norm_layer=nn.BatchNorm2d,
             activation_layer=nn.SiLU,
@@ -225,7 +225,9 @@ class DecoderBlock(nn.Module):
         attention_type=None,
     ):
         super().__init__()
-        self.up = SubPixelUpsample(in_channels, in_channels, upscale_factor=2)
+        self.up = SubPixelUpsample(
+            in_channels, in_channels, upscale_factor=2
+        )
         self.conv1 = Conv2dNormActivation(
             in_channels + skip_channels,
             out_channels,
@@ -249,7 +251,6 @@ class DecoderBlock(nn.Module):
             attention_type, in_channels=out_channels
         )
 
-
     def forward(self, x, skip=None):
         x = self.up(x)
         if skip is not None:
@@ -265,7 +266,7 @@ class CenterBlock(nn.Module):
     def __init__(self, in_channels, out_channels, use_batchnorm=True):
         super().__init__()
         self.attention = md.Attention("scse", in_channels=in_channels)
-    
+
     def forward(self, x):
         x = self.attention(x)
         return x

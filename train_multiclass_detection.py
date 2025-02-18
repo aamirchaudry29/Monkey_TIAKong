@@ -5,17 +5,14 @@ from pprint import pprint
 import click
 import torch
 import wandb
-from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
-from monkey.model.multihead_model.model import (
-    get_multihead_model,
-)
 from monkey.model.loss_functions import (
     MultiTaskLoss,
     get_loss_function,
 )
+from monkey.model.multihead_model.model import get_multihead_model
 from monkey.model.utils import get_activation_function
 from monkey.train.train_multitask_cell_detection import (
     multitask_train_loop,
@@ -135,15 +132,14 @@ def train(fold: int = 1):
     }
 
     params = [
-                {'params': model.parameters()},
-                {'params': multi_task_loss_instance.parameters()}
-            ]
+        {"params": model.parameters()},
+        {"params": multi_task_loss_instance.parameters()},
+    ]
     optimizer = torch.optim.AdamW(
         params,
         lr=run_config["learning_rate"],
         weight_decay=run_config["weight_decay"],
     )
-
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
         optimizer, T_0=10, T_mult=1
