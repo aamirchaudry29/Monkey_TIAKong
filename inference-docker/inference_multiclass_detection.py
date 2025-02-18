@@ -8,10 +8,7 @@ from tiatoolbox.wsicore.wsireader import WSIReader
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import save_detection_records_monkey
-from monkey.model.efficientunetb0.architecture import (
-    get_multihead_efficientunet,
-)
-from monkey.model.hovernext.model import get_custom_hovernext
+from monkey.model.multihead_model.model import get_multihead_model
 from prediction.multiclass_detection import wsi_detection_in_mask_v2
 
 INPUT_PATH = Path("/input")
@@ -35,7 +32,7 @@ def load_detectors() -> list[torch.nn.Module]:
         # os.path.join(MODEL_DIR, "4.pth"),
     ]
     for weight_path in detector_weight_paths:
-        detector = get_custom_hovernext(
+        detector = get_multihead_model(
             enc="tf_efficientnetv2_l.in21k_ft_in1k",
             pretrained=False,
             use_batchnorm=True,

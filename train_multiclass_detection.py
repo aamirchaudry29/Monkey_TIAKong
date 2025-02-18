@@ -9,14 +9,12 @@ from torch.optim import lr_scheduler
 
 from monkey.config import TrainingIOConfig
 from monkey.data.dataset import get_detection_dataloaders
-from monkey.model.hovernext.model import (
-    get_custom_hovernext,
-    load_encoder_weights,
+from monkey.model.multihead_model.model import (
+    get_multihead_model,
 )
 from monkey.model.loss_functions import (
     MultiTaskLoss,
     get_loss_function,
-    AutomatucWeightedLoss
 )
 from monkey.model.utils import get_activation_function
 from monkey.train.train_multitask_cell_detection import (
@@ -31,7 +29,7 @@ def train(fold: int = 1):
     # Specify training config and hyperparameters
     run_config = {
         "project_name": "Monkey_Multiclass_Detection",
-        "model_name": "efficientnetv2_l_multitask_det_decoder_v4_final",
+        "model_name": "efficientnetv2_l_multitask_det_decoder_v4",
         "center_block": True,
         "val_fold": fold,  # [1-5]
         "batch_size": 48,
@@ -42,7 +40,7 @@ def train(fold: int = 1):
         "loss_function": {
             "seg_loss": "Weighted_BCE_Dice",
             "contour_loss": "Weighted_BCE_Dice",
-            "det_loss": "Weighted_Jaccard_Focal_Loss",
+            "det_loss": "Jaccard_Dice_Focal_Loss",
         },
         "weight_map_scale": 1.0,
         "peak_thresholds": [0.5, 0.5, 0.5],  # [inflamm, lymph, mono]
@@ -73,18 +71,14 @@ def train(fold: int = 1):
     )
 
     # Create model
-    model = get_custom_hovernext(
+    model = get_multihead_model(
         enc="tf_efficientnetv2_l.in21k_ft_in1k",
-        # enc="convnextv2_large.fcmae_ft_in22k_in1k",
         pretrained=True,
         use_batchnorm=True,
         attention_type="scse",
         decoders_out_channels=[3, 3, 3],
         center=run_config["center_block"],
     )
-    # checkpoint_path = "/home/u1910100/cloud_workspace/data/Monkey/convnextv2_large_lizard"
-    # model = load_encoder_weights(model, checkpoint_path=checkpoint_path)
-    # pprint("Encoder weights loaded")
     model.to("cuda")
     pprint("Decoder:")
     pprint(model.decoders)
@@ -126,7 +120,6 @@ def train(fold: int = 1):
     multi_task_loss_instance = MultiTaskLoss(
         is_regression=is_regression, reduction="sum"
     )
-    # multi_task_loss_instance = AutomatucWeightedLoss(3)
     multi_task_loss_instance.to("cuda")
 
     activation_fn_dict = {
@@ -150,21 +143,11 @@ def train(fold: int = 1):
         lr=run_config["learning_rate"],
         weight_decay=run_config["weight_decay"],
     )
-    # optimizer = torch.optim.RAdam(
-    #     model.parameters(),
-    #     lr=run_config["learning_rate"],
-    #     weight_decay=run_config["weight_decay"],
-    # )
-    # scheduler = None
-    scheduler = lr_scheduler.ReduceLROnPlateau(
-        optimizer, "min", factor=0.5, patience=5
+
+
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=10, T_mult=1
     )
-    # scheduler = lr_scheduler.CosineAnnealingLR(
-    #     optimizer, T_max=5, eta_min=0.0
-    # )
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-    #     optimizer, T_0=5, T_mult=2
-    # )
 
     # Create WandB session
     # run = None

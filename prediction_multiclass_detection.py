@@ -12,21 +12,12 @@ from tqdm.auto import tqdm
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
-    detection_to_annotation_store,
     extract_id,
     open_json_file,
     save_detection_records_monkey,
-    save_detection_records_monkey_v2,
 )
-from monkey.model.efficientunetb0.architecture import (
-    get_multihead_efficientunet,
-)
-from monkey.model.hovernext.model import (
-    get_convnext_unet,
-    get_custom_hovernext,
-)
-from monkey.model.hovernext.modified_model import (
-    get_modified_hovernext,
+from monkey.model.multihead_model.model import (
+    get_multihead_model,
 )
 from prediction.multiclass_detection import wsi_detection_in_mask_v2
 
@@ -55,26 +46,10 @@ def cross_validation(fold: int = 1):
         nms_boxes=[11, 13, 15],
         nms_overlap_thresh=0.5,
     )
-    # config = PredictionIOConfig(
-    #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
-    #     mask_dir="/home/u1910100/Downloads/Monkey/images/tissue-masks",
-    #     output_dir=f"/home/u1910100/Documents/Monkey/local_output/{detector_model_name}/Fold_{fold}",
-    #     patch_size=256,
-    #     resolution=model_res,
-    #     units=units,
-    #     stride=224,
-    #     thresholds=[0.3, 0.3, 0.3],
-    #     min_distances=[11, 11, 11],
-    #     nms_boxes=[11, 11, 11],
-    #     nms_overlap_thresh=0.3,
-    # )
 
     split_info = open_json_file(
         "/mnt/lab-share/Monkey/patches_256/wsi_level_split.json"
     )
-    # split_info = open_json_file(
-    #     "/home/u1910100/Documents/Monkey/patches_256/wsi_level_split.json"
-    # )
 
     val_wsi_files = split_info[f"Fold_{fold}"]["test_files"]
 
@@ -84,7 +59,7 @@ def cross_validation(fold: int = 1):
     detector_weight_paths = [
         f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/best_val.pth",
         f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best_val.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best_val.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best_val.pth",
     ]
     detectors = []
     transforms = tta.Compose(
@@ -95,25 +70,14 @@ def cross_validation(fold: int = 1):
         ]
     )
     for weight_path in detector_weight_paths:
-        # model = get_multihead_efficientunet(
-        #     pretrained=False, out_channels=[1, 1, 1]
-        # )
-        # model = get_custom_hovernext(pretrained=False)
-        model = get_custom_hovernext(
+        model = get_multihead_model(
             enc="tf_efficientnetv2_l.in21k_ft_in1k",
-            # enc="convnextv2_large.fcmae_ft_in22k_in1k",
             pretrained=True,
             use_batchnorm=True,
             attention_type="scse",
             decoders_out_channels=[3, 3, 3],
             center=True,
         )
-        # model = get_modified_hovernext(
-        #     enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
-        #     pretrained=False,
-        #     use_batchnorm=True,
-        #     attention_type="scse",
-        # )
         checkpoint = torch.load(weight_path)
         print(f"epoch: {checkpoint['epoch']}")
         model.load_state_dict(checkpoint["model"])
@@ -137,20 +101,6 @@ def cross_validation(fold: int = 1):
         print(f"{len(inflamm_records)} final detected inflamm")
         print(f"{len(lymph_records)} final detected lymph")
         print(f"{len(mono_records)} final detected mono")
-
-        # Save to AnnotationStore for visualization
-        # If model if not running at baseline res:
-        # scale_factor = model_res / 0.24199951445730394
-        # annoation_store = detection_to_annotation_store(
-        #     lymph_records, scale_factor=1.0
-        # )
-        # store_save_path = os.path.join(
-        #     config.output_dir, f"{wsi_name_without_ext}_lymph.db"
-        # )
-        # annoation_store.dump(store_save_path)
-
-        # Save result in Monkey Challenge format
-        # L2 lymphocyte vs monocyte detection
 
         wsi_dir = config.wsi_dir
         wsi_path = os.path.join(wsi_dir, wsi_name)

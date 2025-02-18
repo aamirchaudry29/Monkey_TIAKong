@@ -8,3 +8,4 @@ pretrainedmodels
 efficientnet-pytorch
 strong-augment
 ttach
+wandb

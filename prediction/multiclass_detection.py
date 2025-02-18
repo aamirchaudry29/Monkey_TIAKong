@@ -5,7 +5,6 @@ import numpy as np
 import skimage.measure
 import skimage.morphology
 import torch
-import multiprocessing as mp
 from torch.amp import autocast
 from tiatoolbox.models.engine.semantic_segmentor import (
     SemanticSegmentor,
@@ -19,18 +18,12 @@ from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
     check_image_mask_shape,
     collate_fn,
-    filter_detection_with_mask,
     imagenet_normalise_torch,
     slide_nms,
 )
-from monkey.model.efficientunetb0.architecture import (
-    EfficientUnet_MBConv_Multihead,
-)
 from monkey.model.utils import get_activation_function
 from prediction.utils import (
-    binary_det_post_process,
-    multihead_det_post_process,
-    multihead_det_post_process_batch_v2,
+    binary_det_post_process
 )
 
 
