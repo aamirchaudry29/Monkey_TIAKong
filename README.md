@@ -48,4 +48,8 @@ Early stop is used
   
 # Model CheckPoints
 We trained the model using a 5-fold cross validation stratified by centres.  
-Top 3 model check points can be downloaded 
+Top 3 model check points can be downloaded [here](https://livewarwickac-my.sharepoint.com/:f:/g/personal/u1910100_live_warwick_ac_uk/Es70doVr9xhPnhGEhMlzWjIB69OqwhpBxO9cfGfpn3TS9g?e=8I4dp6) under CC BY-NC 4.0 license.
+
+# Authors
+This code is made by Jiaqi Lv, as part of the TIA Centre, University of Warwick, Coventry, UK.  
+Other members of the TIAKong team are: Esha Nasir, Kesi Xu, Mostafa Jahanifar, Brinder Singh Chohan, Behnaz Elhaminia, Shan E Ahmed Raza.  
