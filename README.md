@@ -8,7 +8,7 @@ Class 2: Lymphocytes
 Class 3: Monocytes
 
 # Model
-Multi-head Model consisting of an EfficientNetV2_L encoder and 3 decoders each specialised in detecting one class of cells.  
+Multi-head Model consisting of an EfficientNetV2_L encoder pretrained on ImageNet and 3 decoders each specialised in detecting one class of cells.  
 Each decoder outputs three maps: Cell Centroids, cell Segmentation, and cell contours map.  
 ![Model Architecture](docs/model.png)
 
@@ -44,4 +44,8 @@ Early stop is used
 <li> Merge patch predictions, resolve overlaps by averaging. 
 <li> Convert centroids prediction maps to coordinates using peak local max with a threshold of 0.5. Repeat for all tiles
 <li> Perform non-maximum suppression 
-<ol>
+</ol>
+  
+# Model CheckPoints
+We trained the model using a 5-fold cross validation stratified by centres.  
+Top 3 model check points can be downloaded 

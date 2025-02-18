@@ -23,7 +23,7 @@ def load_encoder_weights(model, checkpoint_path):
     return model
 
 
-class TimmEncoderFixed(nn.Module):
+class TimmEncoder(nn.Module):
     def __init__(
         self,
         name,
@@ -87,7 +87,7 @@ def get_timm_encoder(
     drop_rate=0.5,
     drop_path_rate=0.25,
 ):
-    encoder = TimmEncoderFixed(
+    encoder = TimmEncoder(
         name,
         weights,
         in_channels,
@@ -100,7 +100,7 @@ def get_timm_encoder(
 
 
 def get_multihead_model(
-    enc="convnextv2_large.fcmae_ft_in22k_in1k",
+    enc="tf_efficientnetv2_l.in21k_ft_in1k",
     pretrained=True,
     num_heads=3,
     decoders_out_channels=[1, 1, 1],
@@ -108,11 +108,6 @@ def get_multihead_model(
     attention_type=None,
     center=False,
 ):
-    pre_path = None
-    if type(pretrained) == str:
-        pre_path = pretrained
-        pretrained = False
-
     # deal with large pooling in convnext type models:
     next = False
     if "next" in enc:
@@ -121,6 +116,7 @@ def get_multihead_model(
     else:
         depth = 5
 
+    # If using efficientvit
     if "efficientvit" in enc:
         depth = 4
         next = True
@@ -176,15 +172,6 @@ def get_multihead_model(
         )
 
     model = MultiHeadModel(encoder, decoders, heads)
-    if pre_path:
-        state_dict = torch.load(pre_path, map_location=f"cpu")[
-            "model_state_dict"
-        ]
-        new_state = model.state_dict()
-        for k, v in state_dict.items():
-            if k.startswith("encoder."):
-                new_state[k] = v
-        model.load_state_dict(new_state)
     return model
 
 
