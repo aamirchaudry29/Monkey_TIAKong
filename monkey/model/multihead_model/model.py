@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from segmentation_models_pytorch.base import modules as md
+from torchvision.ops import Conv2dNormActivation
 
 
 def load_encoder_weights(model, checkpoint_path):
@@ -20,33 +21,6 @@ def load_encoder_weights(model, checkpoint_path):
     }
     model.load_state_dict(encoder_weights, strict=False)
     return model
-
-
-def load_checkpoint(model, cp_path, rank=0):
-    cp = torch.load(cp_path, map_location=f"cuda:{rank}")
-    step = cp["step"]
-    try:
-        best_loss = cp["best_loss"]
-    except KeyError:
-        # CAREFUL, if the metric is to be minized, this should be set to inf
-        best_loss = 0
-    try:
-        model.load_state_dict(cp["model_state_dict"])
-
-        print("succesfully loaded checkpoint step", step)
-    except:
-        print("trying secondary checkpoint loading")
-        state_dict = cp["model_state_dict"]
-        new_state_dict = OrderedDict()
-        for k, v in state_dict.items():
-            name = k[
-                7:
-            ]  # remove 'module.' of DataParallel/DistributedDataParallel
-            new_state_dict[name] = v
-
-        model.load_state_dict(new_state_dict)
-        print("succesfully loaded checkpoint step", step)
-    return model, step, best_loss
 
 
 class TimmEncoderFixed(nn.Module):
@@ -61,14 +35,23 @@ class TimmEncoderFixed(nn.Module):
         drop_path_rate=0.0,
     ):
         super().__init__()
-        kwargs = dict(
-            in_chans=in_channels,
-            features_only=True,
-            pretrained=pretrained,
-            out_indices=tuple(range(depth)),
-            drop_rate=drop_rate,
-            drop_path_rate=drop_path_rate,
-        )
+        if drop_path_rate is None:
+            kwargs = dict(
+                in_chans=in_channels,
+                features_only=True,
+                pretrained=pretrained,
+                out_indices=tuple(range(depth)),
+                drop_rate=drop_rate,
+            )
+        else:
+            kwargs = dict(
+                in_chans=in_channels,
+                features_only=True,
+                pretrained=pretrained,
+                out_indices=tuple(range(depth)),
+                drop_rate=drop_rate,
+                drop_path_rate=drop_path_rate,
+            )
 
         self.model = timm.create_model(name, **kwargs)
 
@@ -116,157 +99,51 @@ def get_timm_encoder(
     return encoder
 
 
-def get_model(
-    enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
-    out_channels_cls=8,
-    out_channels_inst=5,
-    pretrained=True,
-):
-    pre_path = None
-    if type(pretrained) == str:
-        pre_path = pretrained
-        pretrained = False
-    # small fix to deal with large pooling in convnext type models:
-    depth = 4 if "next" in enc else 5
-
-    encoder = get_timm_encoder(
-        name=enc,
-        in_channels=3,
-        depth=depth,
-        weights=pretrained,
-        output_stride=32,
-        drop_rate=0.5,
-        drop_path_rate=0.25,
-    )
-    decoder_channels = (256, 128, 64, 32, 16)[:depth]
-    decoder_inst = UnetDecoder(
-        encoder_channels=encoder.out_channels,
-        decoder_channels=decoder_channels,
-        n_blocks=len(decoder_channels),
-        use_batchnorm=False,
-        center=False,
-        attention_type=None,
-        next="next" in enc,
-    )
-    decoder_ct = UnetDecoder(
-        encoder_channels=encoder.out_channels,
-        decoder_channels=decoder_channels,
-        n_blocks=len(decoder_channels),
-        use_batchnorm=False,
-        center=False,
-        attention_type=None,
-        next="next" in enc,
-    )
-    head_inst = smp.base.SegmentationHead(
-        in_channels=decoder_inst.blocks[-1].conv2[0].out_channels,
-        out_channels=out_channels_inst,  # instance channels
-        activation=None,
-        kernel_size=1,
-    )
-    head_ct = smp.base.SegmentationHead(
-        in_channels=decoder_ct.blocks[-1].conv2[0].out_channels,
-        out_channels=out_channels_cls,
-        activation=None,
-        kernel_size=1,
-    )
-
-    decoders = [decoder_inst, decoder_ct]
-    heads = [head_inst, head_ct]
-    model = MultiHeadModel(encoder, decoders, heads)
-    if pre_path:
-        state_dict = torch.load(pre_path, map_location=f"cpu")[
-            "model_state_dict"
-        ]
-        new_state = model.state_dict()
-        for k, v in state_dict.items():
-            if k.startswith("encoder."):
-                new_state[k] = v
-        model.load_state_dict(new_state)
-    return model
-
-
-def get_convnext_unet(
-    enc="convnextv2_large.fcmae_ft_in22k_in1k",
-    pretrained=True,
-    out_classes=1,
-    use_batchnorm=False,
-    attention_type=None,
-):
-    pre_path = None
-    if type(pretrained) == str:
-        pre_path = pretrained
-        pretrained = False
-    # small fix to deal with large pooling in convnext type models:
-    depth = 4 if "next" in enc else 5
-
-    encoder = get_timm_encoder(
-        name=enc,
-        in_channels=3,
-        depth=depth,
-        weights=pretrained,
-        output_stride=32,
-        drop_rate=0.5,
-        drop_path_rate=0.25,
-    )
-    decoder_channels = (256, 128, 64, 32, 16)[:depth]
-
-    decoder = UnetDecoder(
-        encoder_channels=encoder.out_channels,
-        decoder_channels=decoder_channels,
-        n_blocks=len(decoder_channels),
-        use_batchnorm=use_batchnorm,
-        center=False,
-        attention_type=attention_type,
-        next="next" in enc,
-    )
-
-    head = smp.base.SegmentationHead(
-        in_channels=decoder.blocks[-1].conv2[0].out_channels,
-        out_channels=out_classes,  # instance channels
-        activation=None,
-        kernel_size=1,
-    )
-
-    decoders = [decoder]
-    heads = [head]
-    model = MultiHeadModel(encoder, decoders, heads)
-    if pre_path:
-        state_dict = torch.load(pre_path, map_location=f"cpu")[
-            "model_state_dict"
-        ]
-        new_state = model.state_dict()
-        for k, v in state_dict.items():
-            if k.startswith("encoder."):
-                new_state[k] = v
-        model.load_state_dict(new_state)
-    return model
-
-
-def get_custom_hovernext(
+def get_multihead_model(
     enc="convnextv2_large.fcmae_ft_in22k_in1k",
     pretrained=True,
     num_heads=3,
     decoders_out_channels=[1, 1, 1],
     use_batchnorm=False,
     attention_type=None,
+    center=False,
 ):
     pre_path = None
     if type(pretrained) == str:
         pre_path = pretrained
         pretrained = False
-    # small fix to deal with large pooling in convnext type models:
-    depth = 4 if "next" in enc else 5
 
-    encoder = get_timm_encoder(
-        name=enc,
-        in_channels=3,
-        depth=depth,
-        weights=pretrained,
-        output_stride=32,
-        drop_rate=0.5,
-        drop_path_rate=0.25,
-    )
-    decoder_channels = (256, 128, 64, 32, 16)[:depth]
+    # deal with large pooling in convnext type models:
+    next = False
+    if "next" in enc:
+        depth = 4
+        next = True
+    else:
+        depth = 5
+
+    if "efficientvit" in enc:
+        depth = 4
+        next = True
+        encoder = get_timm_encoder(
+            name=enc,
+            in_channels=3,
+            depth=depth,
+            weights=pretrained,
+            output_stride=32,
+            drop_path_rate=None,
+        )
+    else:
+        encoder = get_timm_encoder(
+            name=enc,
+            in_channels=3,
+            depth=depth,
+            weights=pretrained,
+            output_stride=32,
+            drop_rate=0.5,
+            drop_path_rate=0.25,
+        )
+
+    decoder_channels = (512, 256, 128, 64, 32)[:depth]
 
     decoders = []
     for i in range(num_heads):
@@ -276,9 +153,9 @@ def get_custom_hovernext(
                 decoder_channels=decoder_channels,
                 n_blocks=len(decoder_channels),
                 use_batchnorm=use_batchnorm,
-                center=False,
+                center=center,
                 attention_type=attention_type,
-                next="next" in enc,
+                next=next,
             )
         )
 
@@ -311,33 +188,31 @@ def get_custom_hovernext(
     return model
 
 
-class Conv2dReLU(nn.Sequential):
-    def __init__(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        padding=0,
-        stride=1,
-        use_batchnorm=True,
-    ):
-        conv = nn.Conv2d(
+class SubPixelUpsample(nn.Module):
+    def __init__(self, in_channels, out_channels, upscale_factor=2):
+        super(SubPixelUpsample, self).__init__()
+        self.conv1 = Conv2dNormActivation(
             in_channels,
-            out_channels,
-            kernel_size,
-            stride=stride,
-            padding=padding,
-            bias=not (use_batchnorm),
+            out_channels * upscale_factor**2,
+            kernel_size=1,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
         )
-        relu = nn.ReLU()
+        self.pixel_shuffle = nn.PixelShuffle(upscale_factor)
+        self.conv2 = Conv2dNormActivation(
+            out_channels,
+            out_channels,
+            kernel_size=3,
+            padding=1,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
+        )
 
-        if use_batchnorm:
-            bn = nn.BatchNorm2d(out_channels)
-
-        else:
-            bn = nn.Identity()
-
-        super(Conv2dReLU, self).__init__(conv, bn, relu)
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.pixel_shuffle(x)
+        x = self.conv2(x)
+        return x
 
 
 class DecoderBlock(nn.Module):
@@ -350,29 +225,34 @@ class DecoderBlock(nn.Module):
         attention_type=None,
     ):
         super().__init__()
-        self.conv1 = md.Conv2dReLU(
+        self.up = SubPixelUpsample(
+            in_channels, in_channels, upscale_factor=2
+        )
+        self.conv1 = Conv2dNormActivation(
             in_channels + skip_channels,
             out_channels,
             kernel_size=3,
             padding=1,
-            use_batchnorm=use_batchnorm,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
         )
         self.attention1 = md.Attention(
             attention_type, in_channels=in_channels + skip_channels
         )
-        self.conv2 = md.Conv2dReLU(
+        self.conv2 = Conv2dNormActivation(
             out_channels,
             out_channels,
             kernel_size=3,
             padding=1,
-            use_batchnorm=use_batchnorm,
+            norm_layer=nn.BatchNorm2d,
+            activation_layer=nn.SiLU,
         )
         self.attention2 = md.Attention(
             attention_type, in_channels=out_channels
         )
 
     def forward(self, x, skip=None):
-        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        x = self.up(x)
         if skip is not None:
             x = torch.cat([x, skip], dim=1)
             x = self.attention1(x)
@@ -382,23 +262,14 @@ class DecoderBlock(nn.Module):
         return x
 
 
-class CenterBlock(nn.Sequential):
+class CenterBlock(nn.Module):
     def __init__(self, in_channels, out_channels, use_batchnorm=True):
-        conv1 = md.Conv2dReLU(
-            in_channels,
-            out_channels,
-            kernel_size=3,
-            padding=1,
-            use_batchnorm=use_batchnorm,
-        )
-        conv2 = md.Conv2dReLU(
-            out_channels,
-            out_channels,
-            kernel_size=3,
-            padding=1,
-            use_batchnorm=use_batchnorm,
-        )
-        super().__init__(conv1, conv2)
+        super().__init__()
+        self.attention = md.Attention("scse", in_channels=in_channels)
+
+    def forward(self, x):
+        x = self.attention(x)
+        return x
 
 
 class UnetDecoder(nn.Module):
@@ -512,8 +383,10 @@ class MultiHeadModel(torch.nn.Module):
 def freeze_enc(model):
     for p in model.encoder.parameters():
         p.requires_grad = False
+    return model
 
 
 def unfreeze_enc(model):
     for p in model.encoder.parameters():
         p.requires_grad = True
+    return model

@@ -36,7 +36,9 @@ def load_mask(file_id: str, IOConfig: TrainingIOConfig) -> np.ndarray:
     Load a single mask for cell detection
     """
     mask_name = f"{file_id}.npy"
-    mask_path = os.path.join(IOConfig.mask_dir, mask_name)
+    mask_path = os.path.join(
+        IOConfig.cell_centroid_mask_dir, mask_name
+    )
     mask = np.load(mask_path)
     return mask
 
@@ -65,6 +67,40 @@ def load_nuclick_annotation(file_id: str, IOConfig: TrainingIOConfig):
         "binary_mask": binary_mask,
         "class_mask": class_mask,
         "contour_mask": contour,
+    }
+
+    return annotation
+
+
+def load_nuclick_annotation_v2(
+    file_id: str, IOConfig: TrainingIOConfig
+):
+    """
+    Load a single NuClick annotation mask
+    Nuclick file format: 8 channel .np file
+    channel 1-3: RGB image
+    channel 4: inflamm segmentation mask
+    channel 5: inflamm contour mask
+    channel 6: lymph segmentation mask
+    channel 7: lymph contour mask
+    channel 8: mono segmentation mask
+    channel 9: mono contour mask
+
+    Returns:
+        annotation: {'inflamm_mask', 'inflamm_contour_mask', 'lymph_mask', 'lymph_contour_mask', 'mono_mask', 'mono_contour_mask'}
+    """
+    file_name = f"{file_id}.npy"
+    file_path = os.path.join(IOConfig.mask_dir, file_name)
+    data = np.load(file_path)
+    data = data.astype(np.uint8)
+
+    annotation = {
+        "inflamm_mask": data[:, :, 3],
+        "inflamm_contour_mask": data[:, :, 4],
+        "lymph_mask": data[:, :, 5],
+        "lymph_contour_mask": data[:, :, 6],
+        "mono_mask": data[:, :, 7],
+        "mono_contour_mask": data[:, :, 8],
     }
 
     return annotation
@@ -322,6 +358,11 @@ def generate_regression_map(
     return M
 
 
+def generate_distance_map(binary_mask: np.ndarray):
+    dist = ndi.distance_transform_edt(binary_mask)
+    return dist
+
+
 def px_to_mm(px: int, mpp: float = 0.24199951445730394):
     """
     Convert pixel coordinate to millimeters
@@ -420,8 +461,8 @@ def detection_to_annotation_store(
     annotation_store = SQLiteStore()
 
     for record in detection_records:
-        x = int(record["x"] * scale_factor)
-        y = int(record["y"] * scale_factor)
+        x = record["x"] * scale_factor
+        y = record["y"] * scale_factor
 
         if type == "polygon":
             entry = Annotation(
@@ -453,6 +494,7 @@ def save_detection_records_monkey(
     lymph_detection_records: list[dict] = [],
     mono_detection_records: list[dict] = [],
     wsi_id: str | None = None,
+    save_mpp: float = 0.24199951445730394,
 ) -> None:
     """
     Save cell detection records into Monkey challenge format
@@ -488,8 +530,8 @@ def save_detection_records_monkey(
         prediction_record = {
             "name": "Point " + str(counter),
             "point": [
-                px_to_mm(x, 0.24199951445730394),
-                px_to_mm(y, 0.24199951445730394),
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
                 0.24199951445730394,
             ],
             "probability": confidence,
@@ -507,8 +549,8 @@ def save_detection_records_monkey(
         prediction_record = {
             "name": "Point " + str(counter),
             "point": [
-                px_to_mm(x, 0.24199951445730394),
-                px_to_mm(y, 0.24199951445730394),
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
                 0.24199951445730394,
             ],
             "probability": confidence,
@@ -525,8 +567,8 @@ def save_detection_records_monkey(
         prediction_record = {
             "name": "Point " + str(counter),
             "point": [
-                px_to_mm(x, 0.24199951445730394),
-                px_to_mm(y, 0.24199951445730394),
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
                 0.24199951445730394,
             ],
             "probability": confidence,
@@ -571,11 +613,123 @@ def save_detection_records_monkey(
     )
 
 
+def save_detection_records_monkey_v2(
+    IOConfig: PredictionIOConfig,
+    lymph_detection_records: list[dict] = [],
+    mono_detection_records: list[dict] = [],
+    wsi_id: str | None = None,
+    save_mpp: float = 0.24199951445730394,
+) -> None:
+    """
+    Save cell detection records into Monkey challenge format
+    """
+
+    output_dir = IOConfig.output_dir
+
+    output_dict_lymphocytes = {
+        "name": "lymphocytes",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+    output_dict_monocytes = {
+        "name": "monocytes",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+    output_dict_inflammatory_cells = {
+        "name": "inflammatory-cells",
+        "type": "Multiple points",
+        "version": {"major": 1, "minor": 0},
+        "points": [],
+    }
+
+    for i, record in enumerate(lymph_detection_records):
+        counter = i + 1
+        x = record["x"]
+        y = record["y"]
+        confidence = record["prob"]
+        cell_type = record["type"]
+        prediction_record = {
+            "name": "Point " + str(counter),
+            "point": [
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
+                0.24199951445730394,
+            ],
+            "probability": confidence,
+        }
+
+        output_dict_lymphocytes["points"].append(prediction_record)
+        output_dict_inflammatory_cells["points"].append(
+            prediction_record
+        )
+
+    for i, record in enumerate(mono_detection_records):
+        counter = i + 1
+        x = record["x"]
+        y = record["y"]
+        confidence = record["prob"]
+        cell_type = record["type"]
+        prediction_record = {
+            "name": "Point " + str(counter),
+            "point": [
+                px_to_mm(x, save_mpp),
+                px_to_mm(y, save_mpp),
+                0.24199951445730394,
+            ],
+            "probability": confidence,
+        }
+        output_dict_monocytes["points"].append(prediction_record)
+        output_dict_inflammatory_cells["points"].append(
+            prediction_record
+        )
+
+    if wsi_id is not None:
+        json_filename_lymphocytes = (
+            f"{wsi_id}_detected-lymphocytes.json"
+        )
+        json_filename_monocytes = f"{wsi_id}_detected-monocytes.json"
+        json_filename_inflammatory_cells = (
+            f"{wsi_id}_detected-inflammatory-cells.json"
+        )
+    else:
+        json_filename_lymphocytes = "detected-lymphocytes.json"
+        json_filename_monocytes = "detected-monocytes.json"
+        json_filename_inflammatory_cells = (
+            "detected-inflammatory-cells.json"
+        )
+
+    output_path_json = os.path.join(
+        output_dir, json_filename_lymphocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_lymphocytes
+    )
+
+    output_path_json = os.path.join(
+        output_dir, json_filename_monocytes
+    )
+    write_json_file(
+        location=output_path_json, content=output_dict_monocytes
+    )
+
+    output_path_json = os.path.join(
+        output_dir, json_filename_inflammatory_cells
+    )
+    write_json_file(
+        location=output_path_json,
+        content=output_dict_inflammatory_cells,
+    )
+
+
 def filter_detection_with_mask(
     detection_records: list[dict],
     mask: np.ndarray,
-    points_mpp: float = 0.24,
+    points_mpp: float = 0.24199951445730394,
     mask_mpp: float = 8.0,
+    margin: int = 1,
 ) -> list[dict]:
     """
     Filter detected points: [{'x','y','type','prob'}]
@@ -587,6 +741,7 @@ def filter_detection_with_mask(
         mask: binary mask to for filtering
         points_mpp: resolution of the detected points in mpp
         mask_mpp: resolution of the binary mask in mpp
+        margin: margin in pixels to add around the mask
     Returns:
         fitlered_records: [{'x','y','type','prob'}]
     """
@@ -599,16 +754,67 @@ def filter_detection_with_mask(
 
         x_in_mask = int(np.round(x / scale_factor))
         y_in_mask = int(np.round(y / scale_factor))
-
-        try:
-            if mask[y_in_mask, x_in_mask] != 0:
+        top_left = (x_in_mask - margin, y_in_mask - margin)
+        top_right = (x_in_mask + margin, y_in_mask - margin)
+        bottom_left = (x_in_mask - margin, y_in_mask + margin)
+        bottom_right = (x_in_mask + margin, y_in_mask + margin)
+        indices = [
+            (int(round(xi)), int(round(yi)))
+            for xi, yi in [
+                top_left,
+                top_right,
+                bottom_left,
+                bottom_right,
+            ]
+        ]
+        valid_indices = [
+            (xi, yi)
+            for xi, yi in indices
+            if 0 <= xi < mask.shape[1] and 0 <= yi < mask.shape[0]
+        ]
+        ones_count = sum(mask[yi, xi] for xi, yi in valid_indices)
+        if len(valid_indices) == 0:
+            continue
+        else:
+            if ones_count / len(valid_indices) >= 0.5:
                 filtered_records.append(record)
             else:
                 continue
-        except IndexError:
-            continue
+        # try:
+        #     ones_count = sum(mask[])
+        #     if mask[y_in_mask, x_in_mask] != 0:
+        #         filtered_records.append(record)
+        #     else:
+        #         continue
+        # except IndexError:
+        #     continue
 
     return filtered_records
+
+
+def normalize_detection_probs(
+    detection_records: list[dict],
+    min_prob: float = 0.5,
+) -> list[dict]:
+    new_records = []
+
+    detected_probs = []
+    for record in detection_records:
+        prob = record["prob"]
+        detected_probs.append(prob)
+
+    max_detected_prob = max(detected_probs)
+    min_detected_prob = min(detected_probs)
+
+    for record in detection_records:
+        prob = record["prob"]
+        normalized_prob = (prob - min_detected_prob) / (
+            max_detected_prob - min_detected_prob
+        )
+        final_prob = normalized_prob * 0.5 + min_prob
+        record["prob"] = final_prob
+        new_records.append(record)
+    return new_records
 
 
 def non_max_suppression_fast(boxes, overlapThresh):
@@ -902,3 +1108,33 @@ def add_background_channel(input_mask: np.ndarray):
     output_mask[0, :, :] = np.logical_not(mask_union)
 
     return output_mask
+
+
+def check_image_mask_shape(wsi_path: str, mask_path: str) -> None:
+    """
+    Check if the image and mask have the same shape and mpp
+    """
+    wsi_reader = WSIReader.open(wsi_path)
+    wsi_shape = wsi_reader.slide_dimensions(
+        resolution=0, units="level"
+    )
+    mask_reader = WSIReader.open(mask_path)
+    mask_shape = mask_reader.slide_dimensions(
+        resolution=0, units="level"
+    )
+
+    if (wsi_shape[0] != mask_shape[0]) or (
+        wsi_shape[1] != mask_shape[1]
+    ):
+        message = f"Image and mask have different shapes: {wsi_shape} vs {mask_shape}"
+        raise ValueError(message)
+
+    wsi_info = wsi_reader.info.as_dict()
+    mask_info = mask_reader.info.as_dict()
+    wsi_mpp = wsi_info["mpp"]
+    mask_mpp = mask_info["mpp"]
+    if (round(wsi_mpp[0], 3) != round(mask_mpp[0], 3)) or (
+        round(wsi_mpp[1], 3) != round(mask_mpp[1], 3)
+    ):
+        message = f"Image and mask have different mpp: {wsi_mpp} vs {mask_mpp}"
+        raise ValueError(message)

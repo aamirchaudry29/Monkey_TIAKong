@@ -1,7 +1,44 @@
+import matplotlib.cm as cm
 import numpy as np
 import torch
 import wandb
+from PIL import Image
 from torch import Tensor
+
+
+def tensor_to_heatmap_pil(
+    tensor: torch.Tensor, cmap_name: str = "jet"
+) -> Image.Image:
+    """
+    Convert a 2D PyTorch tensor (probability map in [0,1]) into a heatmap PIL image.
+
+    Args:
+        tensor (torch.Tensor): 2D probability map with values in [0,1].
+        cmap_name (str): Name of the matplotlib colormap to use (e.g., "jet", "viridis").
+
+    Returns:
+        PIL.Image.Image: Heatmap image.
+    """
+    # Move tensor to CPU, detach from graph, and convert to NumPy array
+    array = tensor.detach().cpu().numpy()
+
+    # If the tensor has extra dimensions, squeeze them out to ensure shape is (H, W)
+    if array.ndim > 2:
+        array = np.squeeze(array)
+
+    # Get a colormap object from matplotlib
+    cmap = cm.get_cmap(cmap_name)
+
+    # Apply colormap returns RGBA in [0,1], shape = (H, W, 4)
+    rgba_image = cmap(array)
+
+    # Convert [0,1] floats to [0,255] uint8 and drop the alpha channel
+    rgb_image = (rgba_image[:, :, :3] * 255).astype(np.uint8)
+
+    # Create PIL Image from the RGB array
+    pil_image = Image.fromarray(rgb_image)
+
+    return pil_image
 
 
 def compose_log_images(
@@ -117,13 +154,16 @@ def compose_multitask_log_images(
             mono_true_masks[0, 0, :, :].float().cpu(), mode="L"
         ),
         "pred_lymph_probs": wandb.Image(
-            lymph_pred_probs[0, 0, :, :].float().cpu()
+            # lymph_pred_probs[0, 0, :, :].float().cpu()
+            tensor_to_heatmap_pil(lymph_pred_probs[0, 0, :, :])
         ),
         "pred_mono_probs": wandb.Image(
-            mono_pred_probs[0, 0, :, :].float().cpu()
+            # mono_pred_probs[0, 0, :, :].float().cpu()
+            tensor_to_heatmap_pil(mono_pred_probs[0, 0, :, :])
         ),
         "pred_overall_probs": wandb.Image(
-            overall_pred_probs[0, 0, :, :].float().cpu()
+            # overall_pred_probs[0, 0, :, :].float().cpu()
+            tensor_to_heatmap_pil(overall_pred_probs[0, 0, :, :])
         ),
     }
     if contour_true_masks is not None:
