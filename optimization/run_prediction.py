@@ -8,31 +8,26 @@ sys.path.insert(
 
 import os
 from pprint import pprint
-
+import ttach as tta
 import torch
 from tqdm.auto import tqdm
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
-    detection_to_annotation_store,
     extract_id,
     open_json_file,
-    save_detection_records_monkey,
 )
-from monkey.model.cellvit.cellvit import CellVit256_Unet
-from monkey.model.efficientunetb0.architecture import (
-    get_multihead_efficientunet,
-)
+
 from monkey.model.hovernext.model import (
-    get_convnext_unet,
     get_custom_hovernext,
 )
 from optimization.raw_prediction import wsi_raw_prediction
+import click
 
-
-def cross_validation(fold_number: int = 1):
-    detector_model_name = "convnext_tiny_pannuke_256"
-    fold = fold_number
+@click.command()
+@click.option("--fold", default=1)
+def cross_validation(fold: int = 1):
+    detector_model_name = "efficientnetv2_l_multitask_det_decoder_v4"
     pprint(
         f"Making raw prediction using {detector_model_name} fold {fold}"
     )
@@ -48,11 +43,11 @@ def cross_validation(fold_number: int = 1):
         patch_size=256,
         resolution=model_res,
         units=units,
-        stride=216,
-        thresholds=[0.75, 0.75, 0.75],
+        stride=224,
+        thresholds=[0.5, 0.5, 0.5],
         min_distances=[11, 11, 11],
-        nms_boxes=[20, 16, 20],
-        nms_overlap_thresh=0.7,
+        nms_boxes=[11, 11, 11],
+        nms_overlap_thresh=0.5,
     )
     # config = PredictionIOConfig(
     #     wsi_dir="/home/u1910100/Downloads/Monkey/images/pas-cpg",
@@ -77,27 +72,34 @@ def cross_validation(fold_number: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/epoch_50.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best_val.pth",
         # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best.pth",
         # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best.pth",
     ]
     detectors = []
+    transforms = tta.Compose(
+        [
+            tta.HorizontalFlip(),
+            tta.VerticalFlip(),
+            tta.Rotate90(angles=[0, 90, 180, 270]),
+        ]
+    )
     for weight_path in detector_weight_paths:
-        # model = get_multihead_efficientunet(
-        #     pretrained=False, out_channels=[1, 1, 1]
-        # )
-        # model = get_custom_hovernext(pretrained=False)
+
         model = get_custom_hovernext(
-            enc="convnextv2_tiny.fcmae_ft_in22k_in1k",
+            enc="tf_efficientnetv2_l.in21k_ft_in1k",
             pretrained=False,
             use_batchnorm=True,
             attention_type="scse",
+            decoders_out_channels=[3, 3, 3],
+            center=True,
         )
         checkpoint = torch.load(weight_path)
         print(f"epoch: {checkpoint['epoch']}")
         model.load_state_dict(checkpoint["model"])
         model.eval()
         model.to("cuda")
+        model = tta.SegmentationTTAWrapper(model, transforms)
         detectors.append(model)
 
     for wsi_name in tqdm(val_wsi_files):
@@ -110,6 +112,4 @@ def cross_validation(fold_number: int = 1):
 
 
 if __name__ == "__main__":
-    for i in range(5, 6):
-        pprint(f"Fold {i}")
-        cross_validation(i)
+    cross_validation()

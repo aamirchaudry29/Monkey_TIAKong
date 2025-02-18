@@ -34,7 +34,7 @@ def process_tile_detection_masks(
     config: PredictionIOConfig,
     x_start: int,
     y_start: int,
-    min_size: int = 3,
+    mask_tile: np.ndarray,
     tile_size: int = 2048,
 ) -> dict:
     """
@@ -77,6 +77,10 @@ def process_tile_detection_masks(
             pred_results["inflamm_prob"],
             coordinate_list,
         )[:, :, 0]
+
+    inflamm_probs_map = inflamm_probs_map * mask_tile
+    lymph_probs_map = lymph_probs_map * mask_tile
+    mono_probs_map = mono_probs_map * mask_tile
 
     processed_masks = {}
     processed_masks = multihead_det_post_process(
@@ -181,7 +185,6 @@ def post_process_detection(
     wsi_name: str,
     mask_name: str,
     config: PredictionIOConfig,
-    models: list[torch.nn.Module],
 ) -> dict:
     """
     Post process detection tile probs
@@ -232,11 +235,13 @@ def post_process_detection(
     tile_predictions = data["tile_predictions"]
     tile_coordinates = data["tile_coordinates"]
     bounding_boxes = data["bounding_boxes"]
+    tile_masks = data["tile_masks"]
 
     for i in range(len(tile_predictions)):
         predictions = tile_predictions[i]
         coordinates = tile_coordinates[i]
         bounding_box = bounding_boxes[i]
+        tile_mask = tile_masks[i]
 
         output_points_tile = process_tile_detection_masks(
             predictions,
@@ -244,7 +249,7 @@ def post_process_detection(
             config,
             bounding_box[0],
             bounding_box[1],
-            min_size=config.min_size,
+            mask_tile = tile_mask,
         )
         detected_inflamm_points.extend(
             output_points_tile["inflamm_points"]
@@ -257,35 +262,12 @@ def post_process_detection(
     print(f"Inflamm before filtering: {len(detected_inflamm_points)}")
     print(f"Lymph before filtering: {len(detected_lymph_points)}")
     print(f"Mono before filtering: {len(detected_mono_points)}")
-    # Filter detected_points using ROI mask
-    filtered_inflamm_records = filter_detection_with_mask(
-        detected_inflamm_points,
-        binary_mask,
-        points_mpp=base_mpp,
-        mask_mpp=2,
-    )
-    filtered_lymph_records = filter_detection_with_mask(
-        detected_lymph_points,
-        binary_mask,
-        points_mpp=base_mpp,
-        mask_mpp=2,
-    )
-    filtered_mono_records = filter_detection_with_mask(
-        detected_mono_points,
-        binary_mask,
-        points_mpp=base_mpp,
-        mask_mpp=2,
-    )
-
-    print(f"Inflamm before nms: {len(filtered_inflamm_records)}")
-    print(f"Lymph before nms: {len(filtered_lymph_records)}")
-    print(f"Mono before nms: {len(filtered_mono_records)}")
 
     # nms
     final_inflamm_records = slide_nms(
         wsi_reader=wsi_reader,
         binary_mask=binary_mask,
-        detection_record=filtered_inflamm_records,
+        detection_record=detected_inflamm_points,
         tile_size=4096,
         box_size=config.nms_boxes[0],
         overlap_thresh=config.nms_overlap_thresh,
@@ -294,7 +276,7 @@ def post_process_detection(
     final_lymph_records = slide_nms(
         wsi_reader=wsi_reader,
         binary_mask=binary_mask,
-        detection_record=filtered_lymph_records,
+        detection_record=detected_lymph_points,
         tile_size=4096,
         box_size=config.nms_boxes[1],
         overlap_thresh=config.nms_overlap_thresh,
@@ -303,7 +285,7 @@ def post_process_detection(
     final_mono_records = slide_nms(
         wsi_reader=wsi_reader,
         binary_mask=binary_mask,
-        detection_record=filtered_mono_records,
+        detection_record=detected_mono_points,
         tile_size=4096,
         box_size=config.nms_boxes[2],
         overlap_thresh=config.nms_overlap_thresh,

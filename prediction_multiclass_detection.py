@@ -5,7 +5,6 @@ import os
 from pprint import pprint
 
 import click
-from networkx import center
 import torch
 import ttach as tta
 from tiatoolbox.wsicore.wsireader import WSIReader
@@ -35,6 +34,7 @@ from prediction.multiclass_detection import wsi_detection_in_mask_v2
 @click.command()
 @click.option("--fold", default=1)
 def cross_validation(fold: int = 1):
+    # detector_model_name = "efficientnetv2_l_multitask_det_decoder_v4_final"
     detector_model_name = "efficientnetv2_l_multitask_det_decoder_v4"
     pprint(f"Multiclass detection using {detector_model_name}")
     pprint(f"Fold {fold}")
@@ -45,14 +45,14 @@ def cross_validation(fold: int = 1):
     config = PredictionIOConfig(
         wsi_dir="/mnt/lab-share/Monkey/Dataset/images/pas-cpg",
         mask_dir="/mnt/lab-share/Monkey/Dataset/images/tissue-masks",
-        output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}/Fold_{fold}",
+        output_dir=f"/home/u1910100/cloud_workspace/data/Monkey/local_output/{detector_model_name}_1_2/Fold_{fold}",
         patch_size=256,
         resolution=model_res,
         units=units,
-        stride=224,
+        stride=214,
         thresholds=[0.5, 0.5, 0.5],
-        min_distances=[8, 8, 8],
-        nms_boxes=[8, 8, 8],
+        min_distances=[11, 11, 11],
+        nms_boxes=[11, 13, 15],
         nms_overlap_thresh=0.5,
     )
     # config = PredictionIOConfig(
@@ -82,8 +82,8 @@ def cross_validation(fold: int = 1):
 
     # Load models
     detector_weight_paths = [
-        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_{fold}/best_val.pth",
-        # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best_val.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_1/best_val.pth",
+        f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_2/best_val.pth",
         # f"/home/u1910100/cloud_workspace/data/Monkey/cell_multiclass_det/{detector_model_name}/fold_4/best_val.pth",
     ]
     detectors = []
@@ -101,9 +101,8 @@ def cross_validation(fold: int = 1):
         # model = get_custom_hovernext(pretrained=False)
         model = get_custom_hovernext(
             enc="tf_efficientnetv2_l.in21k_ft_in1k",
-            # enc="efficientvit_l3.r256_in1k",
             # enc="convnextv2_large.fcmae_ft_in22k_in1k",
-            pretrained=False,
+            pretrained=True,
             use_batchnorm=True,
             attention_type="scse",
             decoders_out_channels=[3, 3, 3],

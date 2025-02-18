@@ -15,6 +15,7 @@ from monkey.data.data_utils import (
     imagenet_normalise_torch,
 )
 from monkey.model.utils import get_activation_function
+from torch.amp import autocast
 
 
 def detection_in_tile(
@@ -55,13 +56,20 @@ def detection_in_tile(
         "lymph_prob": [],
         "mono_prob": [],
     }
+
+
     batch_size = 16
     dataloader = DataLoader(
         patch_extractor,
         batch_size=batch_size,
         shuffle=False,
         collate_fn=collate_fn,
+        num_workers=4,
+        pin_memory=True,
     )
+    inflamm_prob_np = np.zeros((len(patch_extractor), patch_size, patch_size), dtype=np.float16)
+    lymph_prob_np = np.zeros_like(inflamm_prob_np)
+    mono_prob_np = np.zeros_like(inflamm_prob_np)
 
     activation_dict = {
         "head_1": get_activation_function("sigmoid"),
@@ -69,47 +77,48 @@ def detection_in_tile(
         "head_3": get_activation_function("sigmoid"),
     }
 
-    for i, imgs in enumerate(dataloader):
+    start_idx = 0
+    for imgs in dataloader:
+        batch_size_actual = imgs.shape[0]  # In case last batch is smaller
+        end_idx = start_idx + batch_size_actual
         imgs = torch.permute(imgs, (0, 3, 1, 2))
         imgs = imgs / 255
         imgs = imagenet_normalise_torch(imgs)
         imgs = imgs.to("cuda").float()
 
-        inflamm_prob = np.zeros(
-            shape=(imgs.shape[0], patch_size, patch_size)
+        inflamm_prob = torch.zeros(
+            size=(imgs.shape[0], patch_size, patch_size), device="cuda"
         )
-        lymph_prob = np.zeros(
-            shape=(imgs.shape[0], patch_size, patch_size)
+        lymph_prob = torch.zeros(
+            size=(imgs.shape[0], patch_size, patch_size), device="cuda"
         )
-        mono_prob = np.zeros(
-            shape=(imgs.shape[0], patch_size, patch_size)
+        mono_prob = torch.zeros(
+            size=(imgs.shape[0], patch_size, patch_size), device="cuda"
         )
+
         with torch.no_grad():
             for model in models:
-                model.eval()
-                logits_pred = model(imgs)
-                head_1_logits = logits_pred[:, 0, :, :]
-                head_2_logits = logits_pred[:, 1, :, :]
-                head_3_logits = logits_pred[:, 2, :, :]
+                with autocast(device_type='cuda'):
+                    logits_pred = model(imgs)
+                _inflamm_prob = activation_dict["head_1"](logits_pred[:, 2, :, :])
+                _lymph_prob = activation_dict["head_2"](logits_pred[:, 5, :, :])
+                _mono_prob = activation_dict["head_3"](logits_pred[:, 8, :, :])
+
+                _inflamm_seg_prob = activation_dict["head_1"](logits_pred[:, 0, :, :])
+                _lymph_seg_prob = activation_dict["head_2"](logits_pred[:, 3, :, :])
+                _mono_seg_prob = activation_dict["head_3"](logits_pred[:, 6, :, :])
+
+                _inflamm_seg_prob *= (_inflamm_prob >= config.thresholds[0]).to(dtype=torch.float16)
+                _lymph_seg_prob *= (_lymph_prob >= config.thresholds[1]).to(dtype=torch.float16)
+                _mono_seg_prob *= (_mono_prob >= config.thresholds[2]).to(dtype=torch.float16)
 
                 _inflamm_prob = (
-                    activation_dict["head_1"](head_1_logits)
-                    .detach()
-                    .cpu()
-                    .numpy()
+                    _inflamm_seg_prob * 0.4 + _inflamm_prob * 0.6
                 )
                 _lymph_prob = (
-                    activation_dict["head_2"](head_2_logits)
-                    .detach()
-                    .cpu()
-                    .numpy()
+                    _lymph_seg_prob * 0.4 + _lymph_prob * 0.6
                 )
-                _mono_prob = (
-                    activation_dict["head_3"](head_3_logits)
-                    .detach()
-                    .cpu()
-                    .numpy()
-                )
+                _mono_prob = _mono_seg_prob * 0.4 + _mono_prob * 0.6
 
                 inflamm_prob += _inflamm_prob
                 lymph_prob += _lymph_prob
@@ -119,9 +128,15 @@ def detection_in_tile(
         lymph_prob = lymph_prob / len(models)
         mono_prob = mono_prob / len(models)
 
-        predictions["inflamm_prob"].extend(list(inflamm_prob))
-        predictions["lymph_prob"].extend(list(lymph_prob))
-        predictions["mono_prob"].extend(list(mono_prob))
+        inflamm_prob_np[start_idx:end_idx] = inflamm_prob.cpu().numpy()
+        lymph_prob_np[start_idx:end_idx] = lymph_prob.cpu().numpy()
+        mono_prob_np[start_idx:end_idx] = mono_prob.cpu().numpy()
+
+        start_idx = end_idx  # Update index for next batch
+
+    predictions["inflamm_prob"] = list(inflamm_prob_np)
+    predictions["lymph_prob"] = list(lymph_prob_np)
+    predictions["mono_prob"] = list(mono_prob_np)
 
     return predictions, patch_extractor.coordinate_list
 
@@ -165,7 +180,7 @@ def wsi_raw_prediction(
     mask_thumbnail = mask_reader.slide_thumbnail(
         resolution=2.0, units="mpp"
     )
-    binary_mask = mask_thumbnail[:, :, 0]
+    binary_mask = np.where(mask_thumbnail > 0, 1, 0).astype(np.uint8)
     # Create tile extractor
     resolution = config.resolution
     units = config.units
@@ -181,6 +196,11 @@ def wsi_raw_prediction(
     tile_predictions = []
     tile_coordinates = []
     bounding_boxes = []
+    tile_masks = []
+
+    for model in models:
+        model.eval()
+
     for i, tile in enumerate(
         tqdm(
             tile_extractor,
@@ -194,6 +214,15 @@ def wsi_raw_prediction(
         predictions, coordinates = detection_in_tile(
             tile, models, config
         )
+        mask_tile = mask_reader.read_rect(
+            location=(bounding_box[0], bounding_box[1]),
+            size=(2048, 2048),
+            resolution=0,
+            units="level",
+        )[:, :, 0].astype(np.uint8)
+        mask_tile[mask_tile > 0] = 1
+
+        tile_masks.append(mask_tile)
         tile_predictions.append(predictions)
         tile_coordinates.append(coordinates)
         bounding_boxes.append(bounding_box)
@@ -203,6 +232,7 @@ def wsi_raw_prediction(
         "tile_predictions": tile_predictions,
         "tile_coordinates": tile_coordinates,
         "bounding_boxes": bounding_boxes,
+        "tile_masks": tile_masks,
     }
     data_path = os.path.join(
         raw_prediction_dir, f"{wsi_without_ext}.pkl"

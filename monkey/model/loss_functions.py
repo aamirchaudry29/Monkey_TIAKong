@@ -99,6 +99,8 @@ def get_loss_function(loss_type: str) -> Loss_Function:
         "Focal_Loss": Focal_Loss,
         "MSGE_Loss": MSGE_Loss,
         "Jaccard_Dice_Focal_Loss": Jaccard_Dice_Focal_Loss,
+        "Weighted_Jaccard_Focal_Loss": Weighted_Jaccard_Focal_Loss,
+        "Weighted_Dice_Jaccard_Focal_Loss": Weighted_Dice_Jaccard_Focal_Loss
         # To add a new loss function, first create a subclass of Loss_Function
         # Then add a new entry here:
         # "<loss_type>": <class name>
@@ -194,6 +196,102 @@ class Focal_Loss(Loss_Function):
     def set_alpha(self, alpha):
         self.loss_fn.alpha = alpha
         return
+    
+
+class Weighted_Focal_Loss(Loss_Function):
+    def __init__(self, use_weights=False):
+        super().__init__("name", use_weights)
+        self.loss_fn = FocalLoss(
+            include_background=True,
+            gamma=2.0,
+            alpha=0.25,
+            reduction="none",
+        )
+
+    def compute_loss(self, input: Tensor, target: Tensor, weight_map: Tensor):
+        focal_loss = self.loss_fn(input, target)
+        return (focal_loss * weight_map).mean()
+
+    def set_multiclass(self):
+        return
+
+    def set_gamma(self, gamma):
+        self.loss_fn.gamma = gamma
+        return
+
+    def set_alpha(self, alpha):
+        self.loss_fn.alpha = alpha
+        return
+    
+
+class Weighted_Jaccard_Loss(Loss_Function):
+    def __init__(self, use_weights=False):
+            super().__init__("name", use_weights)
+            self.loss_fn = DiceLoss(
+                include_background=True,
+                jaccard=True,
+                reduction="none",
+            )
+
+    def compute_loss(self, input: Tensor, target: Tensor, weight_map: Tensor):
+        jaccard_loss = self.loss_fn(input, target)
+        return (jaccard_loss * weight_map).mean()
+
+    def set_multiclass(self):
+        return
+    
+
+class Weighted_Dice_Loss(Loss_Function):
+    def __init__(self, use_weights=False):
+            super().__init__("name", use_weights)
+            self.loss_fn = DiceLoss(
+                include_background=True,
+                reduction="none",
+            )
+
+    def compute_loss(self, input: Tensor, target: Tensor, weight_map: Tensor):
+        dice_loss = self.loss_fn(input, target)
+        return (dice_loss * weight_map).mean()
+
+    def set_multiclass(self):
+        return
+
+
+class Weighted_Jaccard_Focal_Loss(Loss_Function):
+    def __init__(self, use_weights=False):
+        super().__init__("name", use_weights)
+        self.focal_loss = Weighted_Focal_Loss()
+        self.jaccard_loss = Weighted_Jaccard_Loss()
+        self.multiclass = False
+
+
+    def compute_loss(self, input: Tensor, target: Tensor, weight_map: Tensor):
+        loss_1 = self.focal_loss.compute_loss(input, target, weight_map)
+        loss_2 = self.jaccard_loss.compute_loss(input, target, weight_map)
+        return loss_1 + loss_2
+
+    def set_multiclass(self, multiclass: bool):
+        return
+    
+
+class Weighted_Dice_Jaccard_Focal_Loss(Loss_Function):
+    def __init__(self, use_weights=False):
+        super().__init__("name", use_weights)
+        self.focal_loss = Weighted_Focal_Loss()
+        self.jaccard_loss = Weighted_Jaccard_Loss()
+        self.dice_loss = Weighted_Dice_Loss()
+        self.multiclass = False
+
+
+    def compute_loss(self, input: Tensor, target: Tensor, weight_map: Tensor):
+        loss_1 = self.focal_loss.compute_loss(input, target, weight_map)
+        loss_2 = self.jaccard_loss.compute_loss(input, target, weight_map)
+        loss_3 = self.dice_loss.compute_loss(input, target, weight_map)
+        return loss_1 + loss_2 + loss_3
+
+    def set_multiclass(self, multiclass: bool):
+        return
+
 
 
 class Jaccard_Dice_Focal_Loss(Loss_Function):
