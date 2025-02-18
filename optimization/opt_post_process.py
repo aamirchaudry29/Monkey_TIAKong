@@ -10,32 +10,22 @@ import os
 from multiprocessing import Pool
 from pprint import pprint
 
-import torch
 from tiatoolbox.wsicore.wsireader import WSIReader
-from tqdm.auto import tqdm
 
 from monkey.config import PredictionIOConfig
 from monkey.data.data_utils import (
-    detection_to_annotation_store,
     extract_id,
-    normalize_detection_probs,
     open_json_file,
     save_detection_records_monkey,
 )
-from monkey.model.cellvit.cellvit import CellVit256_Unet
-from monkey.model.efficientunetb0.architecture import (
-    get_multihead_efficientunet,
-)
-from monkey.model.hovernext.model import (
-    get_convnext_unet,
-    get_custom_hovernext,
-)
 from optimization.post_process import post_process_detection
+import click
 
+@click.command()
+@click.option("--fold", default=1)
+def cross_validation(fold: int = 1):
+    detector_model_name = "efficientnetv2_l_multitask_det_decoder_v4"
 
-def cross_validation(fold_number: int = 1):
-    detector_model_name = "convnext_tiny_pannuke_256"
-    fold = fold_number
     pprint(
         f"Post-processing raw prediction from {detector_model_name}"
     )
@@ -51,7 +41,7 @@ def cross_validation(fold_number: int = 1):
         resolution=model_res,
         units=units,
         stride=224,
-        thresholds=[0.3, 0.3, 0.3],
+        thresholds=[0.5, 0.5, 0.5],
         min_distances=[11, 11, 11],
         nms_boxes=[11, 11, 11],
         nms_overlap_thresh=0.5,
@@ -80,19 +70,17 @@ def cross_validation(fold_number: int = 1):
 
     print(val_wsi_files)
 
-    detectors = []
-
     with Pool(20) as p:
         p.starmap(
             process_one_wsi,
             [
-                (config, detectors, wsi_name)
+                (config, wsi_name)
                 for wsi_name in val_wsi_files
             ],
         )
 
 
-def process_one_wsi(config, detectors, wsi_name):
+def process_one_wsi(config, wsi_name):
     wsi_id = extract_id(wsi_name)
     mask_name = f"{wsi_id}_mask.tif"
     wsi_dir = config.wsi_dir
@@ -103,7 +91,7 @@ def process_one_wsi(config, detectors, wsi_name):
     )[0]
 
     detection_records = post_process_detection(
-        wsi_name, mask_name, config, detectors
+        wsi_name, mask_name, config
     )
 
     inflamm_records = detection_records["inflamm_records"]
@@ -126,8 +114,4 @@ def process_one_wsi(config, detectors, wsi_name):
 
 
 if __name__ == "__main__":
-    folds = [1, 2, 3, 4, 5]
-
-    for i in folds:
-        pprint(f"Fold {i}")
-        cross_validation(i)
+    cross_validation()

@@ -1,9 +1,9 @@
 #!/bin/bash
 #
 #SBATCH --job-name=monkey_prediction # Job name for tracking
-#SBATCH --partition=dgx2  # Partition you wish to use (see above for list)
+#SBATCH --partition=dgxa100  # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8      # Number of CPU threads used by your job
+#SBATCH --cpus-per-task=12      # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1           # Number of GPUs to use 
 #SBATCH --mem=12000            # Memory (mb) to use 
 #SBATCH --time=2:00:00      # Job time limit
@@ -26,5 +26,6 @@ echo "starting prediction script"
 
 # python3.11 prediction_multiclass_segmentation.py --fold=$1
 python3.11 prediction_multiclass_detection.py --fold=$1
+# python3.11 optimization/run_prediction.py --fold=$1
 
 echo "finished"
