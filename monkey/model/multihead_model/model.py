@@ -1,13 +1,8 @@
-from collections import OrderedDict
-
 import segmentation_models_pytorch as smp
 import segmentation_models_pytorch.base.initialization as init
 import timm
-
-# from segmentation_models_pytorch.encoders import get_encoder
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from segmentation_models_pytorch.base import modules as md
 from torchvision.ops import Conv2dNormActivation
 

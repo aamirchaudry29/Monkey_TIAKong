@@ -1,5 +1,6 @@
 # Monkey_TIAKong
 GitHub Repostory for TIAKong Algorithm for the [MONKEY challenge](https://monkey.grand-challenge.org/).  
+This algorithm achieved 1st place for overall detection, and 2nd place for detection classification in the challenge.  
 
 # Description
 Training and prediction pipeline for mononuclear leukocytes (MNLs) detection.  
@@ -27,14 +28,6 @@ Segmentation prediction: BCE + Dice
 Contour prediction: BCE + Dice  
 Loss from 3 decoders are combined using `AutomaticWeightedLoss` [src](https://github.com/Mikoto10032/AutomaticWeightedLoss).
 
-## Training parameters
-Batch Size = 48  
-Inital Learning rate = 0.0004  
-Optimizer = AdamW  
-Weight Decay = 0.005  
-Scheduler = CosineAnnealingWarmRestarts  
-Early stop is used  
-
 # WSI Inference Pipeline  
 `inference-docker/inference_multiclass_detection.py`  
 ## Inference Process  
@@ -51,5 +44,18 @@ We trained the model using a 5-fold cross validation stratified by centres.
 Top 3 model check points can be downloaded [here](https://livewarwickac-my.sharepoint.com/:f:/g/personal/u1910100_live_warwick_ac_uk/Es70doVr9xhPnhGEhMlzWjIB69OqwhpBxO9cfGfpn3TS9g?e=8I4dp6) under CC BY-NC 4.0 license.
 
 # Authors
-This code is made by Jiaqi Lv, as part of the TIA Centre, University of Warwick, Coventry, UK.  
+This repository is made by Jiaqi Lv, from the Tissue Image Analytics Centre, University of Warwick, Coventry, UK.  
 Other members of the TIAKong team are: Esha Nasir, Kesi Xu, Mostafa Jahanifar, Brinder Singh Chohan, Behnaz Elhaminia, Shan E Ahmed Raza.  
+
+# Citing
+We are currently working on the paper associated with this model, for now you can cite this GitHub repository.
+````
+@misc{
+    Author = {Jiaqi Lv, Esha Nasir, Kesi Xu, Mostafa Jahanifar, Brinder Singh Chohan, Behnaz Elhaminia, Shan E Ahmed Raza},
+    Title = {Monkey_TIAKong},
+    Year = {2025},
+    Publisher = {Github},
+    Journal = {GitHub repository},
+    Howpublished = {\url{https://github.com/Jiaqi-Lv/Monkey_TIAKong}}
+}
+````
