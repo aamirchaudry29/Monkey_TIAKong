@@ -2,6 +2,7 @@ import json
 import os
 import re
 
+from tiffslide import TiffSlide
 import cv2
 import numpy as np
 import scipy.ndimage as ndi
@@ -985,7 +986,7 @@ def point_to_box(x, y, size, prob=None):
 
 
 def slide_nms(
-    wsi_reader: WSIReader,
+    wsi_reader,
     binary_mask: np.ndarray,
     detection_record: list[dict],
     tile_size: int = 2048,
@@ -993,51 +994,53 @@ def slide_nms(
     overlap_thresh: float = 0.5,
 ):
     """
-    Iterate over detection records and perform NMS.
-    For this to properly work, tiles need to be larger than
-    model inference patches.
+    Perform NMS over WSI tiles using a detection record and binary tissue mask.
+    Compatible with both tiatoolbox WSIReader and TiffSlide.
     """
-    # Open WSI and detection points file
+    # --- Handle shape extraction
+    if isinstance(wsi_reader, TiffSlide):
+        w, h = wsi_reader.level_dimensions[0]
+    elif hasattr(wsi_reader, "slide_dimensions"):
+        w, h = wsi_reader.slide_dimensions
+    else:
+        h, w = binary_mask.shape
 
-    tile_extractor = get_patch_extractor(
-        input_img=wsi_reader,
-        input_mask=binary_mask,
-        method_name="slidingwindow",
-        patch_size=(tile_size, tile_size),
-        resolution=0,
-        units="level",
-    )
+    # Ensure mask shape matches coordinate system
+    mask_h, mask_w = binary_mask.shape
+    if mask_w != w or mask_h != h:
+        raise ValueError("Binary mask shape and WSI dimensions mismatch")
 
+    # Generate non-overlapping coordinates from mask
+    coords = []
+    for y in range(0, h - tile_size + 1, tile_size):
+        for x in range(0, w - tile_size + 1, tile_size):
+            tile_mask = binary_mask[y:y + tile_size, x:x + tile_size]
+            if tile_mask.sum() > 0:
+                coords.append((x, y))
+
+    # Convert detections to annotation store
     annotation_store = detection_to_annotation_store(
         detection_record, scale_factor=1, type="Point"
     )
 
     center_nms_points = []
-    # get 2048x2048 patch coordinates without overlap
-    for bb in tile_extractor.coordinate_list:
-        x_pos = bb[0]
-        y_pos = bb[1]
-        # Select annotations within 2048x2048 box
+
+    for x_pos, y_pos in coords:
         box = [x_pos, y_pos, x_pos + tile_size, y_pos + tile_size]
         patch_points = get_points_within_box(annotation_store, box)
 
         if len(patch_points) < 2:
+            center_nms_points.extend(patch_points)
             continue
 
-        # Convert each point to a box
-        boxes = np.array(
-            [
-                point_to_box(
-                    entry["x"], entry["y"], box_size, entry["prob"]
-                )
-                for entry in patch_points
-            ]
-        )
-        indices = nms(boxes, overlap_thresh)
-        for i in indices:
+        boxes = np.array([
+            point_to_box(p["x"], p["y"], box_size, p["prob"])
+            for p in patch_points
+        ])
+        keep = nms(boxes, overlap_thresh)
+
+        for i in keep:
             center_nms_points.append(patch_points[i])
-        # for box in nms_boxes:
-        #     center_nms_points.append(get_centerpoints(box, box_size))
 
     return center_nms_points
 
